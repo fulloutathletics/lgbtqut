@@ -1,0 +1,2591 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+@font-face{font-family:Garet;src:url("fonts/Garet-Book.woff2") format("woff2");font-weight:400;font-display:swap}
+@font-face{font-family:Garet;src:url("fonts/Garet-Medium.woff2") format("woff2");font-weight:500 600;font-display:swap}
+@font-face{font-family:Garet;src:url("fonts/Garet-Bold.woff2") format("woff2");font-weight:700 800;font-display:swap}
+body{margin:0;background:#EDEBE7;font-family:Garet,Outfit,-apple-system,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:#7A2FA6;text-decoration:none}a:hover{color:#5C1F80}
+*{box-sizing:border-box}
+.hs::-webkit-scrollbar{display:none}
+.hs{scrollbar-width:none}
+.tap{cursor:pointer;transition:transform .12s ease,box-shadow .2s ease,background .2s ease}
+.tap:active{transform:scale(.985)}
+</style>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+window.imgErr = function (e) {
+  var el = e && (e.target || e.srcElement); if (!el) return;
+  el.style.display = 'none';
+  var p = el.parentElement; if (!p) return;
+  var cs = getComputedStyle(p);
+  if (cs.backgroundColor === 'rgba(0, 0, 0, 0)' && cs.backgroundImage === 'none')
+    p.style.background = 'repeating-linear-gradient(135deg,#E9E5DF 0 9px,#E2DDD6 9px 18px)';
+};
+</script>
+</helmet>
+
+<div style="min-height:100vh;display:flex;flex-direction:column;align-items:center;gap:22px;padding:36px 24px 64px;--ac:{{ accent }};--bar:{{ themeBar }};--tint:{{ tint }}">
+
+<div style="width:100%;max-width:880px;display:flex;flex-wrap:wrap;gap:18px;justify-content:space-between;align-items:flex-end">
+<div>
+<div style="font:600 11px/1 Garet,Outfit,sans-serif;letter-spacing:.16em;text-transform:uppercase;color:#8C8880;margin-bottom:9px">LGBTQ.UT — prototype</div>
+<div style="font:800 30px/1.05 Garet,Outfit,sans-serif;color:#1A1A18;letter-spacing:-.02em">Utah queer resource app</div>
+</div>
+<div style="font:400 13px/1.55 Garet,Outfit,sans-serif;color:#6F6B64;max-width:330px;text-align:right">Running on your real sheets: 171 resources, 36 businesses, 6 router tabs. Tap anything — search, filters, map pins and saving all work.</div>
+</div>
+
+<x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" hint-size="402px,874px">
+<div style="height:100%;display:flex;flex-direction:column;background:#fff;overflow:hidden">
+
+<div class="hs" style="flex:1;overflow-y:auto;overflow-x:hidden;background:#fff">
+
+<sc-if value="{{ showHeader }}" hint-placeholder-val="{{ true }}">
+<div style="position:relative">
+<div style="height:158px;background:var(--bar,linear-gradient(100deg,#E40303,#FF8C00,#FFED00,#008026,#004DFF,#750787));position:relative;overflow:hidden">
+<sc-if value="{{ headerImg }}"><img src="{{ headerImg }}" onError="{{ imgErr }}" style="width:100%;height:100%;object-fit:cover;opacity:.92"></sc-if>
+</div>
+<div style="display:flex;justify-content:center;margin-top:-52px;position:relative;z-index:2">
+<div style="width:104px;height:104px;border-radius:999px;background:#111;border:4px solid #fff;box-shadow:0 6px 20px rgba(0,0,0,.22);overflow:hidden">
+<img src="https://storage.googleapis.com/glide-prod.appspot.com/uploads-v2/NSfaaNV0fRhAK9yZqEUi/pub/xJvzSXG0KhRgxQYQKBUO/lgbtqut%20(1).png" onError="{{ imgErr }}" style="width:100%;height:100%;object-fit:cover">
+</div>
+</div>
+<div style="padding:12px 24px 18px;text-align:center">
+<div style="font:800 27px/1.15 Garet,Outfit,sans-serif;color:#141414;letter-spacing:-.02em">{{ pageTitle }}</div>
+<div style="font:400 14px/1.45 Garet,Outfit,sans-serif;color:#77736C;margin-top:5px;text-wrap:pretty">{{ pageTagline }}</div>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isHome }}" hint-placeholder-val="{{ true }}">
+<div style="padding:0 16px 28px;display:flex;flex-direction:column;gap:14px">
+
+<div class="tap" onClick="{{ openCrisis }}" style="border-radius:14px;background:#1C1B1A;padding:16px 18px;display:flex;align-items:center;gap:14px;box-shadow:0 4px 16px rgba(0,0,0,.14)">
+<div style="width:40px;height:40px;border-radius:999px;background:#E4373C;display:flex;align-items:center;justify-content:center;flex:none">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round"><path d="M12 8v5"></path><path d="M12 17h.01"></path></svg>
+</div>
+<div style="flex:1;min-width:0">
+<div style="font:700 15px/1.2 Garet,Outfit,sans-serif;color:#fff">Crisis Resources</div>
+<div style="font:400 12.5px/1.35 Garet,Outfit,sans-serif;color:#B4B0AA;margin-top:3px">You are not alone. Help is available.</div>
+</div>
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8A8680" stroke-width="2.4" stroke-linecap="round"><path d="M9 18l6-6-6-6"></path></svg>
+</div>
+
+<sc-if value="{{ cardsImage }}" hint-placeholder-val="{{ true }}">
+<sc-for list="{{ routerTabs }}" as="t" hint-placeholder-count="4">
+<div class="tap" onClick="{{ t.open }}" style="position:relative;border-radius:14px;overflow:hidden;height:240px;background:#D6D2CC;box-shadow:0 3px 12px rgba(0,0,0,.09)">
+<img src="{{ t.img }}" onError="{{ imgErr }}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover">
+<div style="position:absolute;inset:0;background:linear-gradient(160deg,rgba(0,0,0,.62) 0%,rgba(0,0,0,.22) 55%,rgba(0,0,0,.05) 100%)"></div>
+<div style="position:absolute;top:14px;left:16px;right:16px">
+<div style="font:700 18px/1.15 Garet,Outfit,sans-serif;color:#fff;text-shadow:0 1px 6px rgba(0,0,0,.45)">{{ t.name }}</div>
+<div style="font:400 12.5px/1.35 Garet,Outfit,sans-serif;color:rgba(255,255,255,.88);margin-top:4px;text-shadow:0 1px 6px rgba(0,0,0,.45)">{{ t.sub }}</div>
+</div>
+<div style="position:absolute;bottom:12px;right:14px;background:rgba(255,255,255,.92);border-radius:999px;padding:4px 11px;font:600 11px/1.4 Garet,Outfit,sans-serif;color:#2A2A28">{{ t.count }}</div>
+</div>
+</sc-for>
+</sc-if>
+
+<sc-if value="{{ cardsGrid }}">
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+<sc-for list="{{ routerTabs }}" as="t" hint-placeholder-count="5">
+<div class="tap" onClick="{{ t.open }}" style="position:relative;border-radius:14px;overflow:hidden;aspect-ratio:1/1;background:#D6D2CC">
+<img src="{{ t.img }}" onError="{{ imgErr }}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover">
+<div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.05),rgba(0,0,0,.72))"></div>
+<div style="position:absolute;bottom:12px;left:13px;right:13px">
+<div style="font:700 15px/1.15 Garet,Outfit,sans-serif;color:#fff">{{ t.name }}</div>
+<div style="font:400 11px/1.3 Garet,Outfit,sans-serif;color:rgba(255,255,255,.82);margin-top:3px">{{ t.count }}</div>
+</div>
+</div>
+</sc-for>
+</div>
+</sc-if>
+
+<sc-if value="{{ cardsList }}">
+<div style="border-radius:14px;border:1px solid #EAE7E2;overflow:hidden">
+<sc-for list="{{ routerTabs }}" as="t" hint-placeholder-count="5">
+<div class="tap" onClick="{{ t.open }}" style="display:flex;align-items:center;gap:13px;padding:12px 14px;border-bottom:1px solid #F1EEEA;background:#fff">
+<div style="width:52px;height:52px;border-radius:10px;overflow:hidden;background:#D6D2CC;flex:none">
+<img src="{{ t.img }}" onError="{{ imgErr }}" style="width:100%;height:100%;object-fit:cover">
+</div>
+<div style="flex:1;min-width:0">
+<div style="font:700 15px/1.2 Garet,Outfit,sans-serif;color:#1A1A18">{{ t.name }}</div>
+<div style="font:400 12px/1.35 Garet,Outfit,sans-serif;color:#84807A;margin-top:3px">{{ t.sub }}</div>
+</div>
+<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#B9B5AE" stroke-width="2.4" stroke-linecap="round"><path d="M9 18l6-6-6-6"></path></svg>
+</div>
+</sc-for>
+</div>
+</sc-if>
+
+</div>
+</sc-if>
+
+<sc-if value="{{ isList }}">
+<div style="position:sticky;top:0;z-index:5;background:#fff;border-bottom:1px solid #EFECE8">
+<div style="display:flex;align-items:center;gap:10px;padding:56px 14px 10px">
+<div class="tap" onClick="{{ back }}" style="width:34px;height:34px;border-radius:999px;background:#F1EFEB;display:flex;align-items:center;justify-content:center;flex:none">
+<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#2A2A28" stroke-width="2.4" stroke-linecap="round"><path d="M15 18l-6-6 6-6"></path></svg>
+</div>
+<div style="flex:1;min-width:0">
+<div style="font:700 17px/1.2 Garet,Outfit,sans-serif;color:#161615">{{ listTitle }}</div>
+</div>
+</div>
+</div>
+
+<sc-if value="{{ showChooser }}">
+<div style="position:relative;height:104px;overflow:hidden;background:#2A2438">
+<img src="https://storage.googleapis.com/glide-prod.appspot.com/uploads-v2/NSfaaNV0fRhAK9yZqEUi/pub/zp6A8QW7LHdPd2UEf9AH.png" onError="{{ imgErr }}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover">
+<div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.52),rgba(0,0,0,.62))"></div>
+<div style="position:absolute;left:18px;right:18px;top:50%;transform:translateY(-50%)">
+<div style="font:800 22px/1.15 Garet,Outfit,sans-serif;color:#fff;letter-spacing:-.02em;text-shadow:0 1px 8px rgba(0,0,0,.5)">{{ listTitle }}</div>
+<div style="font:400 13px/1.35 Garet,Outfit,sans-serif;color:rgba(255,255,255,.82);margin-top:5px;text-shadow:0 1px 8px rgba(0,0,0,.5)">{{ listSub }}</div>
+</div>
+</div>
+</sc-if>
+<div style="padding:14px 16px 0">
+<div style="display:flex;align-items:center;gap:9px;background:#F3F1ED;border-radius:11px;padding:9px 12px">
+<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#938F88" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
+<input value="{{ q }}" onChange="{{ onQuery }}" placeholder="{{ searchHint }}" style="flex:1;border:none;outline:none;background:transparent;font:400 14px/1.3 Garet,Outfit,sans-serif;color:#1A1A18">
+</div>
+</div>
+<sc-if value="{{ showChooser }}">
+<div style="padding:14px 16px 24px;display:flex;flex-direction:column;gap:14px">
+<sc-for list="{{ chooserItems }}" as="c" hint-placeholder-count="6">
+<div class="tap" onClick="{{ c.pick }}" style="position:relative;border-radius:14px;overflow:hidden;height:240px;background:{{ c.bg }};box-shadow:0 3px 12px rgba(0,0,0,.09)">
+<img src="{{ c.img }}" onError="{{ imgErr }}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover">
+<div style="position:absolute;inset:0;background:linear-gradient(160deg,rgba(0,0,0,.62) 0%,rgba(0,0,0,.22) 55%,rgba(0,0,0,.05) 100%)"></div>
+<div style="position:absolute;top:14px;left:16px;right:16px">
+<div style="font:700 18px/1.15 Garet,Outfit,sans-serif;color:#fff;text-shadow:0 1px 6px rgba(0,0,0,.45)">{{ c.label }}</div>
+</div>
+<div style="position:absolute;bottom:12px;right:14px;background:rgba(255,255,255,.92);border-radius:999px;padding:4px 11px;font:600 11px/1.4 Garet,Outfit,sans-serif;color:#2A2A28">{{ c.count }} resources</div>
+</div>
+</sc-for>
+</div>
+</sc-if>
+
+<sc-if value="{{ showResults }}">
+<div style="padding:6px 0 24px">
+<div style="font:500 11.5px/1.2 Garet,Outfit,sans-serif;color:#96928B;padding:8px 16px 6px;letter-spacing:.02em">{{ resultCount }}</div>
+<sc-for list="{{ listItems }}" as="r" hint-placeholder-count="7">
+<div class="tap" onClick="{{ r.open }}" style="display:flex;align-items:center;gap:13px;padding:11px 16px;border-bottom:1px solid #F3F0EC">
+<div style="width:50px;height:50px;border-radius:11px;overflow:hidden;background:#F0EDE8;flex:none;display:flex;align-items:center;justify-content:center">
+<img src="{{ r.img }}" onError="{{ imgErr }}" style="width:100%;height:100%;object-fit:cover">
+</div>
+<div style="flex:1;min-width:0">
+<div style="display:flex;align-items:center;gap:6px">
+<div style="font:600 14.5px/1.25 Garet,Outfit,sans-serif;color:#1A1A18;text-wrap:pretty;min-width:0">{{ r.name }}</div>
+<sc-if value="{{ r.verified }}">
+<svg width="15" height="15" viewBox="0 0 24 24" style="flex:none"><path d="M12 2l2.5 1.9 3.1-.3 1 3 2.7 1.6-1 2.8 1 2.8-2.7 1.6-1 3-3.1-.3L12 22l-2.5-1.9-3.1.3-1-3-2.7-1.6 1-2.8-1-2.8 2.7-1.6 1-3 3.1.3z" fill="var(--ac,#7A2FA6)"></path><path d="M8.4 12.3l2.5 2.5 4.7-5" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+</sc-if>
+</div>
+<div style="font:400 11.5px/1.3 Garet,Outfit,sans-serif;color:#89857E;margin-top:3px">{{ r.sub }}</div>
+</div>
+<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#C3BFB8" stroke-width="2.4" stroke-linecap="round"><path d="M9 18l6-6-6-6"></path></svg>
+</div>
+</sc-for>
+<sc-if value="{{ noResults }}">
+<div style="padding:52px 32px;text-align:center">
+<div style="font:600 15px/1.3 Garet,Outfit,sans-serif;color:#3A3A37">No matches</div>
+<div style="font:400 13px/1.5 Garet,Outfit,sans-serif;color:#8A867F;margin-top:6px">Try a different search or clear your filters.</div>
+</div>
+</sc-if>
+</div>
+</sc-if>
+</sc-if>
+
+<sc-if value="{{ isCrisis }}">
+<div style="padding:56px 16px 28px;background:#141413;min-height:100%">
+<div class="tap" onClick="{{ back }}" style="width:34px;height:34px;border-radius:999px;background:rgba(255,255,255,.12);display:flex;align-items:center;justify-content:center;margin-bottom:20px">
+<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round"><path d="M15 18l-6-6 6-6"></path></svg>
+</div>
+<div style="font:800 28px/1.1 Garet,Outfit,sans-serif;color:#fff;letter-spacing:-.02em">Crisis Resources</div>
+<div style="font:400 14px/1.5 Garet,Outfit,sans-serif;color:#A5A19B;margin-top:7px;margin-bottom:22px">You are not alone. Help is available, right now, free and confidential.</div>
+<sc-for list="{{ crisisLines }}" as="c" hint-placeholder-count="3">
+<div style="border-radius:14px;background:#232321;padding:16px 17px;margin-bottom:11px">
+<div style="font:700 16px/1.2 Garet,Outfit,sans-serif;color:#fff">{{ c.name }}</div>
+<div style="font:400 12.5px/1.45 Garet,Outfit,sans-serif;color:#A5A19B;margin-top:5px">{{ c.desc }}</div>
+<div style="display:flex;gap:9px;margin-top:13px">
+<div class="tap" style="flex:1;text-align:center;border-radius:10px;padding:10px;background:#E4373C;font:700 13px/1.2 Garet,Outfit,sans-serif;color:#fff">{{ c.action }}</div>
+<div class="tap" style="border-radius:10px;padding:10px 15px;background:rgba(255,255,255,.1);font:600 13px/1.2 Garet,Outfit,sans-serif;color:#fff">Text</div>
+</div>
+</div>
+</sc-for>
+<div style="font:400 12px/1.5 Garet,Outfit,sans-serif;color:#6E6A65;margin-top:16px;text-align:center">If you are in immediate danger, call 911.</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isResource }}">
+<div>
+<div style="position:sticky;top:0;z-index:5;background:#fff;border-bottom:1px solid #EFECE8;display:flex;align-items:center;gap:10px;padding:56px 14px 10px">
+<div class="tap" onClick="{{ back }}" style="width:34px;height:34px;border-radius:999px;background:#F1EFEB;display:flex;align-items:center;justify-content:center;flex:none">
+<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#2A2A28" stroke-width="2.4" stroke-linecap="round"><path d="M15 18l-6-6 6-6"></path></svg>
+</div>
+<div style="flex:1;min-width:0;font:600 16px/1.2 Garet,Outfit,sans-serif;color:#161615;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ res.name }}</div>
+<div class="tap" onClick="{{ res.toggleSave }}" style="width:34px;height:34px;border-radius:999px;background:#F1EFEB;display:flex;align-items:center;justify-content:center;flex:none">
+<svg width="17" height="17" viewBox="0 0 24 24" fill="{{ res.heartFill }}" stroke="{{ res.heartStroke }}" stroke-width="2"><path d="M12 20s-7-4.5-7-9.5A3.9 3.9 0 0 1 12 8a3.9 3.9 0 0 1 7 2.5c0 5-7 9.5-7 9.5z"></path></svg>
+</div>
+</div>
+<div style="width:100%;aspect-ratio:4/3;background:{{ resTint }};display:flex;align-items:center;justify-content:center;overflow:hidden">
+<img src="{{ res.img }}" onError="{{ imgErr }}" style="width:100%;height:100%;object-fit:cover">
+</div>
+<div style="padding:20px 18px 0">
+<div style="display:flex;align-items:flex-start;gap:8px">
+<div style="font:800 25px/1.16 Garet,Outfit,sans-serif;color:#111;letter-spacing:-.02em;text-wrap:pretty;flex:1;min-width:0">{{ res.name }}</div>
+<sc-if value="{{ res.verified }}">
+<svg width="22" height="22" viewBox="0 0 24 24" style="flex:none;margin-top:3px"><path d="M12 2l2.5 1.9 3.1-.3 1 3 2.7 1.6-1 2.8 1 2.8-2.7 1.6-1 3-3.1-.3L12 22l-2.5-1.9-3.1.3-1-3-2.7-1.6 1-2.8-1-2.8 2.7-1.6 1-3 3.1.3z" fill="var(--ac,#7A2FA6)"></path><path d="M8.4 12.3l2.5 2.5 4.7-5" fill="none" stroke="#fff" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+</sc-if>
+</div>
+<sc-if value="{{ res.sub.show }}">
+<div style="margin-top:16px;border-radius:12px;border:1px solid #EDEAE5;background:#FCFBF9;overflow:hidden;opacity:{{ res.sub.dim }}">
+<div class="tap" onClick="{{ res.sub.toggleOpen }}" style="display:flex;align-items:center;gap:12px;padding:13px 14px">
+<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="var(--ac,#7A2FA6)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M18 15V10a6 6 0 0 0-12 0v5l-1.6 2.4h15.2L18 15z"></path><path d="M10 20a2 2 0 0 0 4 0"></path></svg>
+<div style="flex:1;min-width:0">
+<div style="font:600 13.5px/1.3 Garet,Outfit,sans-serif;color:#1A1A18">{{ res.sub.title }}</div>
+<div style="font:400 11.5px/1.35 Garet,Outfit,sans-serif;color:#89857E;margin-top:2px;text-wrap:pretty">{{ res.sub.summary }}</div>
+</div>
+<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#A5A19B" stroke-width="2.4" stroke-linecap="round" style="flex:none;transform:{{ res.sub.rot }};transition:transform .2s ease"><path d="M6 9l6 6 6-6"></path></svg>
+</div>
+<sc-if value="{{ res.sub.open }}">
+<div style="padding:2px 14px 6px;border-top:1px solid #F1EEEA">
+<sc-for list="{{ res.sub.rows }}" as="c" hint-placeholder-count="3">
+<div class="tap" onClick="{{ c.toggle }}" style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid #F4F1ED">
+<div style="flex:1;min-width:0">
+<div style="font:600 13.5px/1.25 Garet,Outfit,sans-serif;color:#1A1A18">{{ c.label }}</div>
+<div style="font:400 11.5px/1.35 Garet,Outfit,sans-serif;color:#89857E;margin-top:2px;text-wrap:pretty">{{ c.sub }}</div>
+</div>
+<div style="width:44px;height:26px;border-radius:999px;background:{{ c.track }};flex:none;padding:3px;display:flex;justify-content:{{ c.justify }};transition:background .18s ease">
+<div style="width:20px;height:20px;border-radius:999px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.28)"></div>
+</div>
+</div>
+</sc-for>
+</div>
+</sc-if>
+</div>
+</sc-if>
+<div style="font:400 15px/1.6 Garet,Outfit,sans-serif;color:#33322F;margin-top:14px;white-space:pre-wrap;text-wrap:pretty">{{ res.desc }}</div>
+<sc-if value="{{ res.hasContact }}">
+<div style="margin-top:22px;border-top:1px solid #EFECE8">
+<sc-for list="{{ res.contact }}" as="c" hint-placeholder-count="3">
+<div class="tap" onClick="{{ c.open }}" style="display:flex;align-items:center;gap:12px;padding:14px 0;border-bottom:1px solid #EFECE8">
+<div style="flex:1;min-width:0">
+<div style="font:700 15px/1.25 Garet,Outfit,sans-serif;color:#161615">{{ c.label }}</div>
+<div style="font:400 14px/1.4 Garet,Outfit,sans-serif;color:#6E6A64;margin-top:3px;word-break:break-word">{{ c.value }}</div>
+</div>
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#B9B5AE" stroke-width="2.2" stroke-linecap="round"><path d="M9 18l6-6-6-6"></path></svg>
+</div>
+</sc-for>
+</div>
+</sc-if>
+<div style="height:26px"></div>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isEvents }}">
+<div style="padding:0 16px 28px;display:flex;flex-direction:column;gap:16px">
+<div style="display:flex;align-items:center;gap:9px;background:#F3F1ED;border-radius:11px;padding:9px 12px">
+<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#938F88" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
+<input value="{{ q }}" onChange="{{ onQuery }}" placeholder="Search events on this page" style="flex:1;border:none;outline:none;background:transparent;font:400 14px/1.3 Garet,Outfit,sans-serif;color:#1A1A18">
+</div>
+<sc-for list="{{ eventCards }}" as="e" hint-placeholder-count="2">
+<div class="tap" onClick="{{ e.open }}" style="border-radius:16px;overflow:hidden;border:1px solid #EDEAE5;background:#fff;box-shadow:0 3px 14px rgba(0,0,0,.06)">
+<div style="height:190px;background:#F4F2EE;display:flex;align-items:center;justify-content:center;overflow:hidden">
+<img src="{{ e.img }}" onError="{{ imgErr }}" style="width:100%;height:100%;object-fit:cover">
+</div>
+<div style="padding:14px 16px 16px">
+<div style="display:flex;align-items:center;gap:8px">
+<div style="font:700 11px/1.2 Garet,Outfit,sans-serif;letter-spacing:.09em;text-transform:uppercase;color:var(--ac,#7A2FA6)">{{ e.date }}</div>
+<sc-if value="{{ e.ageTag }}">
+<div style="border-radius:4px;padding:2px 6px;background:#EFEBE4;font:700 9px/1.4 Garet,Outfit,sans-serif;color:#7A6E58;letter-spacing:.04em">{{ e.ageTag }}</div>
+</sc-if>
+</div>
+<div style="font:800 19px/1.2 Garet,Outfit,sans-serif;color:#141413;margin-top:7px;letter-spacing:-.01em;text-wrap:pretty">{{ e.name }}</div>
+<div class="tap" onClick="{{ e.openHost }}" style="display:flex;align-items:center;gap:9px;margin-top:12px">
+<div style="width:26px;height:26px;border-radius:999px;overflow:hidden;background:#EFEDE9;flex:none">
+<img src="{{ e.hostImg }}" onError="{{ imgErr }}" style="width:100%;height:100%;object-fit:cover">
+</div>
+<div style="font:500 12.5px/1.3 Garet,Outfit,sans-serif;color:#7C7871;min-width:0">{{ e.hostName }}</div>
+</div>
+</div>
+</div>
+</sc-for>
+<div class="tap" onClick="{{ goApply }}" style="border-radius:16px;border:1.5px dashed #DAD6D0;padding:22px 18px;text-align:center;background:#FBFAF8">
+<div style="font:700 15px/1.2 Garet,Outfit,sans-serif;color:#3A3A37">Hosting something?</div>
+<div style="font:400 13px/1.5 Garet,Outfit,sans-serif;color:#89857E;margin-top:6px;text-wrap:pretty">Become a host to post events, offers and newsletters. Reviewed within two business days.</div>
+<div style="display:inline-block;margin-top:13px;border-radius:999px;padding:9px 20px;background:var(--ac,#7A2FA6);font:700 13px/1.2 Garet,Outfit,sans-serif;color:#fff">Become a host</div>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isEvent }}">
+<div>
+<div style="position:relative;background:#fff;padding:56px 0 0">
+<div style="height:246px;display:flex;align-items:center;justify-content:center;padding:0 32px 12px;overflow:hidden">
+<img src="{{ ev.img }}" onError="{{ imgErr }}" style="max-width:100%;max-height:100%;object-fit:contain">
+</div>
+<div class="tap" onClick="{{ back }}" style="position:absolute;top:58px;left:14px;width:34px;height:34px;border-radius:999px;background:rgba(0,0,0,.08);display:flex;align-items:center;justify-content:center">
+<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#2A2A28" stroke-width="2.4" stroke-linecap="round"><path d="M15 18l-6-6 6-6"></path></svg>
+</div>
+</div>
+<div style="padding:4px 18px 18px">
+<div style="font:700 11.5px/1.2 Garet,Outfit,sans-serif;letter-spacing:.09em;text-transform:uppercase;color:#2C2C2A">{{ ev.dateCaps }}</div>
+<div style="font:800 25px/1.15 Garet,Outfit,sans-serif;color:#111;margin-top:8px;letter-spacing:-.02em;text-wrap:pretty">{{ ev.name }}</div>
+
+<div style="display:flex;align-items:center;gap:10px;margin-top:14px">
+<div style="display:flex">
+<sc-for list="{{ ev.guests }}" as="g" hint-placeholder-count="6">
+<div class="tap" onClick="{{ g.open }}" style="width:30px;height:30px;border-radius:999px;background:{{ g.bg }};border:2px solid #fff;margin-right:-9px;display:flex;align-items:center;justify-content:center;font:700 10.5px/1 Garet,Outfit,sans-serif;color:#fff">{{ g.initials }}</div>
+</sc-for>
+<sc-if value="{{ ev.guestMore }}">
+<div style="height:30px;border-radius:999px;background:#EFEDE9;border:2px solid #fff;display:flex;align-items:center;justify-content:center;padding:0 9px;font:700 10.5px/1 Garet,Outfit,sans-serif;color:#6E6A64">{{ ev.guestMore }}</div>
+</sc-if>
+</div>
+<div style="font:500 12.5px/1.3 Garet,Outfit,sans-serif;color:#6E6A64;margin-left:12px">{{ ev.counts }}</div>
+</div>
+
+<sc-if value="{{ ev.canRsvp }}">
+<div style="display:flex;gap:8px;margin-top:14px">
+<sc-for list="{{ ev.rsvpOptions }}" as="o" hint-placeholder-count="3">
+<div class="tap" onClick="{{ o.set }}" style="flex:1;text-align:center;border-radius:11px;padding:11px 4px;background:{{ o.bg }};border:{{ o.border }};font:700 13.5px/1.2 Garet,Outfit,sans-serif;color:{{ o.fg }}">{{ o.label }}</div>
+</sc-for>
+</div>
+</sc-if>
+
+<sc-if value="{{ ev.showGate }}">
+<div style="margin-top:14px;border-radius:13px;border:1px solid #EDEAE5;background:#FCFBF9;padding:16px">
+<div style="font:700 15px/1.25 Garet,Outfit,sans-serif;color:#1A1A18">{{ gate.title }}</div>
+<div style="font:400 12.5px/1.5 Garet,Outfit,sans-serif;color:#7C7871;margin-top:6px;text-wrap:pretty">{{ gate.sub }}</div>
+<div class="tap" onClick="{{ gate.go }}" style="display:inline-block;margin-top:13px;border-radius:999px;padding:9px 20px;background:var(--ac,#7A2FA6);font:700 13px/1.2 Garet,Outfit,sans-serif;color:#fff">{{ gate.cta }}</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ ev.hasFlagged }}">
+<div style="display:flex;align-items:flex-start;gap:11px;margin-top:14px;border-radius:12px;background:#FBF3F3;border:1px solid #F0DCDC;padding:13px 14px">
+<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#B4494E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none;margin-top:1px"><path d="M12 4l9 16H3z"></path><path d="M12 10v4M12 17h.01"></path></svg>
+<div style="flex:1;min-width:0">
+<div style="font:600 13px/1.3 Garet,Outfit,sans-serif;color:#7C3438;text-wrap:pretty">{{ ev.flaggedNote }}</div>
+<div style="font:400 11.5px/1.45 Garet,Outfit,sans-serif;color:#9A6265;margin-top:3px;text-wrap:pretty">{{ ev.flaggedSub }}</div>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ ev.past }}">
+<div style="margin-top:14px;border-radius:11px;background:#F4F2EE;padding:11px 14px;font:600 12.5px/1.3 Garet,Outfit,sans-serif;color:#6E6A64">{{ ev.statusLabel }}</div>
+</sc-if>
+
+<sc-if value="{{ ev.hostMode }}">
+<div style="margin-top:16px;border-radius:13px;border:1.5px solid #1A1A18;overflow:hidden">
+<div style="background:#1A1A18;padding:10px 14px;font:700 11px/1.3 Garet,Outfit,sans-serif;color:#fff;letter-spacing:.09em">HOST CONTROLS</div>
+<sc-for list="{{ ev.hostActions }}" as="a" hint-placeholder-count="4">
+<div class="tap" style="display:flex;align-items:center;gap:12px;padding:13px 14px;border-bottom:1px solid #F1EEEA">
+<div style="flex:1;min-width:0">
+<div style="font:600 13.5px/1.25 Garet,Outfit,sans-serif;color:#1A1A18">{{ a.label }}</div>
+<div style="font:400 11.5px/1.35 Garet,Outfit,sans-serif;color:#89857E;margin-top:2px;text-wrap:pretty">{{ a.sub }}</div>
+</div>
+<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#C3BFB8" stroke-width="2.4" stroke-linecap="round"><path d="M9 18l6-6-6-6"></path></svg>
+</div>
+</sc-for>
+</div>
+</sc-if>
+</div>
+<div style="position:relative;overflow:hidden">
+<img src="{{ ev.hostHeader }}" onError="{{ imgErr }}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover">
+<div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.42),rgba(0,0,0,.22))"></div>
+<div style="position:relative;padding:14px 16px 20px">
+<div style="font:700 14px/1.2 Garet,Outfit,sans-serif;color:#fff;text-shadow:0 1px 5px rgba(0,0,0,.5);margin-bottom:11px">Event Host</div>
+<div class="tap" onClick="{{ ev.openHost }}" style="background:#fff;border-radius:12px;padding:12px 14px;display:flex;align-items:center;gap:12px;box-shadow:0 4px 14px rgba(0,0,0,.18)">
+<div style="width:40px;height:40px;border-radius:999px;overflow:hidden;background:#EFEDE9;flex:none">
+<img src="{{ ev.hostImg }}" onError="{{ imgErr }}" style="width:100%;height:100%;object-fit:cover">
+</div>
+<div style="flex:1;min-width:0">
+<div style="display:flex;align-items:center;gap:6px">
+<div style="font:700 14.5px/1.25 Garet,Outfit,sans-serif;color:#1A1A18;text-wrap:pretty;min-width:0">{{ ev.hostName }}</div>
+<svg width="15" height="15" viewBox="0 0 24 24" style="flex:none"><path d="M12 2l2.5 1.9 3.1-.3 1 3 2.7 1.6-1 2.8 1 2.8-2.7 1.6-1 3-3.1-.3L12 22l-2.5-1.9-3.1.3-1-3-2.7-1.6 1-2.8-1-2.8 2.7-1.6 1-3 3.1.3z" fill="var(--ac,#7A2FA6)"></path><path d="M8.4 12.3l2.5 2.5 4.7-5" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+</div>
+<div style="font:400 11.5px/1.3 Garet,Outfit,sans-serif;color:#89857E;margin-top:3px">{{ ev.hostFollowLabel }} for event alerts</div>
+</div>
+<div class="tap" onClick="{{ ev.toggleHostSave }}" style="width:36px;height:36px;border-radius:999px;background:#F4F2EE;display:flex;align-items:center;justify-content:center;flex:none">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="{{ ev.hostHeartFill }}" stroke="{{ ev.hostHeartStroke }}" stroke-width="2"><path d="M12 20s-7-4.5-7-9.5A3.9 3.9 0 0 1 12 8a3.9 3.9 0 0 1 7 2.5c0 5-7 9.5-7 9.5z"></path></svg>
+</div>
+</div>
+</div>
+</div>
+<div style="padding:22px 18px 8px">
+<div style="font:800 21px/1.2 Garet,Outfit,sans-serif;color:#141413;letter-spacing:-.01em">Details</div>
+<div style="font:400 14.5px/1.62 Garet,Outfit,sans-serif;color:#3D3C39;margin-top:11px;white-space:pre-wrap;text-wrap:pretty">{{ ev.desc }}</div>
+<sc-if value="{{ ev.link }}">
+<div class="tap" style="margin-top:20px;border-radius:12px;padding:14px;text-align:center;background:var(--ac,#7A2FA6);font:700 14.5px/1.2 Garet,Outfit,sans-serif;color:#fff">Register</div>
+</sc-if>
+</div>
+
+<sc-if value="{{ ev.hasPolls }}">
+<div style="padding:26px 18px 0">
+<sc-for list="{{ ev.polls }}" as="p" hint-placeholder-count="1">
+<div style="border:1px solid #EDEAE5;border-radius:14px;padding:16px">
+<div style="font:700 16px/1.3 Garet,Outfit,sans-serif;color:#161615;text-wrap:pretty">{{ p.q }}</div>
+<div style="display:flex;flex-direction:column;gap:8px;margin-top:13px">
+<sc-for list="{{ p.options }}" as="o" hint-placeholder-count="3">
+<div class="tap" onClick="{{ o.vote }}" style="position:relative;border-radius:10px;border:{{ o.border }};background:{{ o.bg }};overflow:hidden">
+<div style="position:absolute;left:0;top:0;bottom:0;width:{{ o.width }};background:var(--tint,#F6F1FA);transition:width .35s cubic-bezier(.22,1,.36,1)"></div>
+<div style="position:relative;display:flex;align-items:center;gap:10px;padding:11px 13px">
+<div style="flex:1;min-width:0;font:600 13.5px/1.3 Garet,Outfit,sans-serif;color:#22221F;text-wrap:pretty">{{ o.label }}</div>
+<sc-if value="{{ p.reveal }}">
+<div style="font:700 12.5px/1.2 Garet,Outfit,sans-serif;color:var(--ac,#7A2FA6);flex:none">{{ o.pct }}</div>
+</sc-if>
+</div>
+</div>
+</sc-for>
+</div>
+<div style="font:400 11.5px/1.3 Garet,Outfit,sans-serif;color:#89857E;margin-top:11px">{{ p.total }}</div>
+</div>
+</sc-for>
+</div>
+</sc-if>
+
+<sc-if value="{{ ev.hasReviews }}">
+<div style="padding:26px 18px 0">
+<div style="font:800 21px/1.2 Garet,Outfit,sans-serif;color:#141413;letter-spacing:-.01em">Reviews</div>
+<div style="display:flex;align-items:center;gap:14px;margin-top:12px;border:1px solid #EDEAE5;border-radius:14px;padding:15px">
+<div style="font:800 34px/1 Garet,Outfit,sans-serif;color:#161615;letter-spacing:-.02em">{{ ev.reviewAvg }}</div>
+<div style="flex:1;min-width:0">
+<div style="font:400 12px/1.3 Garet,Outfit,sans-serif;color:#89857E">{{ ev.reviewCount }}</div>
+<sc-if value="{{ ev.reviewHidden }}">
+<div style="font:400 11px/1.35 Garet,Outfit,sans-serif;color:#A19D95;margin-top:4px;text-wrap:pretty">{{ ev.reviewHidden }}</div>
+</sc-if>
+<sc-if value="{{ canEngage }}">
+<div>
+<div style="font:600 12.5px/1.3 Garet,Outfit,sans-serif;color:#3A3A37;margin-top:6px">{{ ev.reviewPrompt }}</div>
+<div style="display:flex;gap:4px;margin-top:6px">
+<sc-for list="{{ ev.myStars }}" as="s" hint-placeholder-count="5">
+<div class="tap" onClick="{{ s.set }}">
+<svg width="22" height="22" viewBox="0 0 24 24" fill="{{ s.fill }}"><path d="M12 2.6l2.9 5.9 6.5.9-4.7 4.6 1.1 6.4-5.8-3-5.8 3 1.1-6.4L2.6 9.4l6.5-.9z"></path></svg>
+</div>
+</sc-for>
+</div>
+</div>
+</sc-if>
+<sc-if value="{{ notEngaged }}">
+<div class="tap" onClick="{{ gate.go }}" style="font:600 12.5px/1.3 Garet,Outfit,sans-serif;color:var(--ac,#7A2FA6);margin-top:8px">Create an account to leave a review</div>
+</sc-if>
+</div>
+</div>
+<div style="margin-top:14px">
+<sc-for list="{{ ev.reviews }}" as="r" hint-placeholder-count="3">
+<div style="padding:14px 0;border-bottom:1px solid #F1EEEA">
+<div style="display:flex;align-items:center;gap:10px">
+<div style="width:32px;height:32px;border-radius:999px;background:{{ r.bg }};display:flex;align-items:center;justify-content:center;font:700 11px/1 Garet,Outfit,sans-serif;color:#fff;flex:none">{{ r.initials }}</div>
+<div style="flex:1;min-width:0">
+<div style="font:600 13.5px/1.25 Garet,Outfit,sans-serif;color:#1A1A18">{{ r.who }}</div>
+<div style="display:flex;align-items:center;gap:6px;margin-top:3px">
+<div style="display:flex;gap:1px">
+<sc-for list="{{ r.stars }}" as="s" hint-placeholder-count="5">
+<svg width="12" height="12" viewBox="0 0 24 24" fill="{{ s.fill }}"><path d="M12 2.6l2.9 5.9 6.5.9-4.7 4.6 1.1 6.4-5.8-3-5.8 3 1.1-6.4L2.6 9.4l6.5-.9z"></path></svg>
+</sc-for>
+</div>
+<div style="font:400 11px/1.3 Garet,Outfit,sans-serif;color:#A19D95">{{ r.when }}</div>
+</div>
+</div>
+</div>
+<div style="font:400 13.5px/1.55 Garet,Outfit,sans-serif;color:#4A4945;margin-top:9px;text-wrap:pretty">{{ r.text }}</div>
+</div>
+</sc-for>
+</div>
+</div>
+</sc-if>
+
+<div style="padding:26px 18px 8px">
+<div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px">
+<div style="font:800 21px/1.2 Garet,Outfit,sans-serif;color:#141413;letter-spacing:-.01em">Discussion</div>
+<div style="font:400 12px/1.3 Garet,Outfit,sans-serif;color:#89857E">{{ ev.commentCount }}</div>
+</div>
+<div style="margin-top:12px">
+<sc-for list="{{ ev.comments }}" as="c" hint-placeholder-count="4">
+<div style="padding:13px 0;border-bottom:1px solid #F1EEEA">
+<sc-if value="{{ c.hidden }}">
+<div class="tap" onClick="{{ c.reveal }}" style="display:flex;align-items:center;gap:10px;border-radius:10px;background:#F7F5F1;padding:11px 13px">
+<div style="flex:1;min-width:0;font:400 12.5px/1.35 Garet,Outfit,sans-serif;color:#89857E">{{ c.hiddenNote }}</div>
+<div style="font:600 12.5px/1.2 Garet,Outfit,sans-serif;color:var(--ac,#7A2FA6);flex:none">Show</div>
+</div>
+</sc-if>
+<sc-if value="{{ c.visible }}">
+<div style="display:flex;gap:11px">
+<div class="tap" onClick="{{ c.openUser }}" style="width:34px;height:34px;border-radius:999px;background:{{ c.bg }};display:flex;align-items:center;justify-content:center;font:700 11.5px/1 Garet,Outfit,sans-serif;color:#fff;flex:none">{{ c.initials }}</div>
+<div style="flex:1;min-width:0">
+<div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap">
+<div class="tap" onClick="{{ c.openUser }}" style="font:600 13.5px/1.25 Garet,Outfit,sans-serif;color:#1A1A18;text-wrap:pretty">{{ c.who }}</div>
+<sc-if value="{{ c.isHost }}">
+<div style="border-radius:4px;padding:2px 6px;background:var(--tint,#F6F1FA);font:700 9px/1.4 Garet,Outfit,sans-serif;color:var(--ac,#7A2FA6);letter-spacing:.05em">{{ c.hostTag }}</div>
+</sc-if>
+<div style="font:400 11px/1.3 Garet,Outfit,sans-serif;color:#A19D95">{{ c.when }}</div>
+</div>
+<div style="font:400 13.5px/1.55 Garet,Outfit,sans-serif;color:#4A4945;margin-top:5px;text-wrap:pretty">{{ c.text }}</div>
+<sc-if value="{{ c.canMute }}">
+<div class="tap" onClick="{{ c.mute }}" style="display:inline-block;margin-top:8px;font:600 11.5px/1.2 Garet,Outfit,sans-serif;color:#A19D95">Mute</div>
+</sc-if>
+</div>
+</div>
+</sc-if>
+</div>
+</sc-for>
+</div>
+<sc-if value="{{ canEngage }}">
+<div>
+<div style="display:flex;align-items:center;gap:9px;margin-top:14px">
+<div style="flex:1;display:flex;align-items:center;background:#F3F1ED;border-radius:11px;padding:10px 13px">
+<input value="{{ ev.draft }}" onChange="{{ ev.onDraft }}" placeholder="Add to the discussion" style="flex:1;border:none;outline:none;background:transparent;font:400 14px/1.3 Garet,Outfit,sans-serif;color:#1A1A18">
+</div>
+<div class="tap" onClick="{{ ev.post }}" style="border-radius:11px;padding:11px 17px;background:{{ ev.postBg }};font:700 13.5px/1.2 Garet,Outfit,sans-serif;color:{{ ev.postFg }};flex:none">Post</div>
+</div>
+<div style="font:400 11px/1.5 Garet,Outfit,sans-serif;color:#A19D95;margin-top:10px;text-wrap:pretty">Posting as {{ ev.postingAs }}. Hosts moderate their own discussions.</div>
+</div>
+</sc-if>
+<sc-if value="{{ notEngaged }}">
+<div style="margin-top:14px;border-radius:13px;border:1px solid #EDEAE5;background:#FCFBF9;padding:16px">
+<div style="font:700 15px/1.25 Garet,Outfit,sans-serif;color:#1A1A18">{{ gate.title }}</div>
+<div style="font:400 12.5px/1.5 Garet,Outfit,sans-serif;color:#7C7871;margin-top:6px;text-wrap:pretty">{{ gate.sub }}</div>
+<div class="tap" onClick="{{ gate.go }}" style="display:inline-block;margin-top:13px;border-radius:999px;padding:9px 20px;background:var(--ac,#7A2FA6);font:700 13px/1.2 Garet,Outfit,sans-serif;color:#fff">{{ gate.cta }}</div>
+</div>
+</sc-if>
+<div style="height:24px"></div>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isHost }}">
+<div>
+<div style="position:relative;background:{{ host.tint }};overflow:hidden;padding:56px 0 0">
+<img src="{{ host.header }}" onError="{{ imgErr }}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover">
+<div style="position:absolute;inset:0;background:rgba(0,0,0,.18)"></div>
+<div class="tap" onClick="{{ back }}" style="position:absolute;top:58px;left:14px;width:34px;height:34px;border-radius:999px;background:rgba(255,255,255,.75);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;z-index:3">
+<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#2A2A28" stroke-width="2.4" stroke-linecap="round"><path d="M15 18l-6-6 6-6"></path></svg>
+</div>
+<div style="position:relative;display:flex;justify-content:center;padding:14px 0 20px">
+<div style="width:112px;height:112px;border-radius:999px;overflow:hidden;background:#fff;border:4px solid #fff;box-shadow:0 6px 20px rgba(0,0,0,.25)">
+<img src="{{ host.img }}" onError="{{ imgErr }}" style="width:100%;height:100%;object-fit:cover">
+</div>
+</div>
+</div>
+<div style="padding:18px 20px 0;text-align:center">
+<div style="display:flex;align-items:center;justify-content:center;gap:8px">
+<div style="font:800 23px/1.2 Garet,Outfit,sans-serif;color:#141413;letter-spacing:-.02em;text-wrap:pretty">{{ host.name }}</div>
+<svg width="21" height="21" viewBox="0 0 24 24" style="flex:none"><path d="M12 2l2.5 1.9 3.1-.3 1 3 2.7 1.6-1 2.8 1 2.8-2.7 1.6-1 3-3.1-.3L12 22l-2.5-1.9-3.1.3-1-3-2.7-1.6 1-2.8-1-2.8 2.7-1.6 1-3 3.1.3z" fill="var(--ac,#7A2FA6)"></path><path d="M8.4 12.3l2.5 2.5 4.7-5" fill="none" stroke="#fff" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+</div>
+<div style="font:400 14px/1.4 Garet,Outfit,sans-serif;color:#87837C;margin-top:6px">{{ host.reviews }}</div>
+<div style="display:flex;gap:9px;justify-content:center;margin-top:14px">
+<div class="tap" onClick="{{ host.toggleSave }}" style="border-radius:999px;padding:9px 22px;background:{{ host.followBg }};border:{{ host.followBorder }};font:700 13px/1.2 Garet,Outfit,sans-serif;color:{{ host.followFg }}">{{ host.followLabel }}</div>
+<div class="tap" style="border-radius:999px;padding:9px 20px;border:1.5px solid #E5E2DC;font:600 13px/1.2 Garet,Outfit,sans-serif;color:#2A2A28">Report Profile</div>
+</div>
+<sc-if value="{{ host.sub.show }}">
+<div style="margin-top:16px;border-radius:12px;border:1px solid #EDEAE5;background:#FCFBF9;overflow:hidden;text-align:left;opacity:{{ host.sub.dim }}">
+<div class="tap" onClick="{{ host.sub.toggleOpen }}" style="display:flex;align-items:center;gap:12px;padding:13px 14px">
+<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="var(--ac,#7A2FA6)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M18 15V10a6 6 0 0 0-12 0v5l-1.6 2.4h15.2L18 15z"></path><path d="M10 20a2 2 0 0 0 4 0"></path></svg>
+<div style="flex:1;min-width:0">
+<div style="font:600 13.5px/1.3 Garet,Outfit,sans-serif;color:#1A1A18">{{ host.sub.title }}</div>
+<div style="font:400 11.5px/1.35 Garet,Outfit,sans-serif;color:#89857E;margin-top:2px;text-wrap:pretty">{{ host.sub.summary }}</div>
+</div>
+<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#A5A19B" stroke-width="2.4" stroke-linecap="round" style="flex:none;transform:{{ host.sub.rot }};transition:transform .2s ease"><path d="M6 9l6 6 6-6"></path></svg>
+</div>
+<sc-if value="{{ host.sub.open }}">
+<div style="padding:2px 14px 6px;border-top:1px solid #F1EEEA">
+<sc-for list="{{ host.sub.rows }}" as="c" hint-placeholder-count="3">
+<div class="tap" onClick="{{ c.toggle }}" style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid #F4F1ED">
+<div style="flex:1;min-width:0">
+<div style="font:600 13.5px/1.25 Garet,Outfit,sans-serif;color:#1A1A18">{{ c.label }}</div>
+<div style="font:400 11.5px/1.35 Garet,Outfit,sans-serif;color:#89857E;margin-top:2px;text-wrap:pretty">{{ c.sub }}</div>
+</div>
+<div style="width:44px;height:26px;border-radius:999px;background:{{ c.track }};flex:none;padding:3px;display:flex;justify-content:{{ c.justify }};transition:background .18s ease">
+<div style="width:20px;height:20px;border-radius:999px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.28)"></div>
+</div>
+</div>
+</sc-for>
+</div>
+</sc-if>
+</div>
+</sc-if>
+</div>
+<div style="padding:20px 16px 0">
+<div style="border:1px solid #EAE7E2;border-radius:12px;padding:13px 15px">
+<div style="font:400 12.5px/1.2 Garet,Outfit,sans-serif;color:#87837C">Events hosted</div>
+<div style="font:700 20px/1.2 Garet,Outfit,sans-serif;color:#161615;margin-top:5px">{{ host.count }}</div>
+</div>
+</div>
+<div style="padding:22px 16px 28px;display:flex;flex-direction:column;gap:16px">
+<div style="font:700 12px/1.2 Garet,Outfit,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#9A968F">Events</div>
+<sc-for list="{{ host.events }}" as="e" hint-placeholder-count="2">
+<div class="tap" onClick="{{ e.open }}" style="border-radius:16px;overflow:hidden;border:1px solid #EDEAE5;background:#fff;box-shadow:0 3px 14px rgba(0,0,0,.06)">
+<div style="height:170px;background:#F4F2EE;overflow:hidden">
+<img src="{{ e.img }}" onError="{{ imgErr }}" style="width:100%;height:100%;object-fit:cover">
+</div>
+<div style="padding:14px 16px 16px">
+<div style="font:700 11px/1.2 Garet,Outfit,sans-serif;letter-spacing:.09em;text-transform:uppercase;color:var(--ac,#7A2FA6)">{{ e.date }}</div>
+<div style="font:800 19px/1.2 Garet,Outfit,sans-serif;color:#141413;margin-top:7px;letter-spacing:-.01em;text-wrap:pretty">{{ e.name }}</div>
+</div>
+</div>
+</sc-for>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isUser }}">
+<div style="min-height:100%;background:#fff">
+<div style="position:relative;height:132px;background:{{ user.color }};overflow:hidden">
+<div class="tap" onClick="{{ back }}" style="position:absolute;top:58px;left:14px;width:34px;height:34px;border-radius:999px;background:rgba(255,255,255,.75);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;z-index:3">
+<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#2A2A28" stroke-width="2.4" stroke-linecap="round"><path d="M15 18l-6-6 6-6"></path></svg>
+</div>
+</div>
+<div style="padding:0 18px 28px;margin-top:-48px;text-align:center">
+<div style="width:96px;height:96px;border-radius:999px;background:{{ user.color }};border:4px solid #fff;box-shadow:0 4px 16px rgba(0,0,0,.18);display:flex;align-items:center;justify-content:center;font:700 30px/1 Garet,Outfit,sans-serif;color:#fff;margin:0 auto">{{ user.initials }}</div>
+<div style="font:800 24px/1.18 Garet,Outfit,sans-serif;color:#141413;letter-spacing:-.02em;margin-top:14px;text-wrap:pretty">{{ user.name }}</div>
+<div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-top:7px;flex-wrap:wrap">
+<sc-if value="{{ user.pronouns }}">
+<div style="border-radius:999px;padding:4px 11px;background:var(--tint,#F6F1FA);font:600 11.5px/1.3 Garet,Outfit,sans-serif;color:var(--ac,#7A2FA6)">{{ user.pronouns }}</div>
+</sc-if>
+<div style="font:400 12.5px/1.3 Garet,Outfit,sans-serif;color:#89857E">{{ user.county }}</div>
+</div>
+<sc-if value="{{ user.open }}">
+<div style="font:400 14px/1.6 Garet,Outfit,sans-serif;color:#3D3C39;margin-top:14px;text-wrap:pretty;max-width:300px;margin-left:auto;margin-right:auto">{{ user.bio }}</div>
+</sc-if>
+<sc-if value="{{ user.hidden }}">
+<div style="margin-top:16px;border-radius:12px;background:#F7F5F1;border:1px solid #EAE7E2;padding:16px;font:400 12.5px/1.55 Garet,Outfit,sans-serif;color:#7C7871;text-wrap:pretty">This profile is hidden because you blocked them. Unblock to see it again.</div>
+</sc-if>
+
+<sc-if value="{{ user.vCommunity }}">
+<div>
+<div style="display:flex;margin-top:20px;border-top:1px solid #F1EEEA;border-bottom:1px solid #F1EEEA;padding:14px 0">
+<sc-for list="{{ user.stats }}" as="s" hint-placeholder-count="3">
+<div style="flex:1;text-align:center">
+<div style="font:800 19px/1.1 Garet,Outfit,sans-serif;color:#161615;letter-spacing:-.01em">{{ s.n }}</div>
+<div style="font:500 10.5px/1.2 Garet,Outfit,sans-serif;color:#8C887F;margin-top:5px;letter-spacing:.04em">{{ s.label }}</div>
+</div>
+</sc-for>
+</div>
+<sc-if value="{{ user.mutual }}">
+<div style="font:500 12px/1.3 Garet,Outfit,sans-serif;color:var(--ac,#7A2FA6);margin-top:12px">{{ user.mutual }}</div>
+</sc-if>
+<div style="margin-top:18px;text-align:left">
+<div style="font:700 11px/1.2 Garet,Outfit,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#9A968F;margin-bottom:9px">Going to</div>
+<sc-for list="{{ user.alsoGoing }}" as="g" hint-placeholder-count="1">
+<div class="tap" onClick="{{ g.open }}" style="display:flex;align-items:center;gap:12px;border:1px solid #EDEAE5;border-radius:12px;padding:12px 13px">
+<div style="flex:1;min-width:0">
+<div style="font:600 13.5px/1.25 Garet,Outfit,sans-serif;color:#1A1A18;text-wrap:pretty">{{ g.name }}</div>
+<div style="font:400 11.5px/1.3 Garet,Outfit,sans-serif;color:#89857E;margin-top:3px">{{ g.when }}</div>
+</div>
+<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#C3BFB8" stroke-width="2.4" stroke-linecap="round"><path d="M9 18l6-6-6-6"></path></svg>
+</div>
+</sc-for>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ user.vSocial }}">
+<div>
+<div style="display:flex;justify-content:center;gap:7px;margin-top:16px;flex-wrap:wrap">
+<sc-for list="{{ user.interests }}" as="i" hint-placeholder-count="3">
+<div style="border-radius:999px;padding:6px 13px;background:#F4F2EE;font:600 11.5px/1.3 Garet,Outfit,sans-serif;color:#5C5851">{{ i }}</div>
+</sc-for>
+</div>
+<div style="display:flex;gap:10px;margin-top:18px">
+<sc-for list="{{ user.stats }}" as="s" hint-placeholder-count="3">
+<div style="flex:1;border:1px solid #EDEAE5;border-radius:12px;padding:13px 8px">
+<div style="font:800 20px/1.1 Garet,Outfit,sans-serif;color:#161615;letter-spacing:-.01em">{{ s.n }}</div>
+<div style="font:500 10px/1.2 Garet,Outfit,sans-serif;color:#8C887F;margin-top:5px">{{ s.label }}</div>
+</div>
+</sc-for>
+</div>
+<sc-if value="{{ user.mutual }}">
+<div style="font:500 12px/1.3 Garet,Outfit,sans-serif;color:var(--ac,#7A2FA6);margin-top:14px">{{ user.mutual }}</div>
+</sc-if>
+</div>
+</sc-if>
+
+<sc-if value="{{ user.hasLinks }}">
+<div style="margin-top:18px">
+<sc-if value="{{ user.vSocial }}">
+<div style="display:flex;flex-direction:column;gap:9px">
+<sc-for list="{{ user.links }}" as="l" hint-placeholder-count="2">
+<div class="tap" onClick="{{ l.open }}" style="display:flex;align-items:center;justify-content:center;gap:9px;border-radius:11px;border:1.5px solid #E5E2DC;padding:12px;font:600 13.5px/1.2 Garet,Outfit,sans-serif;color:#2A2A28;word-break:break-word">{{ l.label }}
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#A5A19B" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M8 16L16 8M9 8h7v7"></path></svg>
+</div>
+</sc-for>
+</div>
+</sc-if>
+<sc-if value="{{ user.notSocial }}">
+<div style="border-top:1px solid #F1EEEA">
+<sc-for list="{{ user.links }}" as="l" hint-placeholder-count="2">
+<div class="tap" onClick="{{ l.open }}" style="display:flex;align-items:center;gap:10px;padding:13px 0;border-bottom:1px solid #F1EEEA;text-align:left">
+<div style="flex:1;min-width:0;font:500 13.5px/1.35 Garet,Outfit,sans-serif;color:var(--ac,#7A2FA6);word-break:break-word">{{ l.label }}</div>
+<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#C3BFB8" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 16L16 8M9 8h7v7"></path></svg>
+</div>
+</sc-for>
+</div>
+</sc-if>
+</div>
+</sc-if>
+
+<sc-if value="{{ user.self }}">
+<div class="tap" onClick="{{ user.edit }}" style="margin-top:20px;border-radius:12px;padding:13px;text-align:center;background:var(--ac,#7A2FA6);font:700 14px/1.2 Garet,Outfit,sans-serif;color:#fff">Edit profile</div>
+</sc-if>
+
+<sc-if value="{{ user.other }}">
+<div>
+<sc-if value="{{ user.flagged }}">
+<div style="margin-top:18px;border-radius:12px;background:#F7F5F1;border:1px solid #EAE7E2;padding:12px 14px;font:400 11.5px/1.45 Garet,Outfit,sans-serif;color:#7C7871;text-wrap:pretty">{{ user.flagNote }}</div>
+</sc-if>
+<div style="display:flex;gap:9px;margin-top:18px">
+<div class="tap" onClick="{{ user.toggleMute }}" style="flex:1;text-align:center;border-radius:11px;border:1.5px solid #E5E2DC;padding:12px;font:600 13.5px/1.2 Garet,Outfit,sans-serif;color:{{ user.muteFg }}">{{ user.muteLabel }}</div>
+<div class="tap" onClick="{{ user.toggleBlock }}" style="flex:1;text-align:center;border-radius:11px;border:1.5px solid #E5E2DC;padding:12px;font:600 13.5px/1.2 Garet,Outfit,sans-serif;color:{{ user.blockFg }}">{{ user.blockLabel }}</div>
+<div class="tap" style="border-radius:11px;border:1.5px solid #E5E2DC;padding:12px 15px;font:600 13.5px/1.2 Garet,Outfit,sans-serif;color:#2A2A28">Report</div>
+</div>
+<div style="font:400 11.5px/1.5 Garet,Outfit,sans-serif;color:#A19D95;margin-top:14px;text-align:center;text-wrap:pretty">Profiles carry no followers, feeds or messages. Connect with people wherever they link to.</div>
+
+</div>
+</sc-if>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isEditProfile }}">
+<div style="min-height:100%;background:#fff">
+<div style="position:sticky;top:0;z-index:5;background:#fff;border-bottom:1px solid #EFECE8;display:flex;align-items:center;gap:10px;padding:56px 14px 12px">
+<div class="tap" onClick="{{ edit.cancel }}" style="font:600 14px/1.2 Garet,Outfit,sans-serif;color:#7C7871">Cancel</div>
+<div style="flex:1;text-align:center;font:700 16px/1.2 Garet,Outfit,sans-serif;color:#161615">Edit profile</div>
+<div class="tap" onClick="{{ edit.save }}" style="font:700 14px/1.2 Garet,Outfit,sans-serif;color:var(--ac,#7A2FA6)">Save</div>
+</div>
+<div style="padding:20px 18px 32px">
+<div style="display:flex;align-items:center;gap:14px">
+<div style="width:72px;height:72px;border-radius:999px;background:{{ edit.color }};display:flex;align-items:center;justify-content:center;font:700 24px/1 Garet,Outfit,sans-serif;color:#fff;flex:none">{{ edit.initials }}</div>
+<div style="display:flex;flex-direction:column;gap:8px">
+<div class="tap" style="border-radius:10px;border:1px solid #E5E2DC;padding:9px 14px;font:600 12.5px/1.2 Garet,Outfit,sans-serif;color:#2A2A28">Change photo</div>
+<div class="tap" style="border-radius:10px;border:1px solid #E5E2DC;padding:9px 14px;font:600 12.5px/1.2 Garet,Outfit,sans-serif;color:#2A2A28">Change background</div>
+</div>
+</div>
+
+<div style="margin-top:22px">
+<div style="font:600 10.5px/1.2 Garet,Outfit,sans-serif;letter-spacing:.06em;text-transform:uppercase;color:#9A968F">Display name</div>
+<input value="{{ edit.name }}" onChange="{{ edit.onName }}" style="width:100%;margin-top:7px;border:1px solid #E5E2DC;border-radius:11px;padding:12px 13px;outline:none;font:500 14.5px/1.3 Garet,Outfit,sans-serif;color:#1A1A18;background:#fff">
+</div>
+<div style="margin-top:16px">
+<div style="font:600 10.5px/1.2 Garet,Outfit,sans-serif;letter-spacing:.06em;text-transform:uppercase;color:#9A968F">Pronouns</div>
+<input value="{{ edit.pronouns }}" onChange="{{ edit.onPronouns }}" placeholder="they/them" style="width:100%;margin-top:7px;border:1px solid #E5E2DC;border-radius:11px;padding:12px 13px;outline:none;font:500 14.5px/1.3 Garet,Outfit,sans-serif;color:#1A1A18;background:#fff">
+</div>
+<div style="margin-top:16px">
+<div style="font:600 10.5px/1.2 Garet,Outfit,sans-serif;letter-spacing:.06em;text-transform:uppercase;color:#9A968F">Area</div>
+<input value="{{ edit.county }}" onChange="{{ edit.onCounty }}" placeholder="Weber County" style="width:100%;margin-top:7px;border:1px solid #E5E2DC;border-radius:11px;padding:12px 13px;outline:none;font:500 14.5px/1.3 Garet,Outfit,sans-serif;color:#1A1A18;background:#fff">
+</div>
+<div style="margin-top:16px">
+<div style="font:600 10.5px/1.2 Garet,Outfit,sans-serif;letter-spacing:.06em;text-transform:uppercase;color:#9A968F">Bio</div>
+<textarea value="{{ edit.bio }}" onChange="{{ edit.onBio }}" rows="4" style="width:100%;margin-top:7px;border:1px solid #E5E2DC;border-radius:11px;padding:12px 13px;outline:none;font:400 14px/1.55 Garet,Outfit,sans-serif;color:#1A1A18;background:#fff;resize:none"></textarea>
+</div>
+<div style="margin-top:16px">
+<div style="font:600 10.5px/1.2 Garet,Outfit,sans-serif;letter-spacing:.06em;text-transform:uppercase;color:#9A968F">Links</div>
+<textarea value="{{ edit.links }}" onChange="{{ edit.onLinks }}" rows="3" placeholder="One per line" style="width:100%;margin-top:7px;border:1px solid #E5E2DC;border-radius:11px;padding:12px 13px;outline:none;font:400 14px/1.55 Garet,Outfit,sans-serif;color:#1A1A18;background:#fff;resize:none"></textarea>
+</div>
+<div style="font:400 11.5px/1.5 Garet,Outfit,sans-serif;color:#A19D95;margin-top:14px;text-wrap:pretty">Everything here is public. Your email, username and date of birth never are.</div>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isApply }}">
+<div style="min-height:100%;background:#fff">
+<div style="position:sticky;top:0;z-index:5;background:#fff;border-bottom:1px solid #EFECE8;padding:56px 14px 12px">
+<div style="display:flex;align-items:center;gap:10px">
+<div class="tap" onClick="{{ ap.back }}" style="width:34px;height:34px;border-radius:999px;background:#F1EFEB;display:flex;align-items:center;justify-content:center;flex:none">
+<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#2A2A28" stroke-width="2.4" stroke-linecap="round"><path d="M15 18l-6-6 6-6"></path></svg>
+</div>
+<div style="flex:1;min-width:0">
+<div style="font:700 16px/1.2 Garet,Outfit,sans-serif;color:#161615">Become a Host</div>
+<div style="font:400 11.5px/1.3 Garet,Outfit,sans-serif;color:#8A867F;margin-top:2px">{{ ap.stepLabel }}</div>
+</div>
+</div>
+<div style="display:flex;gap:5px;margin-top:12px">
+<sc-for list="{{ ap.bars }}" as="b" hint-placeholder-count="4">
+<div style="flex:1;height:4px;border-radius:999px;background:{{ b.bg }}"></div>
+</sc-for>
+</div>
+</div>
+
+<sc-if value="{{ ap.isSource }}">
+<div style="padding:22px 16px 28px">
+<div style="font:800 24px/1.15 Garet,Outfit,sans-serif;color:#111;letter-spacing:-.02em;text-wrap:pretty">Who is hosting?</div>
+<div style="font:400 14px/1.55 Garet,Outfit,sans-serif;color:#6E6A64;margin-top:9px;text-wrap:pretty">A host profile is a marketing channel. If you are already listed, we carry your details over and your verification comes with you.</div>
+<div style="display:flex;flex-direction:column;gap:11px;margin-top:22px">
+<sc-for list="{{ ap.sources }}" as="s" hint-placeholder-count="3">
+<div class="tap" onClick="{{ s.pick }}" style="border:{{ s.border }};border-radius:14px;padding:16px;background:{{ s.bg }}">
+<div style="display:flex;align-items:center;gap:10px">
+<div style="font:700 16px/1.2 Garet,Outfit,sans-serif;color:#161615;flex:1;min-width:0">{{ s.label }}</div>
+<sc-if value="{{ s.tag }}">
+<div style="border-radius:999px;padding:3px 9px;background:var(--tint,#F6F1FA);font:700 10px/1.4 Garet,Outfit,sans-serif;color:var(--ac,#7A2FA6);letter-spacing:.05em;flex:none">{{ s.tag }}</div>
+</sc-if>
+</div>
+<div style="font:400 12.5px/1.5 Garet,Outfit,sans-serif;color:#7C7871;margin-top:6px;text-wrap:pretty">{{ s.sub }}</div>
+</div>
+</sc-for>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ ap.isPick }}">
+<div style="padding:18px 0 28px">
+<div style="padding:0 16px 14px">
+<div style="font:800 22px/1.18 Garet,Outfit,sans-serif;color:#111;letter-spacing:-.02em">{{ ap.pickTitle }}</div>
+<div style="font:400 13px/1.5 Garet,Outfit,sans-serif;color:#7C7871;margin-top:7px;text-wrap:pretty">{{ ap.pickNote }}</div>
+<sc-if value="{{ ap.pickSearch }}">
+<div style="display:flex;align-items:center;gap:9px;background:#F3F1ED;border-radius:11px;padding:9px 12px;margin-top:14px">
+<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#938F88" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
+<input value="{{ q }}" onChange="{{ onQuery }}" placeholder="{{ ap.pickHint }}" style="flex:1;border:none;outline:none;background:transparent;font:400 14px/1.3 Garet,Outfit,sans-serif;color:#1A1A18">
+</div>
+</sc-if>
+</div>
+<sc-for list="{{ ap.candidates }}" as="c" hint-placeholder-count="6">
+<div class="tap" onClick="{{ c.pick }}" style="display:flex;align-items:center;gap:13px;padding:11px 16px;border-bottom:1px solid #F3F0EC;background:{{ c.bg }}">
+<div style="width:46px;height:46px;border-radius:11px;overflow:hidden;background:#F0EDE8;flex:none">
+<img src="{{ c.img }}" onError="{{ imgErr }}" style="width:100%;height:100%;object-fit:cover">
+</div>
+<div style="flex:1;min-width:0">
+<div style="font:600 14.5px/1.25 Garet,Outfit,sans-serif;color:#1A1A18;text-wrap:pretty">{{ c.name }}</div>
+<div style="font:400 11.5px/1.3 Garet,Outfit,sans-serif;color:#89857E;margin-top:3px">{{ c.sub }}</div>
+</div>
+<sc-if value="{{ c.selected }}">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--ac,#7A2FA6)" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M4 12.5l5 5L20 6.5"></path></svg>
+</sc-if>
+</div>
+</sc-for>
+</div>
+</sc-if>
+
+<sc-if value="{{ ap.isDetails }}">
+<div style="padding:20px 16px 28px">
+<div style="font:800 22px/1.18 Garet,Outfit,sans-serif;color:#111;letter-spacing:-.02em">Your host profile</div>
+<div style="font:400 13px/1.5 Garet,Outfit,sans-serif;color:#7C7871;margin-top:7px;text-wrap:pretty">{{ ap.detailNote }}</div>
+<sc-if value="{{ ap.noAssign }}">
+<div style="display:flex;align-items:flex-start;gap:11px;margin-top:16px;border-radius:12px;background:#F7F5F1;border:1px solid #EAE7E2;padding:13px 14px">
+<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#7C7871" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none;margin-top:1px"><circle cx="12" cy="12" r="9"></circle><path d="M12 8h.01M11 12h1v4h1"></path></svg>
+<div style="flex:1;min-width:0">
+<div style="font:600 13px/1.3 Garet,Outfit,sans-serif;color:#3A3A37">No listings assigned to you</div>
+<div style="font:400 11.5px/1.45 Garet,Outfit,sans-serif;color:#7C7871;margin-top:3px;text-wrap:pretty">Listings cannot be claimed. If you run a business or organization already in the app, ask an admin to assign it to your account and its details will port over automatically.</div>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ ap.verified }}">
+<div style="display:flex;align-items:center;gap:11px;margin-top:16px;border-radius:12px;background:#F2F8F5;border:1px solid #D8E9E0;padding:13px 14px">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2E8B5F" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M12 3l7 3v5.5c0 4-3 7.5-7 9-4-1.5-7-5-7-9V6l7-3z"></path><path d="M9 12l2 2 4-4"></path></svg>
+<div style="flex:1;min-width:0">
+<div style="font:600 13.5px/1.3 Garet,Outfit,sans-serif;color:#1C4735">Verification carries over</div>
+<div style="font:400 11.5px/1.4 Garet,Outfit,sans-serif;color:#4E7A64;margin-top:2px;text-wrap:pretty">{{ ap.verifiedNote }}</div>
+</div>
+</div>
+</sc-if>
+
+<div style="display:flex;gap:13px;align-items:center;margin-top:20px">
+<div style="width:72px;height:72px;border-radius:999px;overflow:hidden;background:#F0EDE8;border:3px solid #fff;box-shadow:0 3px 12px rgba(0,0,0,.14);flex:none">
+<img src="{{ ap.avatar }}" onError="{{ imgErr }}" style="width:100%;height:100%;object-fit:cover">
+</div>
+<div style="flex:1;min-width:0">
+<div class="tap" style="border-radius:10px;border:1px solid #E5E2DC;padding:9px 14px;font:600 12.5px/1.2 Garet,Outfit,sans-serif;color:#2A2A28;display:inline-block">Replace profile image</div>
+<div class="tap" style="border-radius:10px;border:1px solid #E5E2DC;padding:9px 14px;font:600 12.5px/1.2 Garet,Outfit,sans-serif;color:#2A2A28;display:inline-block;margin-top:7px">Replace header image</div>
+</div>
+</div>
+
+<div style="margin-top:20px">
+<sc-for list="{{ ap.fields }}" as="f" hint-placeholder-count="6">
+<div class="tap" style="padding:13px 0;border-bottom:1px solid #F1EEEA">
+<div style="display:flex;align-items:center;gap:8px">
+<div style="font:600 10.5px/1.2 Garet,Outfit,sans-serif;letter-spacing:.06em;text-transform:uppercase;color:#9A968F">{{ f.label }}</div>
+<sc-if value="{{ f.tag }}">
+<div style="border-radius:4px;padding:2px 6px;background:{{ f.tagBg }};font:700 9px/1.4 Garet,Outfit,sans-serif;color:{{ f.tagFg }};letter-spacing:.05em">{{ f.tag }}</div>
+</sc-if>
+</div>
+<div style="font:500 14.5px/1.4 Garet,Outfit,sans-serif;color:{{ f.color }};margin-top:5px;word-break:break-word;text-wrap:pretty">{{ f.value }}</div>
+</div>
+</sc-for>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ ap.isChannels }}">
+<div style="padding:20px 16px 28px">
+<div style="font:800 22px/1.18 Garet,Outfit,sans-serif;color:#111;letter-spacing:-.02em">Your channels</div>
+<div style="font:400 13px/1.5 Garet,Outfit,sans-serif;color:#7C7871;margin-top:7px;text-wrap:pretty">People who follow you choose which of these they want. Only turn on what you will actually use.</div>
+<div style="border:1px solid #EDEAE5;border-radius:14px;overflow:hidden;margin-top:18px">
+<sc-for list="{{ ap.channels }}" as="c" hint-placeholder-count="3">
+<div class="tap" onClick="{{ c.toggle }}" style="display:flex;align-items:center;gap:12px;padding:15px 14px;border-bottom:1px solid #F4F1ED;opacity:{{ c.dim }}">
+<div style="flex:1;min-width:0">
+<div style="display:flex;align-items:center;gap:7px">
+<div style="font:600 14.5px/1.25 Garet,Outfit,sans-serif;color:#1A1A18">{{ c.label }}</div>
+<sc-if value="{{ c.tag }}">
+<div style="border-radius:4px;padding:2px 6px;background:#F1EFEB;font:700 9px/1.4 Garet,Outfit,sans-serif;color:#7C7871;letter-spacing:.05em">{{ c.tag }}</div>
+</sc-if>
+</div>
+<div style="font:400 11.5px/1.4 Garet,Outfit,sans-serif;color:#89857E;margin-top:4px;text-wrap:pretty">{{ c.sub }}</div>
+</div>
+<div style="width:44px;height:26px;border-radius:999px;background:{{ c.track }};flex:none;padding:3px;display:flex;justify-content:{{ c.justify }};transition:background .18s ease">
+<div style="width:20px;height:20px;border-radius:999px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.28)"></div>
+</div>
+</div>
+</sc-for>
+</div>
+<div style="font:400 12px/1.5 Garet,Outfit,sans-serif;color:#8C887F;margin-top:14px;text-wrap:pretty">Sending limit: one push per channel per week. Newsletters are exempt if people opted into them specifically.</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ ap.isReview }}">
+<div style="padding:20px 16px 28px">
+<div style="font:800 22px/1.18 Garet,Outfit,sans-serif;color:#111;letter-spacing:-.02em">Send for review</div>
+<div style="font:400 13px/1.5 Garet,Outfit,sans-serif;color:#7C7871;margin-top:7px;text-wrap:pretty">A volunteer admin checks every host profile before it goes public. Most are reviewed within two business days.</div>
+<div style="border:1px solid #EDEAE5;border-radius:14px;overflow:hidden;margin-top:18px">
+<sc-for list="{{ ap.summary }}" as="s" hint-placeholder-count="4">
+<div style="display:flex;align-items:flex-start;gap:12px;padding:14px;border-bottom:1px solid #F4F1ED">
+<div style="font:600 11px/1.5 Garet,Outfit,sans-serif;letter-spacing:.05em;text-transform:uppercase;color:#9A968F;width:88px;flex:none">{{ s.label }}</div>
+<div style="flex:1;min-width:0;font:500 13.5px/1.45 Garet,Outfit,sans-serif;color:#22221F;text-wrap:pretty">{{ s.value }}</div>
+</div>
+</sc-for>
+</div>
+<div style="border-radius:12px;background:#F7F5F1;padding:14px;margin-top:16px">
+<div style="font:600 12.5px/1.35 Garet,Outfit,sans-serif;color:#3A3A37">What admins check</div>
+<div style="font:400 12px/1.6 Garet,Outfit,sans-serif;color:#7C7871;margin-top:6px;text-wrap:pretty">That you represent the entity you linked, that the listing is queer-owned or actively affirming, and that contact details resolve. We may email you before approving.</div>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ ap.isDone }}">
+<div style="padding:36px 20px 28px;text-align:center">
+<div style="width:66px;height:66px;border-radius:999px;background:var(--tint,#F6F1FA);display:flex;align-items:center;justify-content:center;margin:0 auto">
+<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="var(--ac,#7A2FA6)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5.5l3.5 2"></path></svg>
+</div>
+<div style="font:800 24px/1.2 Garet,Outfit,sans-serif;color:#111;letter-spacing:-.02em;margin-top:18px">Sent for review</div>
+<div style="font:400 14px/1.55 Garet,Outfit,sans-serif;color:#6E6A64;margin-top:9px;text-wrap:pretty">{{ ap.doneNote }}</div>
+<div style="border:1px solid #EDEAE5;border-radius:14px;overflow:hidden;margin-top:22px;text-align:left">
+<sc-for list="{{ ap.timeline }}" as="t" hint-placeholder-count="3">
+<div style="display:flex;align-items:center;gap:12px;padding:14px;border-bottom:1px solid #F4F1ED">
+<div style="width:22px;height:22px;border-radius:999px;background:{{ t.dotBg }};border:{{ t.dotBorder }};flex:none;display:flex;align-items:center;justify-content:center">
+<div style="width:7px;height:7px;border-radius:999px;background:{{ t.core }}"></div>
+</div>
+<div style="flex:1;min-width:0">
+<div style="font:600 13.5px/1.25 Garet,Outfit,sans-serif;color:{{ t.fg }}">{{ t.label }}</div>
+<div style="font:400 11.5px/1.35 Garet,Outfit,sans-serif;color:#89857E;margin-top:2px;text-wrap:pretty">{{ t.sub }}</div>
+</div>
+</div>
+</sc-for>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ ap.hasCta }}">
+<div style="position:sticky;bottom:0;background:rgba(255,255,255,.96);backdrop-filter:blur(10px);border-top:1px solid #EFECE8;padding:12px 16px 16px">
+<div class="tap" onClick="{{ ap.next }}" style="border-radius:12px;padding:14px;text-align:center;background:{{ ap.ctaBg }};font:700 14.5px/1.2 Garet,Outfit,sans-serif;color:{{ ap.ctaFg }}">{{ ap.ctaLabel }}</div>
+</div>
+</sc-if>
+</div>
+</sc-if>
+
+<sc-if value="{{ isShop }}">
+<div>
+<div style="padding:0 16px">
+<div style="display:flex;align-items:center;gap:9px;background:#F3F1ED;border-radius:11px;padding:9px 12px;margin-bottom:12px">
+<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#938F88" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
+<input value="{{ q }}" onChange="{{ onQuery }}" placeholder="Search businesses on this page" style="flex:1;border:none;outline:none;background:transparent;font:400 14px/1.3 Garet,Outfit,sans-serif;color:#1A1A18">
+</div>
+<div style="position:relative;border-radius:14px;overflow:hidden;background:#E7E9E4;border:1px solid #E0DDD7;height:{{ mapH }}px">
+<div ref="{{ mapRef }}" style="position:absolute;inset:0"></div>
+</div>
+<sc-if value="{{ hasChips }}">
+<div style="margin-top:11px;display:flex;gap:7px">
+<sc-for list="{{ activeChips }}" as="c" hint-placeholder-count="1">
+<div class="tap" onClick="{{ c.clear }}" style="flex:none;display:flex;align-items:center;gap:6px;border-radius:999px;padding:6px 11px;font:600 12px/1.2 Garet,Outfit,sans-serif;color:#fff;background:{{ c.bg }}">{{ c.label }}
+<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.85)" stroke-width="3" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"></path></svg>
+</div>
+</sc-for>
+</div>
+</sc-if>
+</div>
+<div style="margin-top:{{ listShift }};background:#fff;border-radius:18px 18px 0 0;position:relative;z-index:4;padding-top:6px">
+<div style="font:500 11.5px/1.2 Garet,Outfit,sans-serif;color:#96928B;padding:10px 16px 4px">{{ bizCount }}</div>
+<sc-if value="{{ ageHidden }}">
+<div style="margin:2px 16px 8px;border-radius:9px;background:#F7F5F1;padding:9px 12px;font:400 11.5px/1.4 Garet,Outfit,sans-serif;color:#8C887F">{{ ageHidden }}</div>
+</sc-if>
+<sc-for list="{{ bizList }}" as="b" hint-placeholder-count="6">
+<div class="tap" onClick="{{ b.open }}" style="display:flex;align-items:center;gap:13px;padding:11px 16px;border-bottom:1px solid #F3F0EC">
+<div style="width:56px;height:56px;border-radius:11px;overflow:hidden;background:{{ b.color }};flex:none;display:flex;align-items:center;justify-content:center">
+<img src="{{ b.img }}" onError="{{ imgErr }}" style="width:100%;height:100%;object-fit:cover">
+</div>
+<div style="flex:1;min-width:0">
+<div style="display:flex;align-items:center;gap:6px">
+<div style="font:600 14.5px/1.25 Garet,Outfit,sans-serif;color:#1A1A18;text-wrap:pretty;min-width:0">{{ b.name }}</div>
+<sc-if value="{{ b.verified }}">
+<svg width="15" height="15" viewBox="0 0 24 24" style="flex:none"><path d="M12 2l2.5 1.9 3.1-.3 1 3 2.7 1.6-1 2.8 1 2.8-2.7 1.6-1 3-3.1-.3L12 22l-2.5-1.9-3.1.3-1-3-2.7-1.6 1-2.8-1-2.8 2.7-1.6 1-3 3.1.3z" fill="var(--ac,#7A2FA6)"></path><path d="M8.4 12.3l2.5 2.5 4.7-5" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+</sc-if>
+<sc-if value="{{ b.ageTag }}">
+<div style="border-radius:4px;padding:2px 5px;background:#EFEBE4;font:700 9px/1.4 Garet,Outfit,sans-serif;color:#7A6E58;letter-spacing:.04em;flex:none">{{ b.ageTag }}</div>
+</sc-if>
+</div>
+<div style="font:400 11.5px/1.35 Garet,Outfit,sans-serif;color:#89857E;margin-top:3px">{{ b.sub }}</div>
+</div>
+<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#C3BFB8" stroke-width="2.4" stroke-linecap="round"><path d="M9 18l6-6-6-6"></path></svg>
+</div>
+</sc-for>
+<div style="height:22px"></div>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ bizBlocked }}">
+<div style="padding:56px 20px 28px;min-height:100%;background:#fff">
+<div class="tap" onClick="{{ back }}" style="width:34px;height:34px;border-radius:999px;background:#F1EFEB;display:flex;align-items:center;justify-content:center">
+<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#2A2A28" stroke-width="2.4" stroke-linecap="round"><path d="M15 18l-6-6 6-6"></path></svg>
+</div>
+<div style="text-align:center;padding:60px 8px 0">
+<sc-if value="{{ ageBlock.tag }}">
+<div style="display:inline-block;border-radius:999px;background:#EFEBE4;padding:7px 16px;font:700 13px/1.2 Garet,Outfit,sans-serif;color:#7A6E58;letter-spacing:.05em">{{ ageBlock.tag }}</div>
+</sc-if>
+<div style="font:800 23px/1.2 Garet,Outfit,sans-serif;color:#141413;letter-spacing:-.02em;margin-top:18px">{{ ageBlock.title }}</div>
+<sc-if value="{{ ageBlock.why }}">
+<div style="font:400 14px/1.55 Garet,Outfit,sans-serif;color:#6E6A64;margin-top:9px;text-wrap:pretty">{{ ageBlock.why }}</div>
+</sc-if>
+<div style="font:400 12.5px/1.5 Garet,Outfit,sans-serif;color:#8C887F;margin-top:14px;text-wrap:pretty">{{ ageBlock.note }}</div>
+<sc-if value="{{ ageBlock.showCta }}">
+<div class="tap" onClick="{{ ageBlock.go }}" style="display:inline-block;margin-top:18px;border-radius:999px;padding:9px 20px;border:1.5px solid #E5E2DC;font:600 13px/1.2 Garet,Outfit,sans-serif;color:#2A2A28">Account settings</div>
+</sc-if>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ bizOpen }}">
+<div>
+<sc-if value="{{ bizGlide }}">
+<div>
+<div style="position:relative;height:200px;background:{{ biz.color }};overflow:hidden">
+<img src="{{ biz.bg }}" onError="{{ imgErr }}" style="width:100%;height:100%;object-fit:cover">
+<div class="tap" onClick="{{ back }}" style="position:absolute;top:58px;left:14px;width:36px;height:36px;border-radius:999px;background:rgba(255,255,255,.55);backdrop-filter:blur(10px);display:flex;align-items:center;justify-content:center">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2A2A28" stroke-width="2.4" stroke-linecap="round"><path d="M15 18l-6-6 6-6"></path></svg>
+</div>
+</div>
+<div style="padding:0 16px;margin-top:-46px;position:relative">
+<div style="width:96px;height:96px;border-radius:14px;overflow:hidden;background:#fff;border:3px solid #fff;box-shadow:0 5px 18px rgba(0,0,0,.2);display:flex;align-items:center;justify-content:center">
+<img src="{{ biz.img }}" onError="{{ imgErr }}" style="width:100%;height:100%;object-fit:cover">
+</div>
+<div style="display:flex;align-items:flex-start;gap:8px;margin-top:14px">
+<div style="font:800 23px/1.18 Garet,Outfit,sans-serif;color:#141413;letter-spacing:-.02em;text-wrap:pretty;flex:1;min-width:0">{{ biz.name }}</div>
+<sc-if value="{{ biz.verified }}">
+<svg width="21" height="21" viewBox="0 0 24 24" style="flex:none;margin-top:3px"><path d="M12 2l2.5 1.9 3.1-.3 1 3 2.7 1.6-1 2.8 1 2.8-2.7 1.6-1 3-3.1-.3L12 22l-2.5-1.9-3.1.3-1-3-2.7-1.6 1-2.8-1-2.8 2.7-1.6 1-3 3.1.3z" fill="var(--ac,#7A2FA6)"></path><path d="M8.4 12.3l2.5 2.5 4.7-5" fill="none" stroke="#fff" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+</sc-if>
+</div>
+<div style="display:flex;gap:9px;margin-top:12px">
+<div class="tap" style="border-radius:999px;border:1px solid #E5E2DC;padding:8px 17px;font:600 13px/1.2 Garet,Outfit,sans-serif;color:#2A2A28;background:#fff">Share</div>
+<div class="tap" onClick="{{ biz.toggleSave }}" style="border-radius:999px;border:1px solid #E5E2DC;padding:8px 17px;font:600 13px/1.2 Garet,Outfit,sans-serif;color:{{ biz.saveColor }};background:#fff">{{ biz.saveLabel }}</div>
+</div>
+</div>
+</div>
+</sc-if>
+<sc-if value="{{ bizEditorial }}">
+<div style="position:relative;height:330px;overflow:hidden;background:{{ biz.color }}">
+<img src="{{ biz.bg }}" onError="{{ imgErr }}" style="width:100%;height:100%;object-fit:cover">
+<div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.25) 0%,rgba(0,0,0,.05) 42%,rgba(0,0,0,.82) 100%)"></div>
+<div class="tap" onClick="{{ back }}" style="position:absolute;top:58px;left:14px;width:36px;height:36px;border-radius:999px;background:rgba(255,255,255,.55);backdrop-filter:blur(10px);display:flex;align-items:center;justify-content:center">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2A2A28" stroke-width="2.4" stroke-linecap="round"><path d="M15 18l-6-6 6-6"></path></svg>
+</div>
+<div style="position:absolute;left:18px;right:18px;bottom:20px">
+<div style="font:600 11px/1.2 Garet,Outfit,sans-serif;letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.75)">{{ biz.county }}</div>
+<div style="display:flex;align-items:flex-start;gap:9px;margin-top:8px">
+<div style="font:800 30px/1.1 Garet,Outfit,sans-serif;color:#fff;letter-spacing:-.025em;text-wrap:pretty;text-shadow:0 2px 14px rgba(0,0,0,.4);flex:1;min-width:0">{{ biz.name }}</div>
+<sc-if value="{{ biz.verified }}">
+<svg width="24" height="24" viewBox="0 0 24 24" style="flex:none;margin-top:4px"><path d="M12 2l2.5 1.9 3.1-.3 1 3 2.7 1.6-1 2.8 1 2.8-2.7 1.6-1 3-3.1-.3L12 22l-2.5-1.9-3.1.3-1-3-2.7-1.6 1-2.8-1-2.8 2.7-1.6 1-3 3.1.3z" fill="var(--ac,#7A2FA6)"></path><path d="M8.4 12.3l2.5 2.5 4.7-5" fill="none" stroke="#fff" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+</sc-if>
+</div>
+</div>
+</div>
+<div style="display:flex;gap:9px;padding:14px 16px 0">
+<div class="tap" style="flex:1;text-align:center;border-radius:11px;padding:11px;background:var(--ac,#7A2FA6);font:700 13.5px/1.2 Garet,Outfit,sans-serif;color:#fff">Directions</div>
+<div class="tap" onClick="{{ biz.toggleSave }}" style="border-radius:11px;border:1px solid #E5E2DC;padding:11px 17px;font:600 13.5px/1.2 Garet,Outfit,sans-serif;color:{{ biz.saveColor }}">{{ biz.saveLabel }}</div>
+<div class="tap" style="border-radius:11px;border:1px solid #E5E2DC;padding:11px 17px;font:600 13.5px/1.2 Garet,Outfit,sans-serif;color:#2A2A28">Share</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ biz.sub.show }}">
+<div style="margin:16px 16px 0;border-radius:12px;border:1px solid #EDEAE5;background:#FCFBF9;overflow:hidden;opacity:{{ biz.sub.dim }}">
+<div class="tap" onClick="{{ biz.sub.toggleOpen }}" style="display:flex;align-items:center;gap:12px;padding:13px 14px">
+<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="{{ biz.color }}" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M18 15V10a6 6 0 0 0-12 0v5l-1.6 2.4h15.2L18 15z"></path><path d="M10 20a2 2 0 0 0 4 0"></path></svg>
+<div style="flex:1;min-width:0">
+<div style="font:600 13.5px/1.3 Garet,Outfit,sans-serif;color:#1A1A18">{{ biz.sub.title }}</div>
+<div style="font:400 11.5px/1.35 Garet,Outfit,sans-serif;color:#89857E;margin-top:2px;text-wrap:pretty">{{ biz.sub.summary }}</div>
+</div>
+<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#A5A19B" stroke-width="2.4" stroke-linecap="round" style="flex:none;transform:{{ biz.sub.rot }};transition:transform .2s ease"><path d="M6 9l6 6 6-6"></path></svg>
+</div>
+<sc-if value="{{ biz.sub.open }}">
+<div style="padding:2px 14px 6px;border-top:1px solid #F1EEEA">
+<sc-for list="{{ biz.sub.rows }}" as="c" hint-placeholder-count="3">
+<div class="tap" onClick="{{ c.toggle }}" style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid #F4F1ED">
+<div style="flex:1;min-width:0">
+<div style="font:600 13.5px/1.25 Garet,Outfit,sans-serif;color:#1A1A18">{{ c.label }}</div>
+<div style="font:400 11.5px/1.35 Garet,Outfit,sans-serif;color:#89857E;margin-top:2px;text-wrap:pretty">{{ c.sub }}</div>
+</div>
+<div style="width:44px;height:26px;border-radius:999px;background:{{ c.track }};flex:none;padding:3px;display:flex;justify-content:{{ c.justify }};transition:background .18s ease">
+<div style="width:20px;height:20px;border-radius:999px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.28)"></div>
+</div>
+</div>
+</sc-for>
+</div>
+</sc-if>
+</div>
+</sc-if>
+<div class="hs" onScroll="{{ biz.onPhotoScroll }}" style="display:flex;gap:10px;overflow-x:auto;padding:18px 16px 0;scroll-snap-type:x mandatory">
+<sc-for list="{{ biz.gallery }}" as="g" hint-placeholder-count="3">
+<div style="flex:none;width:294px;height:198px;border-radius:13px;overflow:hidden;background:{{ g.bg }};scroll-snap-align:center;display:flex;align-items:center;justify-content:center">
+<img src="{{ g.src }}" onError="{{ imgErr }}" style="width:100%;height:100%;object-fit:cover">
+</div>
+</sc-for>
+</div>
+<div style="display:flex;justify-content:center;gap:5px;padding:11px 0 2px">
+<sc-for list="{{ biz.dots }}" as="d" hint-placeholder-count="3">
+<div style="width:{{ d.w }};height:5px;border-radius:999px;background:{{ d.bg }}"></div>
+</sc-for>
+</div>
+
+<sc-if value="{{ biz.hasCoupons }}">
+<div style="padding:14px 0 0">
+<div style="display:flex;align-items:center;gap:7px;padding:0 16px 10px">
+<div style="font:700 12px/1.2 Garet,Outfit,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#9A968F">Offers for our community</div>
+</div>
+<div class="hs" style="display:flex;gap:10px;overflow-x:auto;padding:0 16px 2px;scroll-snap-type:x mandatory">
+<sc-for list="{{ biz.coupons }}" as="c" hint-placeholder-count="2">
+<div class="tap" style="flex:none;width:262px;scroll-snap-align:start;border-radius:13px;border:1.5px dashed {{ c.line }};background:{{ c.tint }};padding:15px 16px;display:flex;flex-direction:column;gap:9px">
+<div style="font:800 19px/1.15 Garet,Outfit,sans-serif;color:{{ c.color }};letter-spacing:-.01em;text-wrap:pretty">{{ c.title }}</div>
+<div style="font:400 12.5px/1.4 Garet,Outfit,sans-serif;color:#5E5A54;text-wrap:pretty">{{ c.terms }}</div>
+<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:2px">
+<div style="border-radius:7px;background:#fff;border:1px solid rgba(0,0,0,.09);padding:6px 11px;font:700 12.5px/1.2 Garet,Outfit,sans-serif;color:#1A1A18;letter-spacing:.06em">{{ c.code }}</div>
+<div style="font:500 11px/1.3 Garet,Outfit,sans-serif;color:#8A867F">{{ c.expires }}</div>
+</div>
+</div>
+</sc-for>
+</div>
+</div>
+</sc-if>
+
+<sc-for list="{{ biz.sections }}" as="s" hint-placeholder-count="2">
+<div style="padding:24px 0 0">
+<div style="padding:0 16px 12px">
+<div style="font:800 20px/1.2 Garet,Outfit,sans-serif;color:#141413;letter-spacing:-.015em;text-wrap:pretty">{{ s.title }}</div>
+<sc-if value="{{ s.sub }}">
+<div style="font:400 12.5px/1.4 Garet,Outfit,sans-serif;color:#87837C;margin-top:4px">{{ s.sub }}</div>
+</sc-if>
+<sc-if value="{{ s.badge }}">
+<div style="display:inline-block;margin-top:8px;border-radius:5px;background:#141413;padding:3px 8px;font:600 10px/1.4 Garet,Outfit,sans-serif;color:#9FE8D8;letter-spacing:.08em">{{ s.badge }}</div>
+</sc-if>
+</div>
+
+<sc-if value="{{ s.isCarousel }}">
+<div class="hs" style="display:flex;gap:11px;overflow-x:auto;padding:0 16px 4px;scroll-snap-type:x mandatory">
+<sc-for list="{{ s.items }}" as="i" hint-placeholder-count="3">
+<div class="tap" onClick="{{ i.open }}" style="flex:none;width:{{ s.cardW }};scroll-snap-align:start">
+<div style="width:100%;height:{{ s.cardH }};border-radius:12px;overflow:hidden;background:#EFEDE9">
+<img src="{{ i.img }}" onError="{{ imgErr }}" style="width:100%;height:100%;object-fit:cover">
+</div>
+<div style="font:600 14px/1.3 Garet,Outfit,sans-serif;color:#1A1A18;margin-top:9px;text-wrap:pretty">{{ i.title }}</div>
+<div style="font:400 12.5px/1.4 Garet,Outfit,sans-serif;color:#87837C;margin-top:3px;text-wrap:pretty">{{ i.sub }}</div>
+</div>
+</sc-for>
+</div>
+</sc-if>
+
+<sc-if value="{{ s.isStack }}">
+<div style="padding:0 16px;display:flex;flex-direction:column;gap:16px">
+<sc-for list="{{ s.items }}" as="i" hint-placeholder-count="2">
+<div class="tap" onClick="{{ i.open }}">
+<div style="width:100%;height:{{ s.cardH }};border-radius:13px;overflow:hidden;background:#EFEDE9">
+<img src="{{ i.img }}" onError="{{ imgErr }}" style="width:100%;height:100%;object-fit:cover">
+</div>
+<div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-top:10px">
+<div style="font:700 17px/1.25 Garet,Outfit,sans-serif;color:#161615;text-wrap:pretty">{{ i.title }}</div>
+<div style="font:600 14px/1.3 Garet,Outfit,sans-serif;color:{{ biz.color }};flex:none">{{ i.value }}</div>
+</div>
+<div style="font:400 13.5px/1.5 Garet,Outfit,sans-serif;color:#6E6A64;margin-top:4px;text-wrap:pretty">{{ i.sub }}</div>
+</div>
+</sc-for>
+</div>
+</sc-if>
+
+<sc-if value="{{ s.isGrid }}">
+<div style="padding:0 16px;display:grid;grid-template-columns:1fr 1fr;gap:12px">
+<sc-for list="{{ s.items }}" as="i" hint-placeholder-count="4">
+<div class="tap" onClick="{{ i.open }}">
+<div style="width:100%;height:{{ s.cardH }};border-radius:12px;overflow:hidden;background:#EFEDE9">
+<img src="{{ i.img }}" onError="{{ imgErr }}" style="width:100%;height:100%;object-fit:cover">
+</div>
+<div style="font:600 13.5px/1.3 Garet,Outfit,sans-serif;color:#1A1A18;margin-top:8px;text-wrap:pretty">{{ i.title }}</div>
+<div style="font:400 12px/1.4 Garet,Outfit,sans-serif;color:#87837C;margin-top:2px;text-wrap:pretty">{{ i.sub }}</div>
+</div>
+</sc-for>
+</div>
+</sc-if>
+
+<sc-if value="{{ s.isList }}">
+<div style="padding:0 16px">
+<sc-for list="{{ s.items }}" as="i" hint-placeholder-count="4">
+<div class="tap" onClick="{{ i.open }}" style="display:flex;align-items:center;gap:13px;padding:13px 0;border-bottom:1px solid #F1EEEA">
+<div style="flex:1;min-width:0">
+<div style="font:600 15px/1.25 Garet,Outfit,sans-serif;color:#1A1A18;text-wrap:pretty">{{ i.title }}</div>
+<div style="font:400 12.5px/1.4 Garet,Outfit,sans-serif;color:#87837C;margin-top:3px;text-wrap:pretty">{{ i.sub }}</div>
+</div>
+<div style="font:600 14px/1.3 Garet,Outfit,sans-serif;color:{{ biz.color }};flex:none">{{ i.value }}</div>
+</div>
+</sc-for>
+</div>
+</sc-if>
+</div>
+</sc-for>
+
+<div style="padding:26px 16px 0">
+<div style="font:700 12px/1.2 Garet,Outfit,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#9A968F;margin-bottom:4px">Visit</div>
+<sc-for list="{{ biz.rows }}" as="r" hint-placeholder-count="3">
+<div class="tap" style="display:flex;align-items:center;gap:13px;padding:14px 0;border-bottom:1px solid #F3F0EC">
+<div style="width:34px;height:34px;border-radius:9px;background:{{ r.tint }};display:flex;align-items:center;justify-content:center;flex:none;font:700 12px/1 Garet,Outfit,sans-serif;color:{{ r.color }}">{{ r.glyph }}</div>
+<div style="flex:1;min-width:0">
+<div style="font:600 10.5px/1.2 Garet,Outfit,sans-serif;letter-spacing:.05em;text-transform:uppercase;color:#9A968F">{{ r.label }}</div>
+<div style="font:500 13.5px/1.35 Garet,Outfit,sans-serif;color:#22221F;margin-top:3px;word-break:break-word">{{ r.value }}</div>
+</div>
+<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#C3BFB8" stroke-width="2.4" stroke-linecap="round"><path d="M9 18l6-6-6-6"></path></svg>
+</div>
+</sc-for>
+<div style="height:26px"></div>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isProfile }}">
+<div style="padding:0 16px 28px">
+<div class="hs" style="display:flex;gap:7px;overflow-x:auto;padding:2px 0 16px">
+<sc-for list="{{ profileTabs }}" as="p" hint-placeholder-count="4">
+<div class="tap" onClick="{{ p.pick }}" style="flex:none;display:flex;align-items:center;gap:7px;border-radius:999px;padding:8px 15px;border:{{ p.border }};background:{{ p.bg }};color:{{ p.fg }}">
+<div style="font:600 13px/1.2 Garet,Outfit,sans-serif">{{ p.label }}</div>
+<sc-if value="{{ p.count }}">
+<div style="border-radius:999px;background:{{ p.pill }};padding:1px 7px;font:700 10.5px/1.5 Garet,Outfit,sans-serif;color:{{ p.pillFg }}">{{ p.count }}</div>
+</sc-if>
+</div>
+</sc-for>
+</div>
+
+<sc-if value="{{ paneSaved }}">
+<div>
+<sc-if value="{{ deviceOnly }}">
+<div class="tap" onClick="{{ goAccount }}" style="display:flex;align-items:center;gap:11px;border-radius:12px;background:#F7F5F1;border:1px solid #EAE7E2;padding:12px 14px;margin-bottom:14px">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#8A867F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect x="4" y="10" width="16" height="10" rx="2"></rect><path d="M8 10V7a4 4 0 0 1 8 0v3"></path></svg>
+<div style="flex:1;min-width:0;font:400 11.5px/1.45 Garet,Outfit,sans-serif;color:#7C7871;text-wrap:pretty">{{ deviceNote }}</div>
+<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#B9B5AE" stroke-width="2.4" stroke-linecap="round" style="flex:none"><path d="M9 18l6-6-6-6"></path></svg>
+</div>
+</sc-if>
+<sc-if value="{{ hasSaved }}">
+<div style="border:1px solid #EDEAE5;border-radius:14px;overflow:hidden">
+<sc-for list="{{ savedItems }}" as="s" hint-placeholder-count="2">
+<div class="tap" onClick="{{ s.open }}" style="display:flex;align-items:center;gap:12px;padding:11px 13px;border-bottom:1px solid #F4F1ED">
+<div style="width:44px;height:44px;border-radius:10px;overflow:hidden;background:#F0EDE8;flex:none">
+<img src="{{ s.img }}" onError="{{ imgErr }}" style="width:100%;height:100%;object-fit:cover">
+</div>
+<div style="flex:1;min-width:0">
+<div style="font:600 14px/1.25 Garet,Outfit,sans-serif;color:#1A1A18">{{ s.name }}</div>
+<div style="font:400 11.5px/1.3 Garet,Outfit,sans-serif;color:#89857E;margin-top:2px">{{ s.sub }}</div>
+</div>
+</div>
+</sc-for>
+</div>
+</sc-if>
+<sc-if value="{{ noSaved }}">
+<div style="border:1.5px dashed #DFDBD5;border-radius:14px;padding:24px 18px;text-align:center">
+<div style="font:600 14px/1.3 Garet,Outfit,sans-serif;color:#4A4945">Nothing saved yet</div>
+<div style="font:400 12.5px/1.5 Garet,Outfit,sans-serif;color:#8C887F;margin-top:5px">Tap the heart on any resource to keep it here.</div>
+</div>
+</sc-if>
+</div>
+</sc-if>
+
+<sc-if value="{{ paneThemes }}">
+<div>
+<div style="font:800 19px/1.2 Garet,Outfit,sans-serif;color:#141413;letter-spacing:-.01em;margin:2px 0 4px">Choose Your Theme</div>
+<div style="font:400 12.5px/1.5 Garet,Outfit,sans-serif;color:#8C887F;margin-bottom:16px;text-wrap:pretty">Themes swap the header, accent color and card tint across every page.</div>
+<div style="font:700 13px/1.2 Garet,Outfit,sans-serif;color:#2A2A28;margin-bottom:10px">Standard Themes</div>
+<div style="display:flex;flex-wrap:wrap;gap:9px">
+<sc-for list="{{ themeStandard }}" as="t" hint-placeholder-count="7">
+<div class="tap" onClick="{{ t.pick }}" style="display:flex;align-items:center;gap:9px;border-radius:999px;padding:7px 15px 7px 8px;border:{{ t.border }};background:{{ t.bg }}">
+<div style="width:22px;height:22px;border-radius:999px;background:{{ t.dot }};box-shadow:inset 0 0 0 1px rgba(0,0,0,.08)"></div>
+<div style="font:600 13px/1.2 Garet,Outfit,sans-serif;color:{{ t.labelColor }}">{{ t.label }}</div>
+</div>
+</sc-for>
+</div>
+<div style="font:700 13px/1.2 Garet,Outfit,sans-serif;color:#2A2A28;margin:22px 0 10px">Classic Themes</div>
+<div style="display:flex;flex-wrap:wrap;gap:9px">
+<sc-for list="{{ themePride }}" as="t" hint-placeholder-count="6">
+<div class="tap" onClick="{{ t.pick }}" style="display:flex;align-items:center;gap:9px;border-radius:999px;padding:7px 15px 7px 8px;border:{{ t.border }};background:{{ t.bg }}">
+<div style="width:22px;height:22px;border-radius:999px;background:{{ t.dot }};box-shadow:inset 0 0 0 1px rgba(0,0,0,.08)"></div>
+<div style="font:600 13px/1.2 Garet,Outfit,sans-serif;color:{{ t.labelColor }}">{{ t.label }}</div>
+</div>
+</sc-for>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ paneContribute }}">
+<div>
+<div style="font:800 19px/1.2 Garet,Outfit,sans-serif;color:#141413;letter-spacing:-.01em;margin:2px 0 4px">Contribute</div>
+<div style="font:400 12.5px/1.5 Garet,Outfit,sans-serif;color:#8C887F;margin-bottom:16px;text-wrap:pretty">Everything in this app was submitted by someone in the community. Volunteers review every entry.</div>
+<div style="border:1px solid #EDEAE5;border-radius:14px;overflow:hidden">
+<sc-for list="{{ profileRows }}" as="p" hint-placeholder-count="4">
+<div class="tap" onClick="{{ p.go }}" style="display:flex;align-items:center;gap:12px;padding:15px 14px;border-bottom:1px solid #F4F1ED">
+<div style="flex:1;min-width:0">
+<div style="font:600 14px/1.25 Garet,Outfit,sans-serif;color:#1A1A18">{{ p.label }}</div>
+<div style="font:400 11.5px/1.35 Garet,Outfit,sans-serif;color:#89857E;margin-top:3px;text-wrap:pretty">{{ p.sub }}</div>
+</div>
+<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#C3BFB8" stroke-width="2.4" stroke-linecap="round"><path d="M9 18l6-6-6-6"></path></svg>
+</div>
+</sc-for>
+</div>
+<div style="font:400 11.5px/1.55 Garet,Outfit,sans-serif;color:#A19D95;margin-top:22px;text-align:center;text-wrap:pretty">LGBTQ.UT is a volunteer project. Listings are reviewed, not endorsed.</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ paneAccount }}">
+<div>
+<div style="border:1px solid #EDEAE5;border-radius:14px;padding:16px">
+<div style="font:800 18px/1.2 Garet,Outfit,sans-serif;color:#141413;letter-spacing:-.01em">{{ accountState.title }}</div>
+<div style="font:400 12.5px/1.5 Garet,Outfit,sans-serif;color:#7C7871;margin-top:7px;text-wrap:pretty">{{ accountState.sub }}</div>
+<sc-if value="{{ deviceOnly }}">
+<div style="font:400 12px/1.5 Garet,Outfit,sans-serif;color:#8C887F;margin-top:10px;padding-top:10px;border-top:1px solid #F1EEEA;text-wrap:pretty">{{ signupNote }}</div>
+</sc-if>
+<sc-if value="{{ accountState.cta }}">
+<div class="tap" onClick="{{ accountState.go }}" style="display:inline-block;margin-top:13px;border-radius:999px;padding:9px 20px;background:var(--ac,#7A2FA6);font:700 13px/1.2 Garet,Outfit,sans-serif;color:#fff">{{ accountState.cta }}</div>
+</sc-if>
+</div>
+
+<sc-if value="{{ accountRows }}">
+<div style="margin-top:22px">
+<div style="font:700 12px/1.2 Garet,Outfit,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#9A968F;margin-bottom:10px">Sign-in details</div>
+<div style="border:1px solid #EDEAE5;border-radius:14px;overflow:hidden">
+<sc-for list="{{ accountRows }}" as="r" hint-placeholder-count="2">
+<div class="tap" style="display:flex;align-items:center;gap:12px;padding:14px;border-bottom:1px solid #F4F1ED">
+<div style="flex:1;min-width:0">
+<div style="font:600 10.5px/1.2 Garet,Outfit,sans-serif;letter-spacing:.06em;text-transform:uppercase;color:#9A968F">{{ r.label }}</div>
+<div style="font:500 14px/1.35 Garet,Outfit,sans-serif;color:#22221F;margin-top:4px;word-break:break-word">{{ r.value }}</div>
+</div>
+<div style="border-radius:4px;padding:2px 6px;background:#F1EFEB;font:700 9px/1.4 Garet,Outfit,sans-serif;color:#7C7871;letter-spacing:.05em;flex:none">{{ r.tag }}</div>
+</div>
+</sc-for>
+</div>
+<sc-if value="{{ showRelayNote }}">
+<div>
+<div class="tap" onClick="{{ emailRow.toggle }}" style="display:flex;align-items:center;gap:12px;border:1px solid #EDEAE5;border-radius:14px;padding:14px;margin-top:11px">
+<div style="flex:1;min-width:0">
+<div style="font:600 14px/1.25 Garet,Outfit,sans-serif;color:#1A1A18">{{ emailRow.label }}</div>
+<div style="font:400 11.5px/1.35 Garet,Outfit,sans-serif;color:#89857E;margin-top:3px;text-wrap:pretty">{{ emailRow.value }}</div>
+</div>
+<div style="width:44px;height:26px;border-radius:999px;background:{{ emailRow.track }};flex:none;padding:3px;display:flex;justify-content:{{ emailRow.justify }};transition:background .18s ease">
+<div style="width:20px;height:20px;border-radius:999px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.28)"></div>
+</div>
+</div>
+<div style="font:400 11.5px/1.5 Garet,Outfit,sans-serif;color:#8C887F;margin-top:11px;text-wrap:pretty">Your real address lives with the sign-in service and never reaches us. Everything routes through your proxy, so hosts and businesses can reach you without learning who or where you are — and you can rotate the proxy at any time to cut them off.</div>
+</div>
+</sc-if>
+</div>
+</sc-if>
+
+<sc-if value="{{ isPublic }}">
+<div style="margin-top:22px">
+<div style="font:700 12px/1.2 Garet,Outfit,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#9A968F;margin-bottom:10px">Public profile</div>
+<div style="border:1px solid #EDEAE5;border-radius:14px;overflow:hidden">
+<div style="height:88px;background:linear-gradient(120deg,#CFC6E6,#B3A6D6,#8E7FBE);position:relative">
+<div class="tap" style="position:absolute;right:10px;bottom:10px;border-radius:8px;background:rgba(255,255,255,.9);padding:6px 11px;font:600 11px/1.2 Garet,Outfit,sans-serif;color:#3A3A37">Change background</div>
+</div>
+<div style="padding:0 14px 14px;margin-top:-30px">
+<div class="tap" style="width:64px;height:64px;border-radius:999px;background:#7A2FA6;border:3px solid #fff;box-shadow:0 3px 12px rgba(0,0,0,.16);display:flex;align-items:center;justify-content:center;font:700 20px/1 Garet,Outfit,sans-serif;color:#fff">AR</div>
+<sc-for list="{{ publicFields }}" as="f" hint-placeholder-count="4">
+<div class="tap" style="padding:12px 0;border-bottom:1px solid #F1EEEA">
+<div style="font:600 10.5px/1.2 Garet,Outfit,sans-serif;letter-spacing:.06em;text-transform:uppercase;color:#9A968F">{{ f.label }}</div>
+<div style="font:500 14px/1.45 Garet,Outfit,sans-serif;color:#22221F;margin-top:4px;text-wrap:pretty">{{ f.value }}</div>
+</div>
+</sc-for>
+</div>
+</div>
+<div style="display:flex;gap:9px;margin-top:12px">
+<div class="tap" onClick="{{ viewMe }}" style="flex:1;text-align:center;border-radius:11px;border:1.5px solid #E5E2DC;padding:11px;font:600 13.5px/1.2 Garet,Outfit,sans-serif;color:#2A2A28">View my profile</div>
+<div class="tap" onClick="{{ editMe }}" style="flex:1;text-align:center;border-radius:11px;padding:11px;background:var(--ac,#7A2FA6);font:700 13.5px/1.2 Garet,Outfit,sans-serif;color:#fff">Edit profile</div>
+</div>
+<div style="font:400 11.5px/1.5 Garet,Outfit,sans-serif;color:#8C887F;margin-top:11px;text-wrap:pretty">This is the whole profile. There are no followers, feeds or messages here — put your links in and let people find you where you already are.</div>
+</div>
+</sc-if>
+
+<div style="margin-top:22px">
+<div style="font:700 12px/1.2 Garet,Outfit,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#9A968F;margin-bottom:10px">Blocked and muted</div>
+<sc-if value="{{ hasBlocks }}">
+<div style="border:1px solid #EDEAE5;border-radius:14px;overflow:hidden">
+<sc-for list="{{ blockList }}" as="b" hint-placeholder-count="2">
+<div style="display:flex;align-items:center;gap:12px;padding:14px;border-bottom:1px solid #F4F1ED">
+<div style="flex:1;min-width:0">
+<div style="font:600 14px/1.25 Garet,Outfit,sans-serif;color:#1A1A18">{{ b.name }}</div>
+<div style="font:400 11.5px/1.35 Garet,Outfit,sans-serif;color:#89857E;margin-top:3px">{{ b.kind }}</div>
+</div>
+<div class="tap" onClick="{{ b.act }}" style="border-radius:999px;border:1.5px solid #E5E2DC;padding:7px 15px;font:600 12.5px/1.2 Garet,Outfit,sans-serif;color:#2A2A28;flex:none">{{ b.action }}</div>
+</div>
+</sc-for>
+</div>
+</sc-if>
+<div style="font:400 11.5px/1.5 Garet,Outfit,sans-serif;color:#8C887F;margin-top:11px;text-wrap:pretty">Muting collapses someone's comments and hides their reviews — they can still see you. Blocking works both ways: neither of you sees the other anywhere in the app, and you are warned when they are going to an event you are viewing.</div>
+</div>
+
+<sc-if value="{{ showAgeSettings }}">
+<div style="margin-top:22px">
+<div style="font:700 12px/1.2 Garet,Outfit,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#9A968F;margin-bottom:10px">Age settings</div>
+<div class="tap" onClick="{{ ageRow.toggle }}" style="display:flex;align-items:center;gap:12px;border:1px solid #EDEAE5;border-radius:14px;padding:14px">
+<div style="flex:1;min-width:0">
+<div style="font:600 14px/1.25 Garet,Outfit,sans-serif;color:#1A1A18;text-wrap:pretty">{{ ageRow.label }}</div>
+<div style="font:400 11.5px/1.35 Garet,Outfit,sans-serif;color:#89857E;margin-top:3px;text-wrap:pretty">{{ ageRow.sub }}</div>
+</div>
+<div style="width:44px;height:26px;border-radius:999px;background:{{ ageRow.track }};flex:none;padding:3px;display:flex;justify-content:{{ ageRow.justify }};transition:background .18s ease">
+<div style="width:20px;height:20px;border-radius:999px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.28)"></div>
+</div>
+</div>
+<div style="display:flex;gap:10px;margin-top:11px">
+<sc-for list="{{ ageBrackets }}" as="b" hint-placeholder-count="2">
+<div style="flex:1;border-radius:12px;background:{{ b.bg }};padding:12px 13px">
+<div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px">
+<div style="font:800 15px/1.2 Garet,Outfit,sans-serif;color:{{ b.fg }}">{{ b.label }}</div>
+<div style="font:600 10.5px/1.2 Garet,Outfit,sans-serif;color:{{ b.fg }};letter-spacing:.04em">{{ b.state }}</div>
+</div>
+<div style="font:400 11px/1.4 Garet,Outfit,sans-serif;color:#8C887F;margin-top:6px;text-wrap:pretty">{{ b.why }}</div>
+</div>
+</sc-for>
+</div>
+</div>
+</sc-if>
+</div>
+</sc-if>
+
+<sc-if value="{{ paneAlerts }}">
+<div>
+<div style="font:800 19px/1.2 Garet,Outfit,sans-serif;color:#141413;letter-spacing:-.01em;margin:2px 0 4px">Alerts</div>
+<div style="font:400 12.5px/1.5 Garet,Outfit,sans-serif;color:#8C887F;margin-bottom:16px;text-wrap:pretty">Saving a business, resource or event host subscribes you to all three of their channels. Turn any channel off without unsaving.</div>
+
+<sc-if value="{{ deviceOnly }}">
+<div class="tap" onClick="{{ goAccount }}" style="display:flex;align-items:center;gap:11px;border-radius:12px;background:#F7F5F1;border:1px solid #EAE7E2;padding:12px 14px;margin-bottom:16px">
+<div style="flex:1;min-width:0;font:400 11.5px/1.45 Garet,Outfit,sans-serif;color:#7C7871;text-wrap:pretty">Alerts are set on this device only. Without an account they stop if you reinstall or change phones.</div>
+<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#B9B5AE" stroke-width="2.4" stroke-linecap="round" style="flex:none"><path d="M9 18l6-6-6-6"></path></svg>
+</div>
+</sc-if>
+<div class="tap" onClick="{{ pauseRow.toggle }}" style="display:flex;align-items:center;gap:12px;border:1px solid #EDEAE5;border-radius:14px;padding:14px;margin-bottom:26px">
+<div style="flex:1;min-width:0">
+<div style="font:600 14px/1.25 Garet,Outfit,sans-serif;color:#1A1A18">Pause all notifications</div>
+<div style="font:400 11.5px/1.35 Garet,Outfit,sans-serif;color:#89857E;margin-top:3px;text-wrap:pretty">{{ pauseRow.sub }}</div>
+</div>
+<div style="width:44px;height:26px;border-radius:999px;background:{{ pauseRow.track }};flex:none;padding:3px;display:flex;justify-content:{{ pauseRow.justify }};transition:background .18s ease">
+<div style="width:20px;height:20px;border-radius:999px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.28)"></div>
+</div>
+</div>
+
+<sc-if value="{{ hasSubs }}">
+<div>
+<div style="font:700 12px/1.2 Garet,Outfit,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#9A968F;margin-bottom:6px">Your subscriptions</div>
+<div style="font:400 11.5px/1.4 Garet,Outfit,sans-serif;color:#89857E;margin-bottom:10px">{{ subCount }}</div>
+<div style="border:1px solid #EDEAE5;border-radius:14px;overflow:hidden;margin-bottom:26px">
+<sc-for list="{{ subItems }}" as="s" hint-placeholder-count="2">
+<div style="border-bottom:1px solid #F1EEEA;opacity:{{ s.dim }}">
+<div class="tap" onClick="{{ s.toggleOpen }}" style="display:flex;align-items:center;gap:12px;padding:11px 13px">
+<div style="width:40px;height:40px;border-radius:10px;overflow:hidden;background:#F0EDE8;flex:none">
+<img src="{{ s.img }}" onError="{{ imgErr }}" style="width:100%;height:100%;object-fit:cover">
+</div>
+<div style="flex:1;min-width:0">
+<div style="font:600 14px/1.25 Garet,Outfit,sans-serif;color:#1A1A18;text-wrap:pretty">{{ s.name }}</div>
+<div style="font:400 11.5px/1.3 Garet,Outfit,sans-serif;color:#89857E;margin-top:2px;text-wrap:pretty">{{ s.kind }} · {{ s.summary }}</div>
+</div>
+<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#A5A19B" stroke-width="2.4" stroke-linecap="round" style="flex:none;transform:{{ s.rot }};transition:transform .2s ease"><path d="M6 9l6 6 6-6"></path></svg>
+</div>
+<sc-if value="{{ s.open }}">
+<div style="padding:0 13px 4px 65px;border-top:1px solid #F4F1ED">
+<sc-for list="{{ s.rows }}" as="c" hint-placeholder-count="3">
+<div class="tap" onClick="{{ c.toggle }}" style="display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid #F6F3EF">
+<div style="flex:1;min-width:0;font:600 13px/1.25 Garet,Outfit,sans-serif;color:#3A3A37">{{ c.label }}</div>
+<div style="width:40px;height:24px;border-radius:999px;background:{{ c.track }};flex:none;padding:3px;display:flex;justify-content:{{ c.justify }};transition:background .18s ease">
+<div style="width:18px;height:18px;border-radius:999px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.28)"></div>
+</div>
+</div>
+</sc-for>
+</div>
+</sc-if>
+</div>
+</sc-for>
+</div>
+</div>
+</sc-if>
+
+<div style="font:700 12px/1.2 Garet,Outfit,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#9A968F;margin-bottom:10px">From LGBTQ.UT</div>
+<div style="border:1px solid #EDEAE5;border-radius:14px;overflow:hidden">
+<sc-for list="{{ alertRows }}" as="a" hint-placeholder-count="4">
+<div class="tap" onClick="{{ a.toggle }}" style="display:flex;align-items:center;gap:12px;padding:14px;border-bottom:1px solid #F4F1ED">
+<div style="flex:1;min-width:0">
+<div style="font:600 14px/1.25 Garet,Outfit,sans-serif;color:#1A1A18">{{ a.label }}</div>
+<div style="font:400 11.5px/1.35 Garet,Outfit,sans-serif;color:#89857E;margin-top:3px;text-wrap:pretty">{{ a.sub }}</div>
+</div>
+<div style="width:44px;height:26px;border-radius:999px;background:{{ a.track }};flex:none;padding:3px;display:flex;justify-content:{{ a.justify }};transition:background .18s ease">
+<div style="width:20px;height:20px;border-radius:999px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.28)"></div>
+</div>
+</div>
+</sc-for>
+</div>
+<div style="font:700 12px/1.2 Garet,Outfit,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#9A968F;margin:26px 0 10px">Privacy</div>
+<div style="border:1px solid #EDEAE5;border-radius:14px;overflow:hidden">
+<sc-for list="{{ privacyRows }}" as="p" hint-placeholder-count="2">
+<div class="tap" style="display:flex;align-items:center;gap:12px;padding:15px 14px;border-bottom:1px solid #F4F1ED">
+<div style="flex:1;min-width:0">
+<div style="font:600 14px/1.25 Garet,Outfit,sans-serif;color:#1A1A18">{{ p.label }}</div>
+<div style="font:400 11.5px/1.35 Garet,Outfit,sans-serif;color:#89857E;margin-top:3px;text-wrap:pretty">{{ p.sub }}</div>
+</div>
+<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#C3BFB8" stroke-width="2.4" stroke-linecap="round"><path d="M9 18l6-6-6-6"></path></svg>
+</div>
+</sc-for>
+</div>
+</div>
+</sc-if>
+</div>
+</sc-if>
+
+</div>
+
+<div style="flex:none;border-top:1px solid #EAE7E2;background:rgba(255,255,255,.94);backdrop-filter:blur(12px);padding:9px 8px 30px;display:flex">
+<div class="tap" onClick="{{ goHome }}" style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;color:{{ c1 }}">
+<svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"></path><path d="M5.5 9.5V20h13V9.5"></path></svg>
+<div style="font:600 9.5px/1 Garet,Outfit,sans-serif">Resources</div>
+</div>
+<div class="tap" onClick="{{ goEvents }}" style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;color:{{ c2 }}">
+<svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><rect x="3.5" y="5" width="17" height="15.5" rx="3"></rect><path d="M8 3v4M16 3v4M3.5 10h17"></path></svg>
+<div style="font:600 9.5px/1 Garet,Outfit,sans-serif">Events</div>
+</div>
+<div class="tap" onClick="{{ goShop }}" style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;color:{{ c3 }}">
+<svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 4h2.2l2.4 10.5h10.2l2.2-7.5H6"></path><circle cx="9.5" cy="19" r="1.4"></circle><circle cx="17.5" cy="19" r="1.4"></circle></svg>
+<div style="font:600 9.5px/1 Garet,Outfit,sans-serif">Shop Queer</div>
+</div>
+<div class="tap" onClick="{{ goProfile }}" style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;color:{{ c4 }}">
+<svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><rect x="3" y="4.5" width="18" height="15" rx="3"></rect><circle cx="9" cy="11" r="2.2"></circle><path d="M5.6 16.5c.7-1.7 2-2.4 3.4-2.4s2.7.7 3.4 2.4M15 10h4M15 13.5h4"></path></svg>
+<div style="font:600 9.5px/1 Garet,Outfit,sans-serif">Profile</div>
+</div>
+</div>
+
+</div>
+</x-import>
+
+<div style="width:100%;max-width:640px;display:flex;flex-wrap:wrap;gap:7px;justify-content:center">
+<sc-for list="{{ jumps }}" as="j" hint-placeholder-count="8">
+<div class="tap" onClick="{{ j.go }}" style="border-radius:999px;padding:7px 14px;font:600 12px/1.2 Garet,Outfit,sans-serif;background:{{ j.bg }};color:{{ j.fg }};border:1px solid #E1DDD7">{{ j.label }}</div>
+</sc-for>
+</div>
+
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;theme&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;Rainbow&quot;,&quot;Trans&quot;,&quot;Bi&quot;,&quot;MLM&quot;,&quot;Asexual&quot;,&quot;RoyGBiv&quot;,&quot;Red&quot;,&quot;Orange&quot;,&quot;Yellow&quot;,&quot;Green&quot;,&quot;Blue&quot;,&quot;Indigo&quot;,&quot;Violet&quot;],&quot;default&quot;:&quot;Rainbow&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Theme&quot;},&quot;profileStyle&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;Minimal&quot;,&quot;Community&quot;,&quot;Social&quot;],&quot;default&quot;:&quot;Social&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;User profiles&quot;,&quot;label&quot;:&quot;Profile layout&quot;},&quot;accountTier&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;Anonymous&quot;,&quot;Account&quot;,&quot;Public profile&quot;],&quot;default&quot;:&quot;Anonymous&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Account&quot;,&quot;label&quot;:&quot;Signed in as&quot;},&quot;viewerAge&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;Under 18&quot;,&quot;18 to 20&quot;,&quot;21 or older&quot;],&quot;default&quot;:&quot;21 or older&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Account&quot;,&quot;label&quot;:&quot;Age from date of birth&quot;},&quot;viewAs&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;Attendee&quot;,&quot;Host&quot;],&quot;default&quot;:&quot;Attendee&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Events&quot;,&quot;label&quot;:&quot;View events as&quot;},&quot;assignments&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;None&quot;,&quot;One business&quot;,&quot;Business and resource&quot;],&quot;default&quot;:&quot;One business&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Become a host&quot;,&quot;label&quot;:&quot;Listings assigned to this user&quot;},&quot;showConfig&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Business pages&quot;,&quot;label&quot;:&quot;Show layout config badges&quot;},&quot;bizDetail&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;Glide match&quot;,&quot;Editorial&quot;],&quot;default&quot;:&quot;Glide match&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Business pages&quot;},&quot;homeCards&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;Image cards&quot;,&quot;Tile grid&quot;,&quot;Compact list&quot;],&quot;default&quot;:&quot;Image cards&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Variations&quot;},&quot;mapLayout&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;Split&quot;,&quot;Map first&quot;,&quot;List first&quot;],&quot;default&quot;:&quot;Split&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Variations&quot;}}">
+const solid = (label, hex, tint) => ({ label, bar:hex, accent:hex, tint, img:'', group:'standard', dot:hex });
+const THEMES = {
+  Red:    solid('Red','#D62839','#FBF0F1'),
+  Orange: solid('Orange','#DD6317','#FDF3EC'),
+  Yellow: solid('Yellow','#D19A00','#FCF6E6'),
+  Green:  solid('Green','#2E8B45','#EDF6F0'),
+  Blue:   solid('Blue','#1F6FD0','#EDF3FC'),
+  Indigo: solid('Indigo','#4B3FBF','#F0EFFB'),
+  Violet: solid('Violet','#8E2FA8','#F7EEFA'),
+  Rainbow: { label:'LGBTQ', group:'pride', accent:'#7A2FA6', tint:'#F6F1FA', img:'',
+    bar:'linear-gradient(100deg,#E40303,#FF8C00,#FFED00,#008026,#004DFF,#750787)',
+    dot:'conic-gradient(#E40303,#FF8C00,#FFED00,#008026,#004DFF,#750787,#E40303)' },
+  Trans: { label:'Trans', group:'pride', accent:'#2C86B5', tint:'#EDF7FC', img:'',
+    bar:'linear-gradient(170deg,#5BCEFA 0%,#5BCEFA 22%,#F5A9B8 22%,#F5A9B8 40%,#FFFFFF 40%,#FFFFFF 60%,#F5A9B8 60%,#F5A9B8 78%,#5BCEFA 78%)',
+    dot:'linear-gradient(180deg,#5BCEFA 0 20%,#F5A9B8 20% 40%,#FFF 40% 60%,#F5A9B8 60% 80%,#5BCEFA 80%)' },
+  Bi: { label:'Bi', group:'pride', accent:'#9B4F96', tint:'#F8F0F7', img:'',
+    bar:'linear-gradient(100deg,#D60270 0%,#D60270 38%,#9B4F96 38%,#9B4F96 62%,#0038A8 62%)',
+    dot:'linear-gradient(180deg,#D60270 0 40%,#9B4F96 40% 60%,#0038A8 60%)' },
+  MLM: { label:'MLM', group:'pride', accent:'#2A7F70', tint:'#EDF7F4', img:'',
+    bar:'linear-gradient(170deg,#078D70 0%,#078D70 14%,#26CEAA 14% 28%,#98E8C1 28% 42%,#FFFFFF 42% 58%,#7BADE2 58% 72%,#5049CC 72% 86%,#3D1A78 86%)',
+    dot:'linear-gradient(180deg,#078D70 0 20%,#26CEAA 20% 35%,#98E8C1 35% 45%,#FFF 45% 55%,#7BADE2 55% 65%,#5049CC 65% 80%,#3D1A78 80%)' },
+  Asexual: { label:'Asexual', group:'pride', accent:'#6B2E7A', tint:'#F5F0F7', img:'',
+    bar:'linear-gradient(170deg,#0B0B0B 0 25%,#A3A3A3 25% 50%,#FFFFFF 50% 75%,#800080 75%)',
+    dot:'linear-gradient(180deg,#0B0B0B 0 25%,#A3A3A3 25% 50%,#FFF 50% 75%,#800080 75%)' },
+  RoyGBiv: { label:'Roy G. Biv', group:'pride', accent:'#C2453B', tint:'#FBF1EF',
+    bar:'linear-gradient(100deg,#E40303,#FF8C00,#FFED00,#008026,#004DFF,#750787)',
+    img:'https://storage.googleapis.com/glide-prod.appspot.com/uploads-v2/PyKovGOpnILilVzStEZB/pub/iNXLWnThIJyawaZztX4U.png',
+    dot:'conic-gradient(#E40303,#FF8C00,#FFED00,#008026,#004DFF,#750787,#E40303)' }
+};
+
+const CITIES = {
+  'salt lake city':[-111.891,40.761],'murray':[-111.888,40.667],'midvale':[-111.899,40.611],
+  'milcreek':[-111.828,40.689],'millcreek':[-111.828,40.689],'ogden':[-111.973,41.223],
+  'south ogden':[-111.957,41.187],'provo':[-111.658,40.234],'layton':[-111.971,41.060],
+  'heber city':[-111.413,40.507],'helper':[-110.854,39.684],'park city':[-111.498,40.646],
+  'logan':[-111.834,41.735],'st george':[-113.583,37.096]
+};
+const COUNTY_PT = {
+  'Salt Lake County':[-111.95,40.66,-42,0],'Utah County':[-111.70,40.10,-30,10],'Weber County':[-111.98,41.24,-46,-4],
+  'Davis County':[-112.02,41.00,50,0],'Wasatch County':[-111.25,40.42,42,-4],'Carbon County':[-110.60,39.62,16,0],
+  'Cache County':[-111.80,41.72,0,0],'Washington County':[-113.40,37.20,26,0]
+};
+const CDN = 'https://storage.googleapis.com/glide-prod.appspot.com/uploads-v2/NSfaaNV0fRhAK9yZqEUi/pub/';
+const COUNTY_IMG = {
+  'Cache County': CDN+'AY58wkQy3qGWOpQJbKTj.png',
+  'Davis County': CDN+'wXWQPFDqk5sYKfx69KNh.png',
+  'Salt Lake County': CDN+'f209QfRSH198UjpeQ0Xn.png',
+  'Utah County': CDN+'rps4K3DxViXDhKSyjuU4.png',
+  'Weber County': CDN+'IPkATfqPwX93VCUbkOpl.png',
+  'Washington County': CDN+'dEU92UGNbuK547YFYqsx.png'
+};
+const SWATCH = ['#5B4B8A','#2F6E63','#9A4A5C','#3E5C8A','#8A5A2F','#4A6B4E','#6E4A7A','#2F5B6E'];
+const PH = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40'%3E%3Crect width='40' height='40' fill='%23E9E5DF'/%3E%3Cpath d='M-10 10 L10 -10 M0 40 L40 0 M30 50 L50 30' stroke='%23E2DDD6' stroke-width='7'/%3E%3C/svg%3E";
+const px = u => u || PH;
+// Backend-configured page layouts. The data model is identical for every business —
+// only `layout` (type + size) and section titles change, so the same renderer
+// produces a different experience per listing.
+const SIZES = {
+  'large-horizontal':  ['294px','198px'], 'medium-horizontal': ['214px','142px'],
+  'small-horizontal':  ['150px','100px'], 'large-vertical':    ['186px','256px'],
+  'medium-vertical':   ['150px','206px'], 'large-full':        ['auto','206px'],
+  'medium-full':       ['auto','150px'],  'large-tile':        ['auto','128px'],
+  'medium-tile':       ['auto','104px']
+};
+const BIZ_PAGE = {
+  // Restaurant — full-bleed menu photography, then a horizontal catering rail
+  'XLx0YWrKSQCqBYAsiJv1JA': {
+    coupons: [
+      { title:'15% off your table', terms:'Show this screen to your server. Dine-in, any party size.', code:'PRIDE15', expires:'Through Sept 30' },
+      { title:'Free baklava', terms:'With any two entrées, Tuesday through Thursday.', code:'SWEET2', expires:'Through Oct 15' }
+    ],
+    sections: [
+      { title:'Menu Highlights', sub:'Lebanese, made from scratch daily', layout:{ type:'stack', size:'large', orient:'full' },
+        items:[ { title:'Mezze Platter', sub:'Hummus, muhammara, labneh, warm pita', value:'$18' },
+                { title:'Shawarma Plate', sub:'Chicken or cauliflower, garlic toum, pickles', value:'$21' },
+                { title:'Za’atar Manoushe', sub:'Baked to order, olive oil and sumac', value:'$12' } ] },
+      { title:'Catering & Events', sub:'We cater Pride events across the valley', layout:{ type:'carousel', size:'medium', orient:'horizontal' },
+        items:[ { title:'Office lunch', sub:'10–40 people' }, { title:'Wedding buffet', sub:'40–200 people' }, { title:'Drop-off trays', sub:'Order 48h ahead' } ] }
+    ]
+  },
+  // Salon — priced service list, no imagery, then a portrait gallery
+  'oA-zsVB4Tc2IoGXGJwV.Ew': {
+    coupons: [ { title:'$20 off first visit', terms:'New clients only. Mention LGBTQ.UT when you book.', code:'WELCOME20', expires:'No expiration' } ],
+    sections: [
+      { title:'Services', sub:'Gender-affirming cuts, no gendered pricing', layout:{ type:'list', size:'medium', orient:'full' },
+        items:[ { title:'Haircut & style', sub:'All hair types, 45 min', value:'$55' },
+                { title:'Color / gloss', sub:'Consultation included', value:'from $95' },
+                { title:'Spa facial', sub:'60 min', value:'$85' },
+                { title:'Beard shaping', sub:'30 min', value:'$35' } ] },
+      { title:'The Space', sub:'', layout:{ type:'carousel', size:'medium', orient:'vertical' },
+        items:[ { title:'Front chairs', sub:'' }, { title:'Wash station', sub:'' }, { title:'Waiting area', sub:'' } ] }
+    ]
+  },
+  // Gym — schedule list plus a membership tile grid
+  'SQxQBj7MT-mmNMGjiuF3lQ': {
+    coupons: [ { title:'First week free', terms:'Drop in any time. No card required, no contract.', code:'FIRSTWEEK', expires:'Ongoing' } ],
+    sections: [
+      { title:'Class Schedule', sub:'All classes are all-bodies, all-levels', layout:{ type:'list', size:'medium', orient:'full' },
+        items:[ { title:'Trans & NB lifting', sub:'Mondays, 7:00 PM', value:'Free' },
+                { title:'Barbell fundamentals', sub:'Tue / Thu, 6:00 PM', value:'Members' },
+                { title:'Open gym', sub:'Daily, 5:00 AM – 10:00 PM', value:'Members' } ] },
+      { title:'Membership', sub:'', layout:{ type:'grid', size:'medium', orient:'tile' },
+        items:[ { title:'Monthly', sub:'$45 / month, cancel anytime' }, { title:'Annual', sub:'$420 / year, two months free' },
+                { title:'Sliding scale', sub:'Pay what you can, no questions' }, { title:'Day pass', sub:'$12, includes a locker' } ] }
+    ]
+  },
+  // Bookstore — event rail plus a staff-picks grid, no coupons
+  'RekEbrQSStqQiu6uJKJTYg': {
+    sections: [
+      { title:'This Month at the Shop', sub:'', layout:{ type:'carousel', size:'large', orient:'horizontal' },
+        items:[ { title:'Queer Book Club', sub:'Second Sunday, 4:00 PM' }, { title:'Trans Writers Night', sub:'Aug 21, 7:00 PM' },
+                { title:'Zine Making', sub:'Aug 28, 2:00 PM' } ] },
+      { title:'Staff Picks', sub:'', layout:{ type:'grid', size:'large', orient:'tile' },
+        items:[ { title:'Fiction', sub:'6 titles' }, { title:'Trans memoir', sub:'9 titles' },
+                { title:'Local zines', sub:'Restocked weekly' }, { title:'Kids & teens', sub:'12 titles' } ] }
+    ]
+  },
+  // Coffee roaster — single wide product rail, no second section
+  'gHcZb9UtQZuiXGdnolYC-w': {
+    coupons: [ { title:'Free shipping', terms:'On any two-bag order to a Utah address.', code:'UTSHIP', expires:'Through Dec 31' } ],
+    sections: [
+      { title:'Current Roasts', sub:'Roasted to order every Monday', layout:{ type:'carousel', size:'large', orient:'horizontal' },
+        items:[ { title:'Heretic Blend', sub:'Chocolate, cherry — medium' }, { title:'Ex-Communicated', sub:'Dark, smoky — French roast' },
+                { title:'Decaf Doubt', sub:'Swiss water process' } ] }
+    ]
+  }
+};
+// Entity access is granted by an admin, never self-claimed. This stands in for
+// the join table between a user account and the listings they may act for.
+const ASSIGN = {
+  'None': { biz:[], res:[] },
+  'One business': { biz:['XLx0YWrKSQCqBYAsiJv1JA'], res:[] },
+  'Business and resource': { biz:['XLx0YWrKSQCqBYAsiJv1JA','SQxQBj7MT-mmNMGjiuF3lQ'], res:['encircle'] }
+};
+const USERS = {
+  'Rio M.': { pronouns:'she/her', county:'Salt Lake County',
+    bio:'Nurse, gardener, and the person who always brings folding chairs. Ask me about the Wednesday night group.',
+    links:['riomartinez.me','instagram.com/rio.grows'] },
+  'Tay B.': { pronouns:'they/them', county:'Weber County',
+    bio:'Ogden. Carpools to most Wasatch Front events — say hi if you need a ride.', links:['linktr.ee/taybee'] },
+  'Wren D.': { pronouns:'he/him', county:'Utah County', bio:'Photographer. Mostly shoot shows.', links:[] },
+  'Dana R.': { pronouns:'she/her', county:'Salt Lake County',
+    bio:'Small business owner, chamber member, terrible at networking but I keep showing up.', links:['danarosecreative.com'] },
+  'Ash P.': { pronouns:'they/them', county:'Davis County', bio:'Layton. New here.', links:[] },
+  'June L.': { pronouns:'she/her', county:'Cache County', bio:'Logan. Runs the campus group.', links:[] },
+  'Sam K.': { pronouns:'he/they', county:'Salt Lake County', bio:'', links:[] },
+  'Kai S.': { pronouns:'they/them', county:'Washington County', bio:'St. George. Building something down here, slowly.', links:[] },
+  'Noor A.': { pronouns:'she/her', county:'Salt Lake County', bio:'', links:[] },
+  'Chris V.': { pronouns:'he/him', county:'Utah County', bio:'', links:[] },
+  'Mel T.': { pronouns:'they/them', county:'Utah County', bio:'Provo. Worth the drive.', links:[] },
+  'Jordan F.': { pronouns:'he/him', county:'Salt Lake County', bio:'', links:[] },
+  'Pat O.': { pronouns:'she/her', county:'Davis County', bio:'', links:[] }
+};
+const AV = ['#7A2FA6','#2C86B5','#B0523E','#2E8B45','#9B4F96','#4B3FBF','#DD6317','#2A7F70'];
+const EVENT_SOCIAL = {
+  e1: {
+    going:148, interested:62,
+    guests:['Rio M.','Sam K.','Tay B.','June L.','Ash P.','Wren D.','Kai S.','Noor A.'],
+    polls:[{ id:'p1', q:'Which workshop should we add this year?', total:213,
+      options:[{ label:'Voice and speech', votes:74 },{ label:'Legal name change clinic', votes:96 },
+                { label:'Chest binding safety', votes:43 }] }],
+    comments:[
+      { who:'Genderbands', when:'2d', host:true, text:'Volunteer shifts are open. Two-hour blocks, lunch included, no experience needed.' },
+      { who:'Rio M.', when:'1d', text:'Is the venue wheelchair accessible? Bringing my mom.' },
+      { who:'Genderbands', when:'22h', host:true, text:'Yes — level entry on the north side, accessible restrooms, and a quiet room off the main hall.' },
+      { who:'Tay B.', when:'6h', text:'Carpooling from Ogden if anyone needs a ride. Two seats.' }
+    ]
+  },
+  e2: {
+    going:54, interested:12,
+    guests:['Dana R.','Chris V.','Mel T.','Pat O.','Jordan F.'],
+    reviews:[
+      { who:'Dana R.', stars:5, when:'Apr 2025', text:'Actually useful networking. Skullcandy hosted well and the crowd was mixed — not just the usual chamber regulars.' },
+      { who:'Chris V.', stars:4, when:'Apr 2025', text:'Great turnout. Would have liked name tags with pronouns printed rather than handwritten.' },
+      { who:'Mel T.', stars:5, when:'May 2025', text:'Met two vendors I now work with. Worth the drive from Provo.' }
+    ],
+    comments:[
+      { who:'Utah LGBTQ+ Chamber of Commerce', when:'Apr 2025', host:true, text:'Thank you all for coming out. Next mixer is being scheduled for the fall.' }
+    ]
+  }
+};
+// Age restriction is a per-entity flag set by the owner and confirmed by an admin.
+const ADULT = {
+  '7sRQ2k2TQbq2bYnzgKB5ig': { tag:'21+', why:'Bar — alcohol served, 21 and over' },
+  'MaqNuPPUSgKJRr5FVNzAaw': { tag:'18+', why:'Suggestive imagery' },
+  'DimVydSZRqmRIz0T9vAB4Q': { tag:'21+', why:'Bar — alcohol served, 21 and over' },
+  e2: { tag:'21+', why:'Alcohol served at this event' }
+};
+const BOOKS = ['Publications/Media','Blog','Video Project','Speaker Series'];
+const CRISIS = [
+  { name:'988 Suicide & Crisis Lifeline', desc:'Call or text 988. Free, confidential, 24/7 — for anyone in Utah.', action:'Call 988' },
+  { name:'The Trevor Project', desc:'Crisis counseling for LGBTQ+ young people under 25.', action:'Call 1-866-488-7386' },
+  { name:'Trans Lifeline', desc:'Peer support run by and for trans people. No non-consensual active rescue.', action:'Call 877-565-8860' },
+  { name:'Utah Warm Line', desc:'Non-crisis peer support when you need to talk it through.', action:'Call 1-833-773-2588' }
+];
+
+class Component extends DCLogic {
+  state = { data:null, tab:'home', stack:[], theme:null, saved:{}, q:'', sel:null, pin:null };
+
+  componentDidMount() {
+    import('./app-data.js').then(m => this.setState({ data: m })).catch(e => console.error('data', e));
+  }
+
+  // Stands in for an admin-set `verified` column: businesses and hosts are a curated,
+  // admin-maintained list; resources count as verified once contact details are confirmed.
+  isVerified(kind, x) {
+    if (!x) return false;
+    if (kind === 'biz' || kind === 'host') return true;
+    return !!(x.web && (x.tel || x.email));
+  }
+
+  chanOn(id) { const c = (this.state.chan || {})[id] || {};
+    return { events: c.events !== false, offers: c.offers !== false, news: c.news !== false }; }
+
+  toggleSave(id, kind) {
+    this.setState(st => {
+      const s = Object.assign({}, st.saved), c = Object.assign({}, st.chan || {});
+      if (s[id]) { delete s[id]; delete c[id]; } else { s[id] = { kind, id }; }
+      return { saved:s, chan:c };
+    });
+  }
+
+  toggleChan(id, k) {
+    this.setState(st => { const c = Object.assign({}, st.chan || {});
+      const cur = Object.assign({ events:true, offers:true, news:true }, c[id] || {});
+      cur[k] = cur[k] === false ? true : false; c[id] = cur; return { chan:c }; });
+  }
+
+  // Subscription panel — shared by business, resource and event-host pages.
+  subPanel(id, ac, key, allow) {
+    const on = this.chanOn(id), paused = !!this.state.pauseAll;
+    const open = !!(this.state.openPanels || {})[key || id];
+    const defs = [
+      { k:'events', label:'Events', sub:'New events, dates and cancellations' },
+      { k:'offers', label:'Offers', sub:'Coupons and community discounts' },
+      { k:'news',   label:'Newsletter', sub:'Updates they write and send themselves' }
+    ].filter(d => !allow || allow.indexOf(d.k) >= 0);
+    const live = defs.filter(d => on[d.k]);
+    const summary = paused ? 'All notifications are paused in settings'
+      : live.length === defs.length ? defs.map(d => d.label).join(', ')
+      : live.length === 0 ? 'Not receiving updates'
+      : live.map(d => d.label).join(' and ');
+    return { show: !!this.state.saved[id], open, summary,
+      title: live.length && !paused ? 'Subscribed' : 'Subscription',
+      rot: open ? 'rotate(180deg)' : 'rotate(0deg)',
+      dim: paused ? '.45' : '1',
+      toggleOpen: () => this.setState(st => { const p = Object.assign({}, st.openPanels || {});
+        const kk = key || id; p[kk] = !p[kk]; return { openPanels:p }; }),
+      rows: defs.map(d => ({ label:d.label, sub:d.sub,
+        track: on[d.k] && !paused ? ac : '#DCD8D2', justify: on[d.k] ? 'flex-end' : 'flex-start',
+        toggle: () => this.toggleChan(id, d.k) })) };
+  }
+
+  cur() { const s = this.state.stack; return s.length ? s[s.length-1] : { screen: this.state.tab }; }
+  push(screen, extra) { this.setState(st => ({ stack: st.stack.concat([Object.assign({ screen }, extra||{})]), q:'', sel:null })); }
+  pop() { this.setState(st => ({ stack: st.stack.slice(0,-1), q:'', sel:null })); }
+  tabTo(t) { this.setState({ tab:t, stack:[], q:'', sel:null, pin:null }); }
+
+  theme() { return THEMES[this.state.theme || this.props.theme || 'Rainbow'] || THEMES.Rainbow; }
+
+  proj(lon, lat) {
+    const x = (lon + 114.05) / 5 * 200;
+    const y = (42 - lat) / 5 * 260;
+    return [x, y];
+  }
+
+  mountMap(el) {
+    if (!el || el._lmap) return;
+    const go = () => {
+      if (!window.L) { setTimeout(go, 120); return; }
+      if (el._lmap) return;
+      const map = window.L.map(el, { zoomControl:false, attributionControl:false, scrollWheelZoom:false });
+      el._lmap = map; this._map = map;
+      window.L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { maxZoom:19, subdomains:'abcd' }).addTo(map);
+      map.setView([40.35, -111.75], 7);
+      this._layer = window.L.layerGroup().addTo(map);
+      this.drawMarkers();
+      setTimeout(() => map.invalidateSize(), 60);
+    };
+    go();
+  }
+
+  drawMarkers() {
+    if (!this._map || !this._layer || !window.L) return;
+    const D = this.state.data; if (!D) return;
+    const ac = this.theme().accent;
+    this._layer.clearLayers();
+    const pts = [];
+    D.BUSINESSES.forEach(b => {
+      const p = this.bizPoint(b); if (!p) return;
+      pts.push([p[1], p[0]]);
+      const m = window.L.circleMarker([p[1], p[0]], { radius:7, color:'#fff', weight:2, fillColor:ac, fillOpacity:1 });
+      m.bindTooltip(b.name, { direction:'top', offset:[0,-6] });
+      m.on('click', () => this.push('business', { id:b.id }));
+      m.addTo(this._layer);
+    });
+    if (pts.length) this._map.fitBounds(pts, { padding:[26,26], maxZoom:9 });
+  }
+
+  componentDidUpdate(prevProps, prevState) {
+    if (this._map && prevState.data !== this.state.data) this.drawMarkers();
+    if (this._map && (prevState.theme !== this.state.theme || prevProps.theme !== this.props.theme)) this.drawMarkers();
+    if (this._map && prevProps.mapLayout !== this.props.mapLayout) setTimeout(() => this._map.invalidateSize(), 60);
+  }
+
+  bizPoint(b) {
+    const addr = (b.addr||'').toLowerCase();
+    for (const c in CITIES) if (addr.indexOf(c) >= 0) return CITIES[c];
+    if (COUNTY_PT[b.county]) return COUNTY_PT[b.county];
+    return null;
+  }
+
+  renderVals() {
+    const S = this.state, D = S.data, th = this.theme();
+    const ac = th.accent, cur = this.cur(), scr = cur.screen;
+    const RES = (D && D.RESOURCES) || [], BIZ = (D && D.BUSINESSES) || [], TABS = (D && D.TABS) || [];
+    const EVTS = (D && D.EVENTS) || [], HOSTS = (D && D.HOSTS) || [];
+    const imgErr = window.imgErr;
+    const tier = S.tier || this.props.accountTier || 'Anonymous';
+    const blocked = S.blocked || { 'Wren D.': true }, muted = S.muted || { 'Tay B.': true };
+    const me = tier === 'Public profile' ? 'Alex Rivera' : 'sagebrush_kid';
+    const goAccount = () => { this.tabTo('profile'); this.setState({ pane:'account' }); };
+    const signedIn = tier !== 'Anonymous';
+    // Age comes from the date of birth captured at sign-up. Anonymous users have none,
+    // so every age-restricted listing stays hidden from them.
+    const bracket = S.viewerAge || this.props.viewerAge || '21 or older';
+    const myAge = bracket === 'Under 18' ? 16 : bracket === '18 to 20' ? 19 : 34;
+    const hideAdult = S.hideAdult === true;
+    const minFor = t => t === '21+' ? 21 : 18;
+    const canSee = id => { const a = ADULT[id]; if (!a) return true;
+      if (!signedIn || hideAdult) return false;
+      return myAge >= minFor(a.tag); };
+    const isAdult = signedIn && myAge >= 18;
+    const cardMode = this.props.homeCards || 'Image cards';
+    const mapMode = this.props.mapLayout || 'Split';
+
+    const titles = {
+      home:['Resources','Hope. Support. Belonging.'],
+      events:['Events','Gatherings, festivals and mixers across Utah.'],
+      shop:['Shop Queer','Utah businesses that are queer-owned or actively affirming.'],
+      profile:['Your Profile','Saved places, themes and settings.']
+    };
+    const t = titles[scr];
+
+    const v = {
+      accent: ac, themeBar: th.bar, tint: th.tint, headerImg: th.img, imgErr,
+      isHome: scr==='home', isList: scr==='list', isResource: scr==='resource', isEvents: scr==='events',
+      isEvent: scr==='event', isShop: scr==='shop', isBiz: scr==='business', isProfile: scr==='profile',
+      isHost: scr==='host', isApply: scr==='apply',
+      isUser: scr==='user', isEditProfile: scr==='editProfile',
+      isCrisis: scr==='crisis',
+      showHeader: !!t, pageTitle: t ? t[0] : '', pageTagline: t ? t[1] : '',
+      back: () => this.pop(),
+      goHome: () => this.tabTo('home'), goEvents: () => this.tabTo('events'),
+      goShop: () => this.tabTo('shop'), goProfile: () => this.tabTo('profile'),
+      openCrisis: () => this.push('crisis'),
+      crisisLines: CRISIS,
+      q: S.q, onQuery: e => this.setState({ q: e.target.value }),
+      cardsImage: cardMode==='Image cards', cardsGrid: cardMode==='Tile grid', cardsList: cardMode==='Compact list',
+      mapH: mapMode==='Map first' ? 400 : (mapMode==='List first' ? 104 : 244),
+      listShift: mapMode==='Map first' ? '-18px' : '10px',
+      c1: S.tab==='home'?ac:'#A5A19B', c2: S.tab==='events'?ac:'#A5A19B',
+      c3: S.tab==='shop'?ac:'#A5A19B', c4: S.tab==='profile'?ac:'#A5A19B'
+    };
+
+    // ---- home router tabs (skip crisis, it has its own card)
+    const counts = {};
+    RES.forEach(r => { counts[r.cat] = (counts[r.cat]||0) + 1; });
+    const modeFor = n => n.indexOf('Location')>=0 ? 'county' : n.indexOf('Community')>=0 ? 'demo'
+      : n.indexOf('Category')>=0 ? 'cat' : n.indexOf('Books')>=0 ? 'books' : 'all';
+    v.routerTabs = TABS.filter(x => x.name.indexOf('Crisis') < 0).map(x => {
+      const mode = modeFor(x.name);
+      const n = mode==='books' ? RES.filter(r => BOOKS.indexOf(r.cat)>=0).length
+        : mode==='county' ? 7 : mode==='demo' ? 20 : mode==='cat' ? Object.keys(counts).length : RES.length;
+      const unit = mode==='county' ? 'counties' : mode==='demo' ? 'communities' : mode==='cat' ? 'categories' : 'resources';
+      return { name:x.name, sub:x.sub, img:px(x.img), count: n + ' ' + unit,
+        open: () => this.push('list', { mode, title:x.name, sub:x.sub }) };
+    });
+
+    // ---- list screen
+    if (scr === 'list') {
+      const mode = cur.mode, sel = S.sel, qq = S.q.trim().toLowerCase();
+      v.listTitle = S.sel || cur.title; v.listSub = cur.sub;
+      if (S.sel) v.back = () => this.setState({ sel:null, q:'' });
+      const chooser = (mode==='county' || mode==='demo' || mode==='cat') && !sel;
+      v.showChooser = chooser; v.showResults = !chooser;
+      v.searchHint = chooser
+        ? (mode==='county' ? 'Search counties on this page' : mode==='demo' ? 'Search communities on this page' : 'Search categories on this page')
+        : (sel ? 'Search in ' + sel : 'Search resources on this page');
+      if (chooser) {
+        let map = {};
+        if (mode==='county') RES.forEach(r => r.counties.forEach(c => { map[c] = (map[c]||0)+1; }));
+        if (mode==='demo') RES.forEach(r => r.demo.forEach(d => { map[d] = (map[d]||0)+1; }));
+        if (mode==='cat') RES.forEach(r => { map[r.cat] = (map[r.cat]||0)+1; });
+        v.chooserItems = Object.keys(map).filter(k => k && map[k] > 1 && (!qq || k.toLowerCase().indexOf(qq)>=0)).sort((a,b) => a.localeCompare(b))
+          .map((k, i) => ({ label:k, count:map[k], img: COUNTY_IMG[k] || '', bg: SWATCH[i % SWATCH.length],
+            pick: () => this.setState({ sel:k }) }));
+      } else {
+        let items = RES;
+        if (mode==='books') items = items.filter(r => BOOKS.indexOf(r.cat)>=0);
+        if (sel && mode==='county') items = items.filter(r => r.counties.indexOf(sel)>=0);
+        if (sel && mode==='demo') items = items.filter(r => r.demo.indexOf(sel)>=0);
+        if (sel && mode==='cat') items = items.filter(r => r.cat===sel);
+        if (qq) items = items.filter(r => (r.name+' '+r.cat+' '+r.desc).toLowerCase().indexOf(qq)>=0);
+        items = items.slice().sort((a,b) => a.name.localeCompare(b.name));
+        v.listItems = items.map(r => ({ name:r.name, img:px(r.img), verified: this.isVerified('res', r),
+          sub: [r.cat, r.county || (r.counties[0]||'Statewide')].filter(Boolean).join(' · '),
+          open: () => this.push('resource', { id:r.id }) }));
+        v.resultCount = items.length + (items.length===1 ? ' resource' : ' resources');
+        v.noResults = items.length === 0;
+      }
+      v.activeChips = sel ? [{ label:sel, bg:ac, clear: () => this.setState({ sel:null }) }] : [];
+      v.hasChips = !!sel;
+    }
+
+    // ---- resource detail
+    if (scr === 'resource') {
+      const r = RES.filter(x => x.id === cur.id)[0] || {};
+      const saved = !!S.saved[r.id];
+      const url = u => /^https?:/.test(u) ? u : 'https://' + u;
+      const host = u => u.replace(/^https?:\/\//,'').replace(/^www\./,'').replace(/\/.*$/,'');
+      const open = h => () => { try { window.open(h, '_blank'); } catch (e) {} };
+      const contact = [];
+      if (r.web) contact.push({ label:'Website', value:host(r.web), open: open(url(r.web)) });
+      if (r.fb) contact.push({ label:'Facebook', value:host(r.fb), open: open(url(r.fb)) });
+      if (r.ig) contact.push({ label:'Instagram', value:host(r.ig), open: open(url(r.ig)) });
+      if (r.tel) contact.push({ label: /^\s*(1-)?8\d\d/.test(r.tel) ? 'Hotline' : 'Telephone', value:r.tel, open: open('tel:' + r.tel.replace(/[^0-9+]/g,'')) });
+      if (r.email) contact.push({ label:'Email', value:r.email, open: open('mailto:' + r.email) });
+      if (r.addr) contact.push({ label:'Address', value:r.addr,
+        open: open(/^https?:/.test(r.addr) ? r.addr : 'https://maps.google.com/?q=' + encodeURIComponent(r.addr)) });
+      v.res = { name:r.name, img:px(r.img), desc:r.desc, contact, hasContact: contact.length > 0,
+        verified: this.isVerified('res', r),
+        heartFill: saved ? ac : 'none', heartStroke: saved ? ac : '#2A2A28',
+        sub: this.subPanel(r.id, ac, 'detail'),
+        toggleSave: () => this.toggleSave(r.id, 'res') };
+      v.resTint = th.tint;
+    }
+
+    // ---- events
+    const hostOf = id => HOSTS.filter(h => h.id === id)[0] || {};
+    v.canEngage = tier !== 'Anonymous';
+    v.isPublic = tier === 'Public profile';
+    v.goAccount = goAccount;
+    v.gate = { title:'Sign in to join in',
+      sub:'An email and a username is all it takes. Your account stays private — nothing is public until you choose to add a profile.',
+      cta:'Create an account', go: goAccount };
+    const eq = S.q.trim().toLowerCase();
+    v.goApply = () => { this.setState({ applyStep:0, applyKind:null, applyId:null, applyChan:null, applyDone:false, q:'' }); this.push('apply'); };
+    v.eventCards = EVTS.filter(e => canSee(e.id)).filter(e => { if (!eq || scr !== 'events') return true;
+      const h = hostOf(e.hostId);
+      return (e.name + ' ' + e.date + ' ' + e.desc + ' ' + (h.name||'')).toLowerCase().indexOf(eq) >= 0;
+    }).map(e => { const h = hostOf(e.hostId);
+      return { name:e.name, date:e.date, img:px(e.img), hostName:h.name, hostImg:px(h.img),
+        ageTag: (ADULT[e.id] || {}).tag || '',
+        open: () => this.push('event', { id:e.id }),
+        openHost: ev => { if (ev && ev.stopPropagation) ev.stopPropagation(); this.push('host', { id:h.id }); } }; });
+    if (scr === 'host') {
+      const h = hostOf(cur.id), mine = EVTS.filter(e => e.hostId === h.id);
+      const hSaved = !!S.saved[h.id];
+      v.host = { name:h.name, img:px(h.img), header:px(h.header), tint:th.tint,
+        reviews:'No reviews', count: mine.length,
+        followLabel: hSaved ? 'Following' : 'Follow',
+        followBg: hSaved ? '#fff' : '#1A1A18', followFg: hSaved ? ac : '#fff',
+        followBorder: hSaved ? '1.5px solid ' + ac : '1.5px solid #1A1A18',
+        toggleSave: () => this.toggleSave(h.id, 'host'),
+        sub: this.subPanel(h.id, ac, 'detail', ['events','offers']),
+        events: mine.map(e => ({ name:e.name, date:(e.date||'').toUpperCase(), img:px(e.img),
+          open: () => this.push('event', { id:e.id }) })) };
+    }
+    if (scr === 'event') {
+      const e = EVTS.filter(x => x.id === cur.id)[0] || {}, h = hostOf(e.hostId);
+      const link = /https?:\/\/\S+/.exec(e.desc || '');
+      v.ev = { name:e.name, img:px(e.img), dateCaps:(e.date||'').toUpperCase(), desc:e.desc,
+        hostName:h.name, hostImg:px(h.img), hostHeader:px(h.header), link: link ? link[0] : '',
+        openHost: () => this.push('host', { id:h.id }),
+        hostSaved: !!S.saved[h.id],
+        hostHeartFill: S.saved[h.id] ? ac : 'none', hostHeartStroke: S.saved[h.id] ? ac : '#8A867F',
+        hostFollowLabel: S.saved[h.id] ? 'Following' : 'Follow',
+        toggleHostSave: ev => { if (ev && ev.stopPropagation) ev.stopPropagation(); this.toggleSave(h.id, 'host'); } };
+
+      const soc = EVENT_SOCIAL[e.id] || { going:0, interested:0, guests:[], comments:[] };
+      const past = e.iso < new Date().toISOString().slice(0, 10);
+      const mine = (S.rsvp || {})[e.id] || null;
+      const hostMode = (this.props.viewAs || 'Attendee') === 'Host';
+      const initials = n => n.split(' ').map(w => w[0]).join('').slice(0,2).toUpperCase();
+      const av = n => AV[(n.charCodeAt(0) + n.length) % AV.length];
+
+      v.ev.past = past; v.ev.upcoming = !past;
+      v.ev.canRsvp = !past && v.canEngage;
+      v.ev.showGate = !past && !v.canEngage;
+      v.ev.hostMode = hostMode;
+      v.ev.statusLabel = past ? 'This event has ended' : 'Upcoming';
+      v.ev.rsvpOptions = [
+        { k:'going', label:'Going' }, { k:'interested', label:'Interested' }, { k:'no', label:"Can't go" }
+      ].map(o => { const on = mine === o.k;
+        return { label:o.label, bg: on ? ac : '#F3F1ED', fg: on ? '#fff' : '#4A4945',
+          border: on ? '1.5px solid ' + ac : '1.5px solid #EAE7E2',
+          set: () => this.setState(st => { const r = Object.assign({}, st.rsvp || {});
+            if (r[e.id] === o.k) delete r[e.id]; else r[e.id] = o.k; return { rsvp:r }; }) }; });
+      const goingN = soc.going + (mine === 'going' ? 1 : 0);
+      const intN = soc.interested + (mine === 'interested' ? 1 : 0);
+      v.ev.counts = goingN + ' going · ' + intN + ' interested';
+      v.ev.guests = soc.guests.filter(n => !blocked[n]).slice(0, 6).map(n => ({ initials: initials(n), bg: av(n),
+        open: () => this.push('user', { name:n }) }));
+      v.ev.guestMore = goingN > 6 ? '+' + (goingN - 6) : '';
+
+      const votes = S.votes || {};
+      v.ev.polls = (soc.polls || []).map(p => {
+        const picked = votes[p.id], reveal = picked !== undefined || hostMode || past;
+        const extra = picked !== undefined ? 1 : 0;
+        return { q:p.q, reveal, total: (p.total + extra) + ' votes',
+          options: p.options.map((o, i) => { const n = o.votes + (picked === i ? 1 : 0);
+            const pct = Math.round(n / (p.total + extra) * 100);
+            return { label:o.label, pct: pct + '%', width: reveal ? pct + '%' : '0%',
+              bg: picked === i ? th.tint : '#F5F3EF',
+              border: picked === i ? '1.5px solid ' + ac : '1.5px solid #EDEAE5',
+              vote: () => this.setState(st => { const w = Object.assign({}, st.votes || {});
+                if (w[p.id] === i) delete w[p.id]; else w[p.id] = i; return { votes:w }; }) }; }) };
+      });
+      v.ev.hasPolls = (soc.polls || []).length > 0;
+
+      const posted = ((S.posted || {})[e.id] || []);
+      const all = (soc.comments || []).concat(posted);
+      const shown = S.revealed || {};
+      // Blocking is mutual and total — blocked people vanish from comments, reviews and guest lists.
+      const visibleAll = all.filter(c => c.host || !blocked[c.who]);
+      v.ev.comments = visibleAll.map((c, i) => { const hide = !c.host && muted[c.who] && !shown[c.who];
+        return { who:c.who, when:c.when, text:c.text,
+          initials: initials(c.who), bg: c.host ? ac : av(c.who), isHost: !!c.host,
+          hostTag: c.host ? 'HOST' : '', hidden: hide, visible: !hide,
+          hiddenNote: 'Hidden — you muted ' + c.who,
+          reveal: () => this.setState(st => { const r = Object.assign({}, st.revealed || {}); r[c.who] = true; return { revealed:r }; }),
+          canMute: !c.host && c.who !== 'You' && !muted[c.who],
+          openUser: () => { if (!c.host) this.push('user', { name:c.who }); },
+          mute: () => this.setState(st => { const m = Object.assign({}, muted, st.muted || {}); m[c.who] = true; return { muted:m }; }) };
+      });
+      const flagged = (soc.guests || []).filter(g => blocked[g] || muted[g]);
+      const nb = (soc.guests || []).filter(g => blocked[g]).length;
+      v.ev.hasFlagged = flagged.length > 0 && !past;
+      v.ev.flaggedNote = nb
+        ? (nb === 1 ? 'Someone you blocked is going to this event' : nb + ' people you blocked are going to this event')
+        : 'Someone you muted is going to this event';
+      v.ev.flaggedSub = 'You will not see them in the discussion. Manage this in your account settings.';
+      v.ev.commentCount = visibleAll.length + (visibleAll.length === 1 ? ' comment' : ' comments');
+      v.ev.draft = S.draft || '';
+      v.ev.onDraft = ie => this.setState({ draft: ie.target.value });
+      v.ev.postReady = !!(S.draft || '').trim();
+      v.ev.postBg = (S.draft || '').trim() ? ac : '#E5E2DC';
+      v.ev.postFg = (S.draft || '').trim() ? '#fff' : '#A5A19B';
+      v.ev.post = () => { const t = (this.state.draft || '').trim(); if (!t) return;
+        this.setState(st => { const p = Object.assign({}, st.posted || {});
+          p[e.id] = (p[e.id] || []).concat([{ who: hostMode ? h.name : me, when:'now', text:t, host:hostMode }]);
+          return { posted:p, draft:'' }; }); };
+
+      const allRevs = soc.reviews || [];
+      const revs = allRevs.filter(r => !blocked[r.who] && !muted[r.who]);
+      const revHidden = allRevs.length - revs.length;
+      v.ev.reviewHidden = revHidden ? (revHidden === 1 ? '1 review hidden from someone you blocked or muted'
+        : revHidden + ' reviews hidden from people you blocked or muted') : '';
+      const myStars = (S.myReview || {})[e.id] || 0;
+      v.ev.hasReviews = past;
+      v.ev.reviewAvg = allRevs.length ? (allRevs.reduce((a,r) => a + r.stars, 0) / allRevs.length).toFixed(1) : '—';
+      v.ev.reviewCount = allRevs.length + (allRevs.length === 1 ? ' review' : ' reviews');
+      v.ev.reviews = revs.map(r => ({ who:r.who, when:r.when, text:r.text,
+        initials: initials(r.who), bg: av(r.who),
+        stars: [1,2,3,4,5].map(n => ({ fill: n <= r.stars ? ac : '#E0DCD5' })) }));
+      v.ev.myStars = [1,2,3,4,5].map(n => ({ fill: n <= myStars ? ac : '#E0DCD5',
+        set: () => this.setState(st => { const m = Object.assign({}, st.myReview || {}); m[e.id] = n; return { myReview:m }; }) }));
+      v.ev.reviewPrompt = myStars ? 'Thanks — add a note if you want' : 'Rate this event';
+
+      v.ev.postingAs = hostMode ? h.name : me;
+      v.notEngaged = !v.canEngage;
+      v.ev.hostActions = [
+        { label:'Post an update', sub:'Goes to everyone marked going or interested' },
+        { label:'Create a poll', sub:'Ask attendees before the day' },
+        { label:'See the guest list', sub:goingN + ' going · ' + intN + ' interested' },
+        { label:'Edit event details', sub:'Changes notify people who are going' }
+      ];
+    }
+
+    // ---- shop queer
+    if (scr === 'shop' || scr === 'business') {
+      const qq = S.q.trim().toLowerCase();
+      let list = BIZ.slice();
+      if (S.pin) list = list.filter(b => b.county === S.pin);
+      if (qq) list = list.filter(b => (b.name+' '+b.county+' '+b.tags.join(' ')).toLowerCase().indexOf(qq)>=0);
+      const hiddenN = list.filter(b => !canSee(b.id)).length;
+      list = list.filter(b => canSee(b.id));
+      list.sort((a,b) => a.name.localeCompare(b.name));
+      // Only ever tell an adult who opted out. For under-18 and anonymous the list just looks normal.
+      v.ageHidden = (isAdult && hideAdult && hiddenN)
+        ? (hiddenN === 1 ? '1 age-restricted listing hidden by your settings' : hiddenN + ' age-restricted listings hidden by your settings') : '';
+      v.bizList = list.map(b => ({ name:b.name, img:px(b.img), color:b.color, verified:true,
+        ageTag: (ADULT[b.id] || {}).tag || '',
+        sub: [b.county || 'Online only', b.tags[0]].filter(Boolean).join(' · '),
+        open: () => this.push('business', { id:b.id }) }));
+      v.bizCount = list.length + (list.length===1 ? ' business' : ' businesses');
+      const groups = {};
+      BIZ.forEach(b => { const p = COUNTY_PT[b.county]; if (!p) return;
+        (groups[b.county] = groups[b.county] || { pt:p, n:0 }).n++; });
+      v.mapRef = el => { if (el) { this.mountMap(el); if (this._map) setTimeout(() => this._map.invalidateSize(), 80); } };
+      v.activeChips = S.pin ? [{ label:S.pin, bg:ac, clear: () => this.setState({ pin:null }) }] : [];
+      v.hasChips = !!S.pin;
+    }
+
+    if (scr === 'business') {
+      const b = BIZ.filter(x => x.id === cur.id)[0] || { tags:[] };
+      const saved = !!S.saved[b.id];
+      const open = h => () => { try { window.open(h, '_blank'); } catch (e) {} };
+      const gal = [];
+      if (b.bg) gal.push({ src:b.bg, bg:b.color, label:'' });
+      if (b.img) gal.push({ src:b.img, bg:'#EFEDE9', label:'' });
+      while (gal.length < 4) gal.push({ src:PH, bg:'#DEDAD3', label:'PHOTO PLACEHOLDER' });
+      const rows = [];
+      if (b.addr) rows.push({ glyph:'MAP', label:'Address', value:b.addr, color:b.color, tint:b.color+'1F' });
+      if (b.tel) rows.push({ glyph:'TEL', label:'Phone', value:b.tel, color:b.color, tint:b.color+'1F' });
+      if (b.web) rows.push({ glyph:'WEB', label:'Website', value:b.web, color:b.color, tint:b.color+'1F' });
+      if (b.email) rows.push({ glyph:'@', label:'Email', value:b.email, color:b.color, tint:b.color+'1F' });
+      const cfg = BIZ_PAGE[b.id] || {};
+      const showCfg = !!this.props.showConfig;
+      const cps = (cfg.coupons || []).map(c => Object.assign({ color:b.color,
+        tint: b.color + '12', line: b.color + '66' }, c));
+      const sections = (cfg.sections || []).slice(0, 2).map(s => {
+        const L = s.layout, key = L.size + '-' + L.orient, sz = SIZES[key] || SIZES['medium-horizontal'];
+        return { title:s.title, sub:s.sub, cardW:sz[0], cardH:sz[1],
+          badge: showCfg ? (L.type + ' · ' + L.size + ' · ' + L.orient).toUpperCase() : '',
+          isCarousel: L.type==='carousel', isStack: L.type==='stack',
+          isGrid: L.type==='grid', isList: L.type==='list',
+          items: s.items.map(i => ({ title:i.title, sub:i.sub, value:i.value || '',
+            img: px(i.img), open: i.link ? open(i.link) : (() => {}) })) };
+      });
+      const bAge = ADULT[b.id] || {};
+      v.bizBlocked = !canSee(b.id);
+      v.bizOpen = !v.bizBlocked;
+      const need = minFor(bAge.tag);
+      // A minor is never told what the listing is or why it is gated — it simply is not available.
+      const softBlock = !signedIn || myAge < need;
+      v.ageBlock = { tag: softBlock ? '' : bAge.tag, why: softBlock ? '' : bAge.why,
+        title: softBlock ? 'Not available' : 'Age-restricted listing',
+        note: softBlock ? 'This listing is not available on your account.'
+          : 'You have chosen to hide age-restricted listings. Change this in your account settings.',
+        showCta: !softBlock, go: goAccount };
+      v.biz = { name:b.name, img:px(b.img), bg:px(b.bg), color:b.color, county:b.county || 'Online only', verified:true,
+        ageTag: bAge.tag || '',
+        tags:b.tags, hasTags: b.tags.length > 0, gallery:gal, rows,
+        coupons: cps, hasCoupons: cps.length > 0, sections,
+        dots: gal.map((g, i) => ({ w: i === (S.photoIdx||0) ? '16px' : '5px',
+          bg: i === (S.photoIdx||0) ? b.color : '#DCD8D2' })),
+        onPhotoScroll: e => { const el = e.target, i = Math.round(el.scrollLeft / 305);
+          if (i !== (this.state.photoIdx||0)) this.setState({ photoIdx: i }); },
+        saveLabel: saved ? 'Saved' : 'Save', saveColor: saved ? ac : '#2A2A28',
+        sub: this.subPanel(b.id, ac, 'detail'),
+        toggleSave: () => this.toggleSave(b.id, 'biz') };
+      const bd = this.props.bizDetail || 'Glide match';
+      v.bizGlide = bd === 'Glide match'; v.bizEditorial = bd === 'Editorial';
+    }
+
+    // ---- profile
+    const savedKeys = Object.keys(S.saved);
+    v.savedItems = savedKeys.map(k => { const e = S.saved[k];
+      if (e.kind === 'res') { const r = RES.filter(x => x.id===k)[0]; return r && { name:r.name, img:px(r.img), sub:r.cat, open: () => this.push('resource', { id:r.id }) }; }
+      if (e.kind === 'host') { const h = HOSTS.filter(x => x.id===k)[0]; return h && { name:h.name, img:px(h.img), sub:'Event host', open: () => this.push('host', { id:h.id }) }; }
+      const b = BIZ.filter(x => x.id===k)[0]; return b && { name:b.name, img:px(b.img), sub:b.county || 'Online only', open: () => this.push('business', { id:b.id }) };
+    }).filter(Boolean);
+    v.hasSaved = v.savedItems.length > 0; v.noSaved = !v.hasSaved;
+    const activeTheme = S.theme || this.props.theme || 'Rainbow';
+    const chip = k => ({ label:THEMES[k].label, dot:THEMES[k].dot,
+      border: k === activeTheme ? '1.5px solid ' + ac : '1.5px solid #E7E3DD',
+      bg: k === activeTheme ? th.tint : '#fff',
+      labelColor: k === activeTheme ? '#1A1A18' : '#5C5851',
+      pick: () => this.setState({ theme:k }) });
+    v.themeStandard = Object.keys(THEMES).filter(k => THEMES[k].group === 'standard').map(chip);
+    v.themePride = Object.keys(THEMES).filter(k => THEMES[k].group === 'pride').map(chip);
+    v.profileRows = [
+      { label:'Become a host', sub:'Post events, offers and newsletters as a public profile',
+        go: () => { this.setState({ applyStep:0, applyKind:null, applyId:null, applyChan:null, applyDone:false, q:'' }); this.push('apply'); } },
+      { label:'Submit a resource', sub:'Add an organization, group or service' },
+      { label:'Suggest a business', sub:'Queer-owned or actively affirming' },
+      { label:'Report an outdated listing', sub:'Closed, moved, or no longer affirming' }
+    ].map(p => Object.assign({ go: () => {} }, p));
+    const pane = S.pane || 'saved';
+    v.paneSaved = pane==='saved'; v.paneThemes = pane==='themes';
+    v.paneContribute = pane==='contribute'; v.paneAlerts = pane==='alerts';
+    v.paneAccount = pane==='account';
+
+    v.tierAnon = tier === 'Anonymous'; v.tierAccount = tier === 'Account';
+    v.accountState = { title: tier === 'Anonymous' ? 'Browsing anonymously'
+        : tier === 'Account' ? 'Private account' : 'Public profile',
+      sub: tier === 'Anonymous' ? 'Searching, saving and alerts work without an account, but they live on this device only — clear the app or switch phones and they are gone. Commenting, RSVPs, reviews and age-restricted listings need an account.'
+        : tier === 'Account' ? 'You sign in with a code sent to your email. Your real address never reaches this app — it holds only a proxy that forwards to you.'
+        : 'Your profile is visible to other people in the app.',
+      cta: tier === 'Anonymous' ? 'Create an account' : tier === 'Account' ? 'Add a public profile' : '',
+      go: () => this.setState({ tier: tier === 'Anonymous' ? 'Account' : 'Public profile' }) };
+    const hasEmail = !!S.optInEmail;
+    v.accountRows = tier === 'Anonymous' ? [] : [
+      { label:'Sign-in', value:'Code sent to your email', tag:'NOT STORED' },
+      { label:'Your address here', value:'chosen-twist-631@anonymous.appuser.io', tag:'PROXY' },
+      { label:'Username', value:'sagebrush_kid', tag:'PRIVATE' },
+      { label:'Date of birth', value: bracket === 'Under 18' ? 'June 12, 2010'
+          : bracket === '18 to 20' ? 'February 2, 2007' : 'March 4, 1992', tag:'PRIVATE' }
+    ];
+    v.showRelayNote = tier !== 'Anonymous';
+    v.emailRow = { label:'Newsletters by email',
+      value: hasEmail ? 'Sent to your proxy address, which forwards to your real inbox. Nobody here learns where that is.'
+        : 'Off — newsletters arrive as push notifications only.',
+      state: hasEmail ? 'On' : 'Off',
+      track: hasEmail ? ac : '#DCD8D2', justify: hasEmail ? 'flex-end' : 'flex-start',
+      toggle: () => this.setState(st => ({ optInEmail: !st.optInEmail })) };
+    v.deviceOnly = !signedIn;
+    v.deviceNote = 'Saved on this device only. Create an account and these move with you.';
+    v.signupNote = 'You sign in with a code sent to your email. Your real address stays with the sign-in service — this app only ever sees a generated proxy like chosen-twist-631@anonymous.appuser.io. A username and date of birth is the rest.';
+    // The whole Age settings block is for signed-in adults only — a minor never sees it mentioned.
+    v.showAgeSettings = isAdult;
+    v.ageRow = { label:'Hide age-restricted listings',
+      sub: myAge < 21 ? '18+ listings are showing. Bars and alcohol events stay hidden until you are 21.'
+        : 'Bars, alcohol events and suggestive content stay out of your lists.',
+      track: hideAdult ? ac : '#DCD8D2', justify: hideAdult ? 'flex-end' : 'flex-start',
+      toggle: () => { if (!isAdult) return; this.setState(st => ({ hideAdult: !st.hideAdult })); } };
+    v.ageBrackets = !isAdult ? [] : [
+      { label:'18+', on: myAge >= 18 && !hideAdult, why:'Suggestive content' },
+      { label:'21+', on: myAge >= 21 && !hideAdult, why:'Alcohol, bars and clubs' }
+    ].map(b => ({ label:b.label, why:b.why, state: b.on ? 'Visible' : 'Hidden',
+      bg: b.on ? th.tint : '#F4F2EE', fg: b.on ? ac : '#8C887F' }));
+    const mp = Object.assign({ name:'Alex Rivera', pronouns:'they/them', county:'Weber County',
+      bio:'Organizer in Ogden. Trans rights, mutual aid, terrible at bowling.',
+      links:['alexrivera.co','instagram.com/alexrivera'] }, S.profile || {});
+    v.publicFields = [
+      { label:'Display name', value:mp.name },
+      { label:'Pronouns', value:mp.pronouns },
+      { label:'Bio', value:mp.bio },
+      { label:'Links', value:(mp.links || []).join(' · ') || 'None yet' }
+    ];
+    v.viewMe = () => this.push('user', { name:mp.name });
+    v.editMe = () => this.push('editProfile');
+    v.blockList = Object.keys(blocked).map(n => ({ name:n, kind:'Blocked',
+      action:'Unblock', act: () => this.setState(st => { const b = Object.assign({}, blocked, st.blocked || {}); delete b[n]; return { blocked:b }; }) }))
+      .concat(Object.keys(muted).map(n => ({ name:n, kind:'Muted',
+        action:'Unmute', act: () => this.setState(st => { const m = Object.assign({}, muted, st.muted || {}); delete m[n]; return { muted:m }; }) })));
+    v.hasBlocks = v.blockList.length > 0;
+
+    v.profileTabs = [
+      { key:'saved', label:'Saved', count: v.savedItems.length ? String(v.savedItems.length) : '' },
+      { key:'themes', label:'Themes', count:'' },
+      { key:'contribute', label:'Contribute', count:'' },
+      { key:'alerts', label:'Alerts', count:'' },
+      { key:'account', label:'Account', count:'' }
+    ].map(p => { const on = pane === p.key;
+      return { label:p.label, count:p.count, pick: () => this.setState({ pane:p.key }),
+        border: on ? '1.5px solid ' + ac : '1.5px solid #E7E3DD',
+        bg: on ? ac : '#fff', fg: on ? '#fff' : '#4A4945',
+        pill: on ? 'rgba(255,255,255,.26)' : '#F1EFEB', pillFg: on ? '#fff' : '#7C7871' }; });
+    const kindLabel = { res:'Resource', biz:'Business', host:'Event host' };
+    v.subItems = savedKeys.map(k => { const e = S.saved[k];
+      const it = e.kind === 'res' ? RES.filter(x => x.id===k)[0]
+        : e.kind === 'host' ? HOSTS.filter(x => x.id===k)[0] : BIZ.filter(x => x.id===k)[0];
+      if (!it) return null;
+      const p = this.subPanel(k, ac, 'alerts-' + k);
+      return { name:it.name, img:px(it.img), kind: kindLabel[e.kind] || 'Listing',
+        summary:p.summary, open:p.open, rot:p.rot, dim:p.dim, rows:p.rows, toggleOpen:p.toggleOpen };
+    }).filter(Boolean);
+    v.hasSubs = v.subItems.length > 0;
+    const onCount = savedKeys.filter(k => { const c = this.chanOn(k); return c.events || c.offers || c.news; }).length;
+    v.subCount = v.hasSubs ? (onCount + ' of ' + savedKeys.length + ' subscriptions are active') : '';
+    const paused = !!S.pauseAll;
+    v.pauseRow = { track: paused ? '#E4373C' : '#DCD8D2', justify: paused ? 'flex-end' : 'flex-start',
+      sub: paused ? 'Nothing will be sent until you turn this off' : 'Keeps every subscription, sends nothing',
+      toggle: () => this.setState(st => ({ pauseAll: !st.pauseAll })) };
+    const alerts = S.alerts || {};
+    v.alertRows = [
+      { key:'listings', label:'New resources added', sub:'A weekly digest, not per-listing' },
+      { key:'alerts', label:'Community alerts', sub:'Legislation and safety notices for Utah' }
+    ].map(a => { const on = !!alerts[a.key];
+      return { label:a.label, sub:a.sub, track: on ? ac : '#DCD8D2', justify: on ? 'flex-end' : 'flex-start',
+        toggle: () => this.setState(st => { const n = Object.assign({}, st.alerts); n[a.key] = !n[a.key]; return { alerts:n }; }) }; });
+    v.privacyRows = [
+      { label:'Hide app icon name', sub:'Shows as "Utah Guide" on your home screen' },
+      { label:'Require Face ID to open', sub:'Locks saved listings behind your passcode' },
+      { label:'Clear saved history', sub:'Removes everything stored on this device' }
+    ];
+
+    // ---- user profiles
+    const DEFAULT_ME = { name:'Alex Rivera', pronouns:'they/them', county:'Weber County',
+      bio:'Organizer in Ogden. Trans rights, mutual aid, terrible at bowling.',
+      links:['alexrivera.co','instagram.com/alexrivera'] };
+    const myProfile = Object.assign({}, DEFAULT_ME, S.profile || {});
+    const initials2 = n => n.split(' ').map(w => w[0]).join('').slice(0,2).toUpperCase();
+    const avc = n => AV[(n.charCodeAt(0) + n.length) % AV.length];
+    v.openUser = n => this.push('user', { name:n });
+    v.myName = myProfile.name;
+
+    if (scr === 'user') {
+      const nm = cur.name, self = nm === myProfile.name;
+      const u = self ? myProfile : Object.assign({ pronouns:'', county:'', bio:'', links:[] }, USERS[nm] || {});
+      const isBlocked = !!blocked[nm], isMuted = !!muted[nm];
+      const seed = nm.charCodeAt(0) + nm.length * 7;
+      const style = this.props.profileStyle || 'Minimal';
+      const INTERESTS = ['Mutual aid','Trans health','Book club','Hiking','Drag','Volunteering','Board games','Live music'];
+      v.user = { name:nm, initials: initials2(nm), color: self ? ac : avc(nm),
+        vCommunity: style === 'Community' && !isBlocked, vSocial: style === 'Social' && !isBlocked,
+        stats: [
+          { n: String(seed % 23 + 4), label:'Events' },
+          { n: String(seed % 5), label:'Hosting' },
+          { n: '20' + (18 + seed % 7), label:'Member since' }
+        ],
+        interests: [INTERESTS[seed % 8], INTERESTS[(seed + 3) % 8], INTERESTS[(seed + 5) % 8]],
+        mutual: (function (n) { return n ? n + (n === 1 ? ' event' : ' events') + ' in common' : ''; })(self || isBlocked ? 0 : seed % 3 + 1),
+        alsoGoing: [{ name:'Trans Pride-N-Joy Festival', when:'August 22, 2026',
+          open: () => this.push('event', { id:'e1' }) }],
+        pronouns: isBlocked ? '' : u.pronouns, county: isBlocked ? '' : (u.county || 'Utah'),
+        bio: isBlocked ? '' : (u.bio || 'No bio yet.'), hasBio: !isBlocked && !!u.bio,
+        links: isBlocked ? [] : (u.links || []).map(l => ({ label:l, open: () => { try { window.open('https://' + l, '_blank'); } catch (e) {} } })),
+        hasLinks: !isBlocked && (u.links || []).length > 0,
+        self, other: !self, hidden: isBlocked, open: !isBlocked,
+        edit: () => this.push('editProfile'),
+        muteLabel: isMuted ? 'Unmute' : 'Mute',
+        muteFg: isMuted ? ac : '#2A2A28',
+        toggleMute: () => this.setState(st => { const m = Object.assign({}, muted, st.muted || {});
+          if (m[nm]) delete m[nm]; else m[nm] = true; return { muted:m }; }),
+        blockLabel: isBlocked ? 'Unblock' : 'Block',
+        blockFg: isBlocked ? '#B4494E' : '#2A2A28',
+        toggleBlock: () => this.setState(st => { const b = Object.assign({}, blocked, st.blocked || {});
+          if (b[nm]) delete b[nm]; else b[nm] = true; return { blocked:b }; }),
+        notSocial: style !== 'Social' && !isBlocked,
+        flagged: isBlocked || isMuted,
+        flagNote: isBlocked ? 'Blocked. Neither of you can see the other — comments, reviews and profiles are hidden both ways. You will still be warned when they are going to an event you are viewing.'
+          : 'Muted. Their comments are collapsed behind a tap and their reviews are hidden. They can still see you.' };
+    }
+
+    if (scr === 'editProfile') {
+      const d = Object.assign({}, myProfile, S.pDraft || {});
+      const set = k => e => this.setState(st => { const p = Object.assign({}, myProfile, st.pDraft || {}); p[k] = e.target.value; return { pDraft:p }; });
+      v.edit = { name:d.name, pronouns:d.pronouns, county:d.county, bio:d.bio,
+        links: (d.links || []).join('\n'), initials: initials2(d.name || 'A'), color: ac,
+        onName: set('name'), onPronouns: set('pronouns'), onCounty: set('county'), onBio: set('bio'),
+        onLinks: e => this.setState(st => { const p = Object.assign({}, myProfile, st.pDraft || {});
+          p.links = e.target.value.split('\n').map(s => s.trim()).filter(Boolean); return { pDraft:p }; }),
+        save: () => { this.setState(st => ({ profile: Object.assign({}, myProfile, st.pDraft || {}), pDraft:null })); this.pop(); },
+        cancel: () => { this.setState({ pDraft:null }); this.pop(); } };
+    }
+
+    // ---- become a host
+    if (scr === 'apply') {
+      const asg = ASSIGN[this.props.assignments || 'One business'] || ASSIGN.None;
+      const myBiz = BIZ.filter(b => asg.biz.indexOf(b.id) >= 0);
+      const myRes = RES.filter(r => asg.res.some(n => r.name.toLowerCase().indexOf(n) >= 0));
+      const hasAssign = (myBiz.length + myRes.length) > 0;
+      const kind = hasAssign ? S.applyKind : 'new';
+      const flow = !hasAssign ? ['details','channels','review']
+        : kind === 'new' ? ['source','details','channels','review']
+        : ['source','pick','details','channels','review'];
+      const step = Math.min(S.applyStep || 0, flow.length - 1), at = flow[step];
+      const ent = kind === 'biz' ? myBiz.filter(x => x.id === S.applyId)[0]
+        : kind === 'res' ? myRes.filter(x => x.id === S.applyId)[0] : null;
+      const linked = ent ? ent.id : null;
+      const NAMES = { source:'Identity', pick:'Choose your listing', details:'Profile', channels:'Channels', review:'Review' };
+      const ch = Object.assign({ events:true, offers: kind === 'biz', news: kind !== 'new' }, S.applyChan || {});
+      const qq = S.q.trim().toLowerCase();
+      const done = !!S.applyDone;
+      const reset = { applyStep:0, applyKind:null, applyId:null, applyChan:null, applyDone:false };
+
+      const ap = {
+        stepLabel: done ? 'Submitted' : 'Step ' + (step + 1) + ' of ' + flow.length + ' — ' + NAMES[at],
+        bars: flow.map((f, i) => ({ bg: done || i <= step ? ac : '#EDEAE5' })),
+        isSource: !done && at === 'source', isPick: !done && at === 'pick',
+        isDetails: !done && at === 'details', isChannels: !done && at === 'channels',
+        isReview: !done && at === 'review', isDone: done,
+        verified: !!ent, noAssign: !hasAssign && !done,
+        back: () => { if (done || step === 0) { this.setState(reset); this.pop(); }
+          else this.setState({ applyStep: step - 1, q:'' }); }
+      };
+
+      ap.sources = [
+        myBiz.length && { key:'biz', label: myBiz.length === 1 ? myBiz[0].name : 'A business you manage', tag:'VERIFIED',
+          sub:'Your Shop Queer page carries over — name, images, contact and your verified badge.' },
+        myRes.length && { key:'res', label: myRes.length === 1 ? myRes[0].name : 'An organization you manage', tag:'VERIFIED',
+          sub:'Your resource entry carries over. Hosting does not change how the resource is listed.' },
+        { key:'new', label:'Something else — start fresh', tag:'',
+          sub:'A standalone host profile. An admin verifies you before it goes public.' }
+      ].filter(Boolean).map(s => ({ label:s.label, sub:s.sub, tag:s.tag,
+        border: kind === s.key ? '1.5px solid ' + ac : '1.5px solid #EAE7E2',
+        bg: kind === s.key ? th.tint : '#FCFBF9',
+        pick: () => this.setState({ applyKind:s.key, applyId:null }) }));
+
+      const pool = kind === 'biz' ? myBiz : myRes;
+      ap.pickTitle = pool.length === 1 ? 'Confirm the listing' : 'Which listing?';
+      ap.pickNote = 'You can only port listings an admin has assigned to your account. To get access to another listing, ask an admin — listings cannot be self-claimed.';
+      ap.pickSearch = pool.length > 6; ap.pickHint = 'Search your listings';
+      ap.candidates = pool.filter(x => !ap.pickSearch || !qq || x.name.toLowerCase().indexOf(qq) >= 0)
+        .map(x => ({ name:x.name, img:px(x.img),
+          sub: kind === 'biz' ? (x.county || 'Online only') : x.cat,
+          selected: linked === x.id, bg: linked === x.id ? th.tint : '#fff',
+          pick: () => this.setState({ applyId:x.id }) }));
+
+      const nm = ent ? ent.name : 'Your host name';
+      ap.avatar = px(ent && ent.img);
+      ap.detailNote = ent ? 'Pulled from your listing. Edit anything that should read differently to event-goers.'
+        : 'Fill this in and an admin will verify you before the profile goes public.';
+      ap.verifiedNote = kind === 'biz' ? 'Verified businesses become verified hosts automatically.'
+        : 'Verified resources become verified hosts automatically.';
+      const ported = { tag:'FROM LISTING', tagBg: th.tint, tagFg: ac, color:'#22221F' };
+      const blank = { tag:'HOST ONLY', tagBg:'#F1EFEB', tagFg:'#7C7871', color:'#22221F' };
+      ap.fields = ent ? [
+        Object.assign({ label:'Host name', value:nm }, ported),
+        Object.assign({ label:'Public tagline', value:'Tell people what you host. Shown under your name.' }, blank, { color:'#A5A19B' }),
+        Object.assign({ label:'Location', value: ent.county || ent.counties && ent.counties[0] || 'Statewide' }, ported),
+        Object.assign({ label:'Website', value: ent.web || 'Not on file' }, ported),
+        Object.assign({ label:'Public contact', value: ent.email || 'Add an email for attendees' }, ent.email ? ported : blank),
+        Object.assign({ label:'Who manages this', value:'You. Add co-hosts after approval.' }, blank)
+      ] : [
+        Object.assign({ label:'Host name', value:'Add the name people will see' }, blank, { color:'#A5A19B' }),
+        Object.assign({ label:'Public tagline', value:'One line about what you host' }, blank, { color:'#A5A19B' }),
+        Object.assign({ label:'Location', value:'Which county do you serve?' }, blank, { color:'#A5A19B' }),
+        Object.assign({ label:'Website', value:'Optional' }, blank, { color:'#A5A19B' }),
+        Object.assign({ label:'Public contact', value:'Email for attendees' }, blank, { color:'#A5A19B' }),
+        Object.assign({ label:'Proof of affiliation', value:'A link or document an admin can check' }, blank, { color:'#A5A19B' })
+      ];
+
+      const newsOk = !!ent;
+      ap.channels = [
+        { k:'events', label:'Events', tag:'REQUIRED', lock:true, sub:'Your event cards appear in the Events tab and on your profile.' },
+        { k:'offers', label:'Offers', tag:'', sub:'Coupons for the community. Businesses use this most.' },
+        { k:'news', label:'Newsletter', tag: newsOk ? '' : 'NEEDS A LISTING', lock: !newsOk,
+          sub: newsOk ? 'Write directly to followers. No email list needed.'
+            : 'Only verified businesses and resources can send newsletters. Link a listing an admin assigned you to unlock this.' }
+      ].map(c => { const on = c.k === 'events' ? true : c.lock ? false : ch[c.k];
+        return { label:c.label, sub:c.sub, tag:c.tag, dim: c.lock && c.k !== 'events' ? '.55' : '1',
+          track: on ? ac : '#DCD8D2', justify: on ? 'flex-end' : 'flex-start',
+          toggle: () => { if (c.lock) return;
+            this.setState(st => { const n = Object.assign({}, ch, st.applyChan || {}); n[c.k] = !ch[c.k]; return { applyChan:n }; }); } }; });
+
+      const live = ['Events'].concat(ch.offers ? ['Offers'] : []).concat(newsOk && ch.news ? ['Newsletter'] : []);
+      ap.summary = [
+        { label:'Host', value: nm },
+        { label:'Linked to', value: ent ? (kind === 'biz' ? 'Business listing — ' + ent.name : 'Resource listing — ' + ent.name) : 'Nothing yet — new profile' },
+        { label:'Verified', value: ent ? 'Inherited from your listing' : 'Admin will verify before approval' },
+        { label:'Channels', value: live.join(', ') },
+        { label:'Followers', value: ent ? 'Anyone who saved your listing is offered your channels' : 'Starts at zero' }
+      ];
+
+      ap.doneNote = ent ? 'We will email you when an admin approves ' + nm + '. Your listing stays live in the meantime.'
+        : 'We will email you when an admin approves your profile.';
+      const tl = [
+        { label:'Submitted', sub:'Just now', state:'done' },
+        { label:'Admin review', sub:'Usually within two business days', state:'now' },
+        { label:'Profile goes live', sub:'You can post events, offers and newsletters', state:'next' }
+      ];
+      ap.timeline = tl.map(t => ({ label:t.label, sub:t.sub,
+        fg: t.state === 'next' ? '#A5A19B' : '#1A1A18',
+        dotBg: t.state === 'done' ? ac : '#fff',
+        dotBorder: t.state === 'next' ? '2px solid #E5E2DC' : '2px solid ' + ac,
+        core: t.state === 'done' ? '#fff' : t.state === 'now' ? ac : '#E5E2DC' }));
+
+      const ready = at === 'source' ? !!kind : at === 'pick' ? !!linked : true;
+      ap.hasCta = !done;
+      ap.ctaLabel = at === 'source' ? (kind === 'new' ? 'Start a new profile' : 'Continue')
+        : at === 'pick' ? 'Use this listing' : at === 'review' ? 'Send for review' : 'Continue';
+      ap.ctaBg = ready ? ac : '#E5E2DC'; ap.ctaFg = ready ? '#fff' : '#A5A19B';
+      ap.next = () => { if (!ready) return;
+        if (at === 'review') this.setState({ applyDone:true });
+        else this.setState({ applyStep: step + 1, q:'' }); };
+      v.ap = ap;
+    }
+
+    // ---- jump strip
+    const firstBiz = BIZ[0] || {}, firstRes = RES[0] || {}, firstEv = EVTS[0] || {};
+    const jump = (label, fn, on) => ({ label, bg: on ? '#1A1A18' : '#FBFAF8', fg: on ? '#fff' : '#4A4945', go: fn });
+    v.jumps = [
+      jump('Home router', () => this.tabTo('home'), scr==='home'),
+      jump('Crisis', () => { this.tabTo('home'); this.push('crisis'); }, scr==='crisis'),
+      jump('Resource list', () => { this.tabTo('home'); this.push('list', { mode:'cat', title:'Category Search', sub:'Search resources by type' }); }, scr==='list'),
+      jump('Resource detail', () => { this.tabTo('home'); this.push('resource', { id:firstRes.id }); }, scr==='resource'),
+      jump('Events', () => this.tabTo('events'), scr==='events'),
+      jump('Event — upcoming', () => { this.tabTo('events'); this.push('event', { id:'e1' }); }, scr==='event' && cur.id==='e1'),
+      jump('Event — past', () => { this.tabTo('events'); this.push('event', { id:'e2' }); }, scr==='event' && cur.id==='e2'),
+      jump('Host profile', () => { this.tabTo('events'); this.push('host', { id:(HOSTS[0]||{}).id }); }, scr==='host'),
+      jump('Map & finder', () => this.tabTo('shop'), scr==='shop'),
+      jump('Restaurant page', () => { this.tabTo('shop'); this.push('business', { id:'XLx0YWrKSQCqBYAsiJv1JA' }); }, scr==='business' && cur.id==='XLx0YWrKSQCqBYAsiJv1JA'),
+      jump('Salon page', () => { this.tabTo('shop'); this.push('business', { id:'oA-zsVB4Tc2IoGXGJwV.Ew' }); }, scr==='business' && cur.id==='oA-zsVB4Tc2IoGXGJwV.Ew'),
+      jump('Gym page', () => { this.tabTo('shop'); this.push('business', { id:'SQxQBj7MT-mmNMGjiuF3lQ' }); }, scr==='business' && cur.id==='SQxQBj7MT-mmNMGjiuF3lQ'),
+      jump('Bookstore page', () => { this.tabTo('shop'); this.push('business', { id:'RekEbrQSStqQiu6uJKJTYg' }); }, scr==='business' && cur.id==='RekEbrQSStqQiu6uJKJTYg'),
+      jump('Profile', () => this.tabTo('profile'), scr==='profile'),
+      jump('Someone else', () => { this.tabTo('events'); this.push('user', { name:'Rio M.' }); }, scr==='user'),
+      jump('Become a host', () => { this.tabTo('profile'); this.setState({ pane:'contribute', applyStep:0, applyKind:null, applyId:null, applyDone:false }); this.push('apply'); }, scr==='apply')
+    ];
+    return v;
+  }
+
+  cityName(b) {
+    const m = /,\s*([A-Za-z\. ]+),\s*UT/.exec(b.addr || '');
+    if (m) return m[1].trim();
+    const m2 = /([A-Za-z ]+),?\s*UT\s*\d/.exec(b.addr || '');
+    if (m2) return m2[1].trim().split(' ').slice(-2).join(' ');
+    return (b.county || 'Utah').replace(' County','');
+  }
+}
+
+</script>
+</body>
+</html>

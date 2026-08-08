@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+@font-face{font-family:Garet;src:url("fonts/Garet-Book.woff2") format("woff2");font-weight:400;font-display:swap}
+@font-face{font-family:Garet;src:url("fonts/Garet-Medium.woff2") format("woff2");font-weight:500 600;font-display:swap}
+@font-face{font-family:Garet;src:url("fonts/Garet-Bold.woff2") format("woff2");font-weight:700 800;font-display:swap}
+doc-page:not(:defined){visibility:hidden}
+a{color:#7A2FA6;text-decoration:none}
+a:hover{color:#5C1F80;text-decoration:underline}
+.kept{break-inside:avoid;orphans:3;widows:3}
+</style>
+<script src="./doc-page.js"></script>
+</helmet>
+
+<doc-page margin="0.8in">
+
+<div style="font:600 10.5px/1.2 Garet,Outfit,sans-serif;letter-spacing:.16em;text-transform:uppercase;color:#8C8880;margin-bottom:14px">LGBTQ.UT — Engineering handoff</div>
+
+<h1 style="font:800 34px/1.12 Garet,Outfit,sans-serif;color:#111;letter-spacing:-.025em;margin:0 0 14px">Anonymous email authentication on Supabase</h1>
+
+<p style="font:400 15.5px/1.65 Garet,Outfit,sans-serif;color:#3D3C39;margin:0 0 10px">Users sign in with a code sent to their email. The application database never stores the address. This document specifies the schema, the Edge Functions, the RLS policies, and the operational rules that make that claim true rather than aspirational.</p>
+
+<p style="font:400 13px/1.6 Garet,Outfit,sans-serif;color:#7C7871;margin:0 0 30px">Audience: the engineer implementing auth. Companion artifact: <em>LGBTQ UT App</em> prototype, Account pane.</p>
+
+<h2 style="font:800 21px/1.25 Garet,Outfit,sans-serif;color:#141413;letter-spacing:-.01em;margin:0 0 10px;padding-top:8px;border-top:2px solid #1A1A18">1. The problem</h2>
+
+<p style="font:400 15px/1.65 Garet,Outfit,sans-serif;color:#3D3C39;margin:0 0 12px">Supabase Auth writes the user's address to <code style="font:500 13.5px/1 'JetBrains Mono',monospace;background:#F4F2EE;padding:2px 5px;border-radius:4px">auth.users.email</code>. For most products that is unremarkable. For a queer resource directory operating in Utah it is a liability: a subpoena, a breach, or a future administrator with different politics all resolve to the same exposure, and the people most at risk are the ones least able to absorb it.</p>
+
+<p style="font:400 15px/1.65 Garet,Outfit,sans-serif;color:#3D3C39;margin:0 0 12px">The requirement is therefore stronger than encryption at rest. It is that the address is not present in the project at all, so the honest answer to a request for user emails is that there are none to produce.</p>
+
+<div class="kept" style="border-left:3px solid #7A2FA6;background:#FAF7FC;padding:14px 16px;margin:0 0 22px">
+<p style="font:500 14px/1.6 Garet,Outfit,sans-serif;color:#3D3C39;margin:0">Two mechanisms are needed together. A <strong>proxy alias</strong> makes mail deliverable without a stored destination. A <strong>blind index</strong> makes an account findable at login without a stored address. Neither is sufficient alone.</p>
+</div>
+
+<h2 style="font:800 21px/1.25 Garet,Outfit,sans-serif;color:#141413;letter-spacing:-.01em;margin:0 0 10px;padding-top:8px;border-top:2px solid #1A1A18">2. Architecture</h2>
+
+<p style="font:400 15px/1.65 Garet,Outfit,sans-serif;color:#3D3C39;margin:0 0 14px">The alias becomes the Supabase identity. <code style="font:500 13.5px/1 'JetBrains Mono',monospace;background:#F4F2EE;padding:2px 5px;border-radius:4px">auth.users.email</code> holds <code style="font:500 13.5px/1 'JetBrains Mono',monospace;background:#F4F2EE;padding:2px 5px;border-radius:4px">chosen-twist-631@anonymous.appuser.io</code>, not the real address. Delivery works because the forwarder resolves the alias; lookup works because of a peppered hash. The real address exists in exactly one system, and it is not this one.</p>
+
+<div class="kept" style="border:1px solid #E5E2DC;border-radius:10px;overflow:hidden;margin:0 0 12px">
+<div style="background:#1A1A18;padding:10px 14px;font:700 10.5px/1.3 Garet,Outfit,sans-serif;color:#fff;letter-spacing:.09em">WHO HOLDS WHAT</div>
+<table style="width:100%;border-collapse:collapse">
+<thead>
+<tr style="background:#FAF9F7">
+<th style="text-align:left;font:700 11px/1.3 Garet,Outfit,sans-serif;color:#6E6A64;letter-spacing:.05em;text-transform:uppercase;padding:9px 14px;border-bottom:1px solid #EDEAE5">System</th>
+<th style="text-align:left;font:700 11px/1.3 Garet,Outfit,sans-serif;color:#6E6A64;letter-spacing:.05em;text-transform:uppercase;padding:9px 14px;border-bottom:1px solid #EDEAE5">Holds</th>
+<th style="text-align:left;font:700 11px/1.3 Garet,Outfit,sans-serif;color:#6E6A64;letter-spacing:.05em;text-transform:uppercase;padding:9px 14px;border-bottom:1px solid #EDEAE5">Real address?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="font:600 13px/1.5 Garet,Outfit,sans-serif;color:#22221F;padding:10px 14px;border-bottom:1px solid #F1EEEA">Supabase Auth</td>
+<td style="font:400 13px/1.5 Garet,Outfit,sans-serif;color:#4A4945;padding:10px 14px;border-bottom:1px solid #F1EEEA">Alias as identity, user UUID</td>
+<td style="font:600 13px/1.5 Garet,Outfit,sans-serif;color:#2E8B45;padding:10px 14px;border-bottom:1px solid #F1EEEA">No</td>
+</tr>
+<tr>
+<td style="font:600 13px/1.5 Garet,Outfit,sans-serif;color:#22221F;padding:10px 14px;border-bottom:1px solid #F1EEEA">Supabase Postgres</td>
+<td style="font:400 13px/1.5 Garet,Outfit,sans-serif;color:#4A4945;padding:10px 14px;border-bottom:1px solid #F1EEEA">HMAC hash, alias, username, DOB</td>
+<td style="font:600 13px/1.5 Garet,Outfit,sans-serif;color:#2E8B45;padding:10px 14px;border-bottom:1px solid #F1EEEA">No</td>
+</tr>
+<tr>
+<td style="font:600 13px/1.5 Garet,Outfit,sans-serif;color:#22221F;padding:10px 14px;border-bottom:1px solid #F1EEEA">Supabase Vault</td>
+<td style="font:400 13px/1.5 Garet,Outfit,sans-serif;color:#4A4945;padding:10px 14px;border-bottom:1px solid #F1EEEA">HMAC pepper</td>
+<td style="font:600 13px/1.5 Garet,Outfit,sans-serif;color:#2E8B45;padding:10px 14px;border-bottom:1px solid #F1EEEA">No</td>
+</tr>
+<tr>
+<td style="font:600 13px/1.5 Garet,Outfit,sans-serif;color:#22221F;padding:10px 14px">Forwarder (SES + Lambda)</td>
+<td style="font:400 13px/1.5 Garet,Outfit,sans-serif;color:#4A4945;padding:10px 14px">alias → destination map</td>
+<td style="font:600 13px/1.5 Garet,Outfit,sans-serif;color:#B4494E;padding:10px 14px">Yes — the only copy</td>
+</tr>
+</tbody>
+</table>
+</div>
+
+<p style="font:400 13px/1.6 Garet,Outfit,sans-serif;color:#7C7871;margin:0 0 22px">Run the forwarder in a separate AWS account from anything else the project owns. The separation is the control; co-locating it with application infrastructure defeats the design.</p>
+
+<h3 style="font:700 16px/1.3 Garet,Outfit,sans-serif;color:#1A1A18;margin:0 0 8px">Why not Cloudflare Email Routing</h3>
+<p style="font:400 15px/1.65 Garet,Outfit,sans-serif;color:#3D3C39;margin:0 0 22px">It is free and it forwards correctly, but every destination must confirm itself through a Cloudflare-sent verification email before routing begins. That inserts a second inbox round-trip into signup, and it fails silently for anyone who does not complete it. SES plus a Lambda is more setup and fully programmatic. Use Cloudflare only if signup friction is acceptable.</p>
+
+<h2 style="font:800 21px/1.25 Garet,Outfit,sans-serif;color:#141413;letter-spacing:-.01em;margin:0 0 10px;padding-top:8px;border-top:2px solid #1A1A18">3. Schema</h2>
+
+<div class="kept" style="background:#1A1A18;border-radius:10px;padding:16px 18px;margin:0 0 10px">
+<pre style="font:400 12px/1.7 'JetBrains Mono',monospace;color:#E6E3DE;margin:0;white-space:pre-wrap">create table public.profiles (
+  id           uuid primary key references auth.users(id) on delete cascade,
+  email_hash   bytea not null unique,   -- HMAC-SHA256(normalized, pepper)
+  alias        text  not null unique,   -- chosen-twist-631@anonymous.appuser.io
+  username     citext not null unique,
+  dob          date  not null,          -- age gate: 18+ / 21+
+  created_at   timestamptz not null default now()
+);
+
+create unique index profiles_email_hash_idx on public.profiles (email_hash);
+
+-- Public profile is a separate row so it can be deleted without
+-- destroying the account.
+create table public.public_profiles (
+  id           uuid primary key references public.profiles(id) on delete cascade,
+  display_name text not null,
+  pronouns     text,
+  county       text,
+  bio          text,
+  links        text[] default '{}',
+  avatar_url   text,
+  header_url   text
+);</pre>
+</div>
+
+<p style="font:400 13px/1.6 Garet,Outfit,sans-serif;color:#7C7871;margin:0 0 16px">Store <code style="font:500 12.5px/1 'JetBrains Mono',monospace;background:#F4F2EE;padding:2px 5px;border-radius:4px">dob</code>, not a computed age or a boolean. The 18+ and 21+ gates are evaluated against it at read time, so a user crosses each threshold on the correct day without a migration.</p>
+
+<div class="kept" style="border-left:3px solid #B4494E;background:#FBF3F3;padding:14px 16px;margin:0 0 22px">
+<p style="font:500 14px/1.6 Garet,Outfit,sans-serif;color:#7C3438;margin:0">Never add an <code style="font:500 13px/1 'JetBrains Mono',monospace">email</code> column to <code style="font:500 13px/1 'JetBrains Mono',monospace">profiles</code>, not even nullable, not even "temporarily during migration." A nullable column is an invitation, and the first person to fill it will not be the last.</p>
+</div>
+
+<h2 style="font:800 21px/1.25 Garet,Outfit,sans-serif;color:#141413;letter-spacing:-.01em;margin:0 0 10px;padding-top:8px;border-top:2px solid #1A1A18">4. Row-level security</h2>
+
+<div class="kept" style="background:#1A1A18;border-radius:10px;padding:16px 18px;margin:0 0 12px">
+<pre style="font:400 12px/1.7 'JetBrains Mono',monospace;color:#E6E3DE;margin:0;white-space:pre-wrap">alter table public.profiles enable row level security;
+
+-- No client policy exists for email_hash or alias. Deny by default:
+-- with RLS on and no permissive policy, PostgREST returns nothing.
+create policy "own row, safe columns"
+  on public.profiles for select
+  using (auth.uid() = id);
+
+revoke all on public.profiles from anon, authenticated;
+grant select (id, username, dob) on public.profiles to authenticated;
+
+alter table public.public_profiles enable row level security;
+
+create policy "public profiles are readable"
+  on public.public_profiles for select using (true);
+
+create policy "own public profile is writable"
+  on public.public_profiles for all
+  using (auth.uid() = id) with check (auth.uid() = id);</pre>
+</div>
+
+<p style="font:400 15px/1.65 Garet,Outfit,sans-serif;color:#3D3C39;margin:0 0 22px">Column-level grants matter more than the policies here. A permissive select policy still exposes every column the role can reach, so <code style="font:500 13.5px/1 'JetBrains Mono',monospace;background:#F4F2EE;padding:2px 5px;border-radius:4px">email_hash</code> and <code style="font:500 13.5px/1 'JetBrains Mono',monospace;background:#F4F2EE;padding:2px 5px;border-radius:4px">alias</code> are withheld at the grant level and touched only by the service role inside Edge Functions.</p>
+
+<h2 style="font:800 21px/1.25 Garet,Outfit,sans-serif;color:#141413;letter-spacing:-.01em;margin:0 0 10px;padding-top:8px;border-top:2px solid #1A1A18">5. Edge Functions</h2>
+
+<p style="font:400 15px/1.65 Garet,Outfit,sans-serif;color:#3D3C39;margin:0 0 16px">Two functions handle every path where a plaintext address exists. Both run on the service role, and in both the address lives only in local scope for the duration of the call.</p>
+
+<h3 style="font:700 16px/1.3 Garet,Outfit,sans-serif;color:#1A1A18;margin:0 0 8px"><code style="font:600 15px/1 'JetBrains Mono',monospace">POST /auth-start</code></h3>
+<div class="kept" style="background:#1A1A18;border-radius:10px;padding:16px 18px;margin:0 0 14px">
+<pre style="font:400 12px/1.7 'JetBrains Mono',monospace;color:#E6E3DE;margin:0;white-space:pre-wrap">// in:  { email: string }
+// out: { status: "code_sent" }            ← identical for new and existing
+
+const normalized = email.trim().toLowerCase();
+const pepper     = await vault.get("EMAIL_PEPPER");
+const hash       = hmacSha256(normalized, pepper);
+
+let profile = await db.from("profiles")
+  .select("id, alias").eq("email_hash", hash).maybeSingle();
+
+if (!profile) {
+  const alias = mintAlias();                  // adjective-noun-NNN@…
+  await forwarder.register(alias, normalized); // leaves our infrastructure
+  const { user } = await admin.createUser({ email: alias,
+                                            email_confirm: true });
+  await db.from("profiles").insert({ id: user.id, email_hash: hash,
+                                     alias, username, dob });
+  profile = { id: user.id, alias };
+}
+
+await admin.signInWithOtp({ email: profile.alias });  // routes via forwarder
+return { status: "code_sent" };
+// `normalized` goes out of scope here and is never persisted or logged.</pre>
+</div>
+
+<p style="font:400 15px/1.65 Garet,Outfit,sans-serif;color:#3D3C39;margin:0 0 20px">Return the same response whether or not the account existed. A distinguishable response turns this endpoint into an oracle for whether a given person has an account in a queer directory, which is precisely the disclosure the design exists to prevent. Rate-limit by IP regardless.</p>
+
+<h3 style="font:700 16px/1.3 Garet,Outfit,sans-serif;color:#1A1A18;margin:0 0 8px"><code style="font:600 15px/1 'JetBrains Mono',monospace">POST /auth-verify</code></h3>
+<div class="kept" style="background:#1A1A18;border-radius:10px;padding:16px 18px;margin:0 0 20px">
+<pre style="font:400 12px/1.7 'JetBrains Mono',monospace;color:#E6E3DE;margin:0;white-space:pre-wrap">// in:  { email: string, code: string }
+// out: { session }
+
+const hash    = hmacSha256(email.trim().toLowerCase(),
+                           await vault.get("EMAIL_PEPPER"));
+const profile = await db.from("profiles")
+  .select("alias").eq("email_hash", hash).single();
+
+return await auth.verifyOtp({ email: profile.alias, token: code,
+                              type: "email" });</pre>
+</div>
+
+<h2 style="font:800 21px/1.25 Garet,Outfit,sans-serif;color:#141413;letter-spacing:-.01em;margin:0 0 10px;padding-top:8px;border-top:2px solid #1A1A18">6. Operational rules</h2>
+
+<p style="font:400 15px/1.65 Garet,Outfit,sans-serif;color:#3D3C39;margin:0 0 14px">The architecture above is correct and still leaks if any of the following is missed. Each has a default that works against you.</p>
+
+<div class="kept" style="border:1px solid #E5E2DC;border-radius:10px;overflow:hidden;margin:0 0 12px">
+<table style="width:100%;border-collapse:collapse">
+<thead>
+<tr style="background:#FAF9F7">
+<th style="text-align:left;font:700 11px/1.3 Garet,Outfit,sans-serif;color:#6E6A64;letter-spacing:.05em;text-transform:uppercase;padding:9px 14px;border-bottom:1px solid #EDEAE5">Rule</th>
+<th style="text-align:left;font:700 11px/1.3 Garet,Outfit,sans-serif;color:#6E6A64;letter-spacing:.05em;text-transform:uppercase;padding:9px 14px;border-bottom:1px solid #EDEAE5">Why the default fails</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="font:600 13px/1.5 Garet,Outfit,sans-serif;color:#22221F;padding:10px 14px;border-bottom:1px solid #F1EEEA;width:38%">Pepper in Supabase Vault</td>
+<td style="font:400 13px/1.5 Garet,Outfit,sans-serif;color:#4A4945;padding:10px 14px;border-bottom:1px solid #F1EEEA">A pepper in an env var or the repo sits beside the hashes it protects. Email space is enumerable — an unpeppered hash is reversible in minutes.</td>
+</tr>
+<tr>
+<td style="font:600 13px/1.5 Garet,Outfit,sans-serif;color:#22221F;padding:10px 14px;border-bottom:1px solid #F1EEEA">Disable Edge Function request logging</td>
+<td style="font:400 13px/1.5 Garet,Outfit,sans-serif;color:#4A4945;padding:10px 14px;border-bottom:1px solid #F1EEEA">Supabase logs function payloads by default. The address arrives in the request body, so logging writes to disk exactly what the schema refuses to store.</td>
+</tr>
+<tr>
+<td style="font:600 13px/1.5 Garet,Outfit,sans-serif;color:#22221F;padding:10px 14px;border-bottom:1px solid #F1EEEA">Custom SMTP pointed at the forwarder</td>
+<td style="font:400 13px/1.5 Garet,Outfit,sans-serif;color:#4A4945;padding:10px 14px;border-bottom:1px solid #F1EEEA">Supabase's built-in mailer and default templates echo the recipient address into logs and headers you do not control.</td>
+</tr>
+<tr>
+<td style="font:600 13px/1.5 Garet,Outfit,sans-serif;color:#22221F;padding:10px 14px;border-bottom:1px solid #F1EEEA">Normalize before hashing</td>
+<td style="font:400 13px/1.5 Garet,Outfit,sans-serif;color:#4A4945;padding:10px 14px;border-bottom:1px solid #F1EEEA">Trim and lowercase, nothing more. Stripping Gmail dots and plus-tags also collapses people who use tagged addresses deliberately.</td>
+</tr>
+<tr>
+<td style="font:600 13px/1.5 Garet,Outfit,sans-serif;color:#22221F;padding:10px 14px;border-bottom:1px solid #F1EEEA">Set forwarder log retention to zero</td>
+<td style="font:400 13px/1.5 Garet,Outfit,sans-serif;color:#4A4945;padding:10px 14px;border-bottom:1px solid #F1EEEA">SES writes recipients to CloudWatch by default. The mapping is meant to be the only copy; logs quietly make a second.</td>
+</tr>
+<tr>
+<td style="font:600 13px/1.5 Garet,Outfit,sans-serif;color:#22221F;padding:10px 14px">Never log the request body on error</td>
+<td style="font:400 13px/1.5 Garet,Outfit,sans-serif;color:#4A4945;padding:10px 14px">The most common leak. An exception handler that dumps its input publishes the address to whatever aggregator is attached.</td>
+</tr>
+</tbody>
+</table>
+</div>
+
+<h2 style="font:800 21px/1.25 Garet,Outfit,sans-serif;color:#141413;letter-spacing:-.01em;margin:26px 0 10px;padding-top:8px;border-top:2px solid #1A1A18">7. Consequences to accept</h2>
+
+<p style="font:400 15px/1.65 Garet,Outfit,sans-serif;color:#3D3C39;margin:0 0 12px"><strong>No unprompted email.</strong> There is no address to send to. Every alert, offer, and newsletter is a push notification. The prototype already assumes this; the Alerts pane is built around device tokens.</p>
+
+<p style="font:400 15px/1.65 Garet,Outfit,sans-serif;color:#3D3C39;margin:0 0 12px"><strong>Newsletters by inbox require an opt-in.</strong> When a user enables it, the alias becomes a live forwarding target — mail reaches them, and the destination still stays with the forwarder. This is the single feature the pure-hash approach could not deliver, and the reason the alias earns its place.</p>
+
+<p style="font:400 15px/1.65 Garet,Outfit,sans-serif;color:#3D3C39;margin:0 0 12px"><strong>Support cannot identify a user by email.</strong> Given an address, an admin can compute its hash and find the row — but only through a deliberate, audited tool. Build that tool consciously or people will improvise something worse.</p>
+
+<p style="font:400 15px/1.65 Garet,Outfit,sans-serif;color:#3D3C39;margin:0 0 24px"><strong>Rotating the alias is the real block button.</strong> Mint a new one, drop the old forward, and every party holding the previous address is cut off at once, with nothing exposed in the process.</p>
+
+<div class="kept" style="border-top:2px solid #1A1A18;padding-top:14px">
+<p style="font:400 13px/1.6 Garet,Outfit,sans-serif;color:#7C7871;margin:0">Open decision, deliberately unresolved: whether admins get the hash-lookup tool at launch. It is the difference between recoverable accounts and a clean conscience, and it should be a stated policy rather than an accident of implementation.</p>
+</div>
+
+</doc-page>
+
+</x-dc>
+</body>
+</html>

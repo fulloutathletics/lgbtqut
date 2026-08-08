@@ -7,6 +7,11 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
+      // injectManifest rather than generateSW: the app needs its own `push` and
+      // `notificationclick` handlers, since push carries all messaging.
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.ts',
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg'],
       manifest: {
@@ -23,9 +28,12 @@ export default defineConfig({
           { src: '/icons/icon-512-maskable.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
         ],
       },
-      workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,webp}'],
+      injectManifest: {
+        // seed.json is ~200KB and is the offline directory fallback.
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,webp,json}'],
+        maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
       },
+      devOptions: { enabled: false, type: 'module' },
     }),
   ],
 })
