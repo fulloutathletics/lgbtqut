@@ -23,6 +23,7 @@ const SignIn = lazy(() => import('./screens/SignIn'))
 const BecomeHost = lazy(() => import('./screens/BecomeHost'))
 const UserProfile = lazy(() => import('./screens/UserProfile'))
 const EditProfile = lazy(() => import('./screens/UserProfile').then((m) => ({ default: m.EditProfile })))
+const Upload = lazy(() => import('./screens/Upload'))
 
 export default function App() {
   return (
@@ -51,6 +52,7 @@ export default function App() {
               <Route path="/signin" element={<SignIn />} />
               <Route path="/apply" element={<BecomeHost />} />
               <Route path="/u/:name" element={<UserProfile />} />
+              <Route path="/upload" element={<Upload />} />
 
               <Route path="*" element={<Home />} />
             </Routes>

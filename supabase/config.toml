@@ -1,0 +1,8 @@
+[functions.auth-start]
+verify_jwt = true
+
+[functions.auth-verify]
+verify_jwt = true
+
+[functions.send-email]
+verify_jwt = true
