@@ -117,6 +117,15 @@ export const PLACEHOLDER =
 
 export const imgSrc = (url?: string) => url || PLACEHOLDER
 
+/**
+ * Build a public URL for an image stored in the Supabase "app-images" bucket.
+ * Pass the folder path within the bucket, e.g. storageUrl('splash/crisis.png').
+ */
+export function storageUrl(path: string): string {
+  const base = import.meta.env.VITE_SUPABASE_URL
+  return `${base}/storage/v1/object/public/app-images/${path}`
+}
+
 /** Mix a hex color with white at the given alpha, for tints and dashed borders. */
 export function alpha(hex: string, a: number) {
   const h = hex.replace('#', '')
