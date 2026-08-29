@@ -92,8 +92,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     localStorage.setItem(KEY, JSON.stringify(state))
   }, [state])
 
-  // The session carries only the alias identity; the profile row supplies the
-  // DOB the age gates read. No email is involved on either side.
+  // Auth uses Supabase's built-in email/password. The profile row holds DOB
+  // for age gates and login_username for display. The social_profiles row
+  // determines whether the user has a public-facing profile.
   useEffect(() => {
     let alive = true
     const sync = async (userId: string | undefined) => {
@@ -102,20 +103,24 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         return
       }
       const { data: profile } = await supabase
-        .from('profiles').select('id, username, dob').eq('id', userId).maybeSingle()
-      const { data: pub } = await supabase
-        .from('public_profiles').select('display_name').eq('id', userId).maybeSingle()
+        .from('profiles').select('id, login_username, dob').eq('id', userId).maybeSingle()
+      const { data: social } = await supabase
+        .from('social_profiles').select('display_name, public_handle').eq('id', userId).maybeSingle()
       if (!alive || !profile) return
       setAccount({
-        tier: pub ? 'public' : 'account',
+        tier: social ? 'public' : 'account',
         dob: profile.dob,
-        username: profile.username,
-        displayName: pub?.display_name ?? null,
+        username: profile.login_username,
+        displayName: social?.display_name ?? null,
         profileId: profile.id,
       })
     }
-    supabase.auth.getSession().then(({ data }) => sync(data.session?.user.id))
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => sync(session?.user.id))
+    supabase.auth.getSession().then(({ data }) => {
+      void sync(data.session?.user.id)
+    })
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
+      void sync(session?.user.id)
+    })
     return () => { alive = false; sub.subscription.unsubscribe() }
   }, [])
 

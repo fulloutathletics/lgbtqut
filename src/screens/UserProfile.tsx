@@ -342,18 +342,30 @@ export default function UserProfile({ style = 'social' }: { style?: ProfileStyle
 
 // ------------------------------------------------------------- EditProfile
 
+type Visibility = 'private' | 'visible' | 'discoverable'
+
 interface Draft {
   display_name: string
+  public_handle: string
   pronouns: string
   county: string
   bio: string
   links: string
   avatar_url: string
   header_url: string
+  identity_labels: string
+  interests: string
+  website: string
+  visibility: Visibility
+  search_visible: boolean
+  recommendable: boolean
+  indexable: boolean
 }
 
 const EMPTY_DRAFT: Draft = {
-  display_name: '', pronouns: '', county: '', bio: '', links: '', avatar_url: '', header_url: '',
+  display_name: '', public_handle: '', pronouns: '', county: '', bio: '',
+  links: '', avatar_url: '', header_url: '', identity_labels: '', interests: '',
+  website: '', visibility: 'private', search_visible: false, recommendable: false, indexable: false,
 }
 
 const labelStyle = {
@@ -367,6 +379,12 @@ const fieldStyle = {
   background: '#fff', boxSizing: 'border-box' as const,
 }
 
+const VISIBILITY_OPTIONS: Array<{ value: Visibility; label: string; sub: string }> = [
+  { value: 'private', label: 'Private', sub: 'No social profile exists. People cannot find you.' },
+  { value: 'visible', label: 'Visible', sub: 'People you interact with can view your profile, but it is not searchable.' },
+  { value: 'discoverable', label: 'Discoverable', sub: 'Your profile can appear in search, communities, and recommendations.' },
+]
+
 export function EditProfile() {
   const nav = useNavigate()
   const { accent, account, signedIn } = useStore()
@@ -374,28 +392,36 @@ export function EditProfile() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
 
-  // Loads the existing `public_profiles` row so editing is not a blank slate.
   useEffect(() => {
     const id = account.profileId
     if (!id) return
     let alive = true
-    void supabase.from('public_profiles').select('*').eq('id', id).maybeSingle()
+    void supabase.from('social_profiles').select('*').eq('id', id).maybeSingle()
       .then(({ data }) => {
         if (!alive || !data) return
         setDraft({
           display_name: data.display_name ?? '',
+          public_handle: data.public_handle ?? '',
           pronouns: data.pronouns ?? '',
           county: data.county ?? '',
           bio: data.bio ?? '',
-          links: (data.links ?? []).join('\n'),
+          links: (data.social_links ?? []).join('\n'),
           avatar_url: data.avatar_url ?? '',
           header_url: data.header_url ?? '',
+          identity_labels: (data.identity_labels ?? []).join(', '),
+          interests: (data.interests ?? []).join(', '),
+          website: data.website ?? '',
+          visibility: (data.visibility as Visibility) ?? 'private',
+          search_visible: data.search_visible ?? false,
+          recommendable: data.recommendable ?? false,
+          indexable: data.indexable ?? false,
         })
       })
     return () => { alive = false }
   }, [account.profileId])
 
-  const set = (key: keyof Draft) => (value: string) => setDraft((d) => ({ ...d, [key]: value }))
+  const set = <K extends keyof Draft>(key: K) => (value: Draft[K]) =>
+    setDraft((d) => ({ ...d, [key]: value }))
 
   const save = async () => {
     if (!draft.display_name.trim()) {
@@ -406,15 +432,24 @@ export function EditProfile() {
     setError('')
     try {
       if (signedIn && account.profileId) {
-        const { error: upsertError } = await supabase.from('public_profiles').upsert({
+        const { error: upsertError } = await supabase.from('social_profiles').upsert({
           id: account.profileId,
           display_name: draft.display_name.trim(),
+          public_handle: draft.public_handle.trim() || null,
           pronouns: draft.pronouns.trim() || null,
           county: draft.county.trim() || null,
           bio: draft.bio.trim() || null,
-          links: draft.links.split('\n').map((l) => l.trim()).filter(Boolean),
+          social_links: draft.links.split('\n').map((l) => l.trim()).filter(Boolean),
           avatar_url: draft.avatar_url.trim() || null,
           header_url: draft.header_url.trim() || null,
+          identity_labels: draft.identity_labels.split(',').map((l) => l.trim()).filter(Boolean),
+          interests: draft.interests.split(',').map((l) => l.trim()).filter(Boolean),
+          website: draft.website.trim() || null,
+          visibility: draft.visibility,
+          search_visible: draft.search_visible,
+          recommendable: draft.recommendable,
+          indexable: draft.indexable,
+          updated_at: new Date().toISOString(),
         })
         if (upsertError) {
           setError('Could not save your profile. Try again.')
@@ -433,7 +468,7 @@ export function EditProfile() {
                     display: 'flex', alignItems: 'center', gap: 10, padding: '56px 14px 12px' }}>
         <div className="tap" role="button" onClick={() => nav(-1)}
              style={{ font: font(600, 14, 1.2), color: '#7C7871' }}>Cancel</div>
-        <div style={{ flex: 1, textAlign: 'center', font: font(700, 16, 1.2), color: '#161615' }}>Edit profile</div>
+        <div style={{ flex: 1, textAlign: 'center', font: font(700, 16, 1.2), color: '#161615' }}>Edit social profile</div>
         <div className="tap" role="button" onClick={() => { if (!busy) void save() }}
              style={{ font: font(700, 14, 1.2), color: busy ? C.faint : accent }}>
           {busy ? 'Saving…' : 'Save'}
@@ -445,10 +480,67 @@ export function EditProfile() {
           <div style={{ borderRadius: 12, background: '#F7F5F1', border: '1px solid #EAE7E2', padding: '12px 14px',
                         font: font(400, 12, 1.5), color: '#7C7871', marginBottom: 18, textWrap: 'pretty' }}>
             You are not signed in, so nothing here will be saved to your account. Create an account first and this
-            page becomes your public profile.
+            page becomes your social profile.
           </div>
         )}
 
+        {/* Visibility — the most important control, shown first */}
+        <div style={{ font: font(700, 13, 1.2), color: '#2A2A28', marginBottom: 10 }}>Profile visibility</div>
+        <div style={{ border: `1px solid ${C.border}`, borderRadius: 14, overflow: 'hidden', marginBottom: 20 }}>
+          {VISIBILITY_OPTIONS.map((opt, i) => {
+            const on = draft.visibility === opt.value
+            return (
+              <div key={opt.value} className="tap" role="button"
+                   onClick={() => set('visibility')(opt.value)}
+                   style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '14px 15px',
+                            borderBottom: i === VISIBILITY_OPTIONS.length - 1 ? 'none' : `1px solid ${C.hairline}`,
+                            background: on ? '#FAF9F7' : '#fff' }}>
+                <div style={{ width: 22, height: 22, borderRadius: 999, border: `2px solid ${on ? accent : C.border}`,
+                              flex: 'none', marginTop: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  {on && <div style={{ width: 12, height: 12, borderRadius: 999, background: accent }} />}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ font: font(700, 14, 1.25), color: '#1A1A18' }}>{opt.label}</div>
+                  <div style={{ font: font(400, 12, 1.45), color: C.muted, marginTop: 3, textWrap: 'pretty' }}>{opt.sub}</div>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+
+        {/* Discoverability toggles — only relevant when visible or discoverable */}
+        {draft.visibility !== 'private' && (
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ font: font(700, 13, 1.2), color: '#2A2A28', marginBottom: 10 }}>Discoverability</div>
+            <div style={{ border: `1px solid ${C.border}`, borderRadius: 14, overflow: 'hidden' }}>
+              {[
+                { key: 'search_visible' as const, label: 'Appear in search', sub: 'People can find you by name or handle.' },
+                { key: 'recommendable' as const, label: 'Recommendations', sub: 'Allow us to suggest your profile to others.' },
+                { key: 'indexable' as const, label: 'Search engine indexing', sub: 'Allow public-web search engines to index your profile.' },
+              ].map((toggle, i) => (
+                <div key={toggle.key}
+                     style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 15px',
+                              borderBottom: i === 2 ? 'none' : `1px solid ${C.hairline}` }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ font: font(600, 13.5, 1.3), color: '#1A1A18' }}>{toggle.label}</div>
+                    <div style={{ font: font(400, 11.5, 1.4), color: C.muted, marginTop: 3, textWrap: 'pretty' }}>{toggle.sub}</div>
+                  </div>
+                  <div className="tap" role="button"
+                       onClick={() => set(toggle.key)(!draft[toggle.key])}
+                       style={{ width: 46, height: 27, borderRadius: 999, flex: 'none', cursor: 'pointer',
+                                background: draft[toggle.key] ? accent : C.border,
+                                transition: 'background .15s', position: 'relative' }}>
+                    <div style={{ position: 'absolute', top: 3, left: draft[toggle.key] ? 22 : 3,
+                                  width: 21, height: 21, borderRadius: 999, background: '#fff',
+                                  boxShadow: '0 1px 3px rgba(0,0,0,.15)', transition: 'left .15s' }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Basic profile */}
         <div>
           <div style={labelStyle}>Profile photo — image URL</div>
           <input value={draft.avatar_url} placeholder="https://…/photo.jpg"
@@ -471,6 +563,15 @@ export function EditProfile() {
         </div>
 
         <div style={{ marginTop: 16 }}>
+          <div style={labelStyle}>Public handle — optional</div>
+          <input value={draft.public_handle} placeholder="@alex"
+                 onChange={(e) => set('public_handle')(e.target.value)} style={fieldStyle} />
+          <div style={{ font: font(400, 11.5, 1.5), color: C.faint, marginTop: 6, textWrap: 'pretty' }}>
+            Separate from your login username. Changing this does not affect sign-in.
+          </div>
+        </div>
+
+        <div style={{ marginTop: 16 }}>
           <div style={labelStyle}>Pronouns</div>
           <input value={draft.pronouns} placeholder="they/them"
                  onChange={(e) => set('pronouns')(e.target.value)} style={fieldStyle} />
@@ -489,8 +590,26 @@ export function EditProfile() {
         </div>
 
         <div style={{ marginTop: 16 }}>
-          <div style={labelStyle}>Links — one per line</div>
-          <textarea value={draft.links} rows={3} placeholder={'yoursite.com\ninstagram.com/you'}
+          <div style={labelStyle}>Identity labels — comma separated</div>
+          <input value={draft.identity_labels} placeholder="queer, trans, nonbinary"
+                 onChange={(e) => set('identity_labels')(e.target.value)} style={fieldStyle} />
+        </div>
+
+        <div style={{ marginTop: 16 }}>
+          <div style={labelStyle}>Interests — comma separated</div>
+          <input value={draft.interests} placeholder="hiking, drag, book club"
+                 onChange={(e) => set('interests')(e.target.value)} style={fieldStyle} />
+        </div>
+
+        <div style={{ marginTop: 16 }}>
+          <div style={labelStyle}>Website</div>
+          <input value={draft.website} placeholder="yoursite.com"
+                 onChange={(e) => set('website')(e.target.value)} style={fieldStyle} />
+        </div>
+
+        <div style={{ marginTop: 16 }}>
+          <div style={labelStyle}>Social links — one per line</div>
+          <textarea value={draft.links} rows={3} placeholder={'instagram.com/you\ntiktok.com/@you'}
                     onChange={(e) => set('links')(e.target.value)}
                     style={{ ...fieldStyle, font: font(400, 14, 1.55), resize: 'none' }} />
         </div>
@@ -503,7 +622,8 @@ export function EditProfile() {
         )}
 
         <div style={{ font: font(400, 11.5, 1.5), color: C.faint, marginTop: 16, textWrap: 'pretty' }}>
-          Everything here is public. Your email, username and date of birth never are.
+          Your social profile is separate from your account. Hiding or deleting it does not
+          affect your ability to sign in or participate.
         </div>
       </div>
     </div>

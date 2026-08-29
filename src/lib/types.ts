@@ -133,3 +133,26 @@ export interface SavedEntry extends Channels {
 
 /** Anonymous users are cached on-device only and fail every age gate. */
 export type AccountTier = 'anonymous' | 'account' | 'public'
+
+/** Three privacy states for social profiles. */
+export type ProfileVisibility = 'private' | 'visible' | 'discoverable'
+
+/** The social/profile layer — completely separate from auth. */
+export interface SocialProfile {
+  id: string
+  display_name: string
+  public_handle: string | null
+  avatar_url: string | null
+  header_url: string | null
+  bio: string | null
+  pronouns: string | null
+  identity_labels: string[]
+  interests: string[]
+  social_links: string[]
+  website: string | null
+  county: string | null
+  visibility: ProfileVisibility
+  search_visible: boolean
+  recommendable: boolean
+  indexable: boolean
+}

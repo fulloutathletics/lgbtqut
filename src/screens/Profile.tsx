@@ -404,11 +404,11 @@ const TIERS = {
   },
   account: {
     title: 'Account',
-    note: 'A username, a date of birth and a hashed email. Full participation — comments, RSVPs and reviews. Nothing about you is public.',
+    note: 'A login username and password. Full participation — comments, RSVPs and reviews. Nothing about you is public.',
   },
   public: {
-    title: 'Public profile',
-    note: 'Everything an account can do, plus a public page carrying your name, images, pronouns, bio and links.',
+    title: 'Social profile',
+    note: 'Everything an account can do, plus a public page carrying your name, avatar, pronouns, bio and links. You control who can find you.',
   },
 }
 
@@ -457,16 +457,16 @@ function AccountPane() {
           {!signedIn ? (
             <>
               <LinkRow title="Sign in"
-                       sub="Enter your email and we send you a six-digit code. No password."
+                       sub="Enter your login username and password."
                        onClick={() => nav('/signin')} />
               <LinkRow title="Create an account"
-                       sub="Adds a username and a date of birth. Your address is never stored here."
+                       sub="Pick a username, set a password, and add your date of birth."
                        onClick={() => nav('/signin')} last />
             </>
           ) : (
             <>
-              <LinkRow title="Edit your public profile"
-                       sub="Name, pronouns, area, bio and links. Everything here is public."
+              <LinkRow title="Edit your social profile"
+                       sub="Name, pronouns, area, bio and links. Control who can see it."
                        onClick={() => nav('/profile/edit')} />
               {account.displayName && (
                 <LinkRow title="View my profile"
