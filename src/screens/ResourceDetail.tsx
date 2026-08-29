@@ -1,7 +1,7 @@
 import { useParams } from 'react-router-dom'
 import { AgeGate } from '../components/AgeGate'
 import { SubscriptionPanel } from '../components/SubscriptionPanel'
-import { Heart, Verified } from '../components/icons'
+import { Heart, Share, Verified } from '../components/icons'
 import { ActionRow, Empty, Img, StickyBar, Tap, font } from '../components/ui'
 import { isHotline, mapHref, telHref, webHref } from '../lib/data'
 import { useStore } from '../lib/store'
@@ -55,13 +55,29 @@ export default function ResourceDetail() {
       <StickyBar
         title={r.name}
         right={
-          <Tap
-            onClick={() => toggleSave(r.id, 'resource')}
-            style={{ width: 34, height: 34, borderRadius: 999, background: C.fill, display: 'flex',
-                     alignItems: 'center', justifyContent: 'center', flex: 'none' }}
-          >
-            <Heart size={17} filled={saved} color={saved ? accent : '#2A2A28'} />
-          </Tap>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <Tap
+              onClick={() => {
+                const url = window.location.href
+                if (navigator.share) {
+                  void navigator.share({ title: r.name, text: `${r.name} on LGBTQ UT`, url })
+                } else {
+                  void navigator.clipboard.writeText(url)
+                }
+              }}
+              style={{ width: 34, height: 34, borderRadius: 999, background: C.fill, display: 'flex',
+                       alignItems: 'center', justifyContent: 'center', flex: 'none' }}
+            >
+              <Share size={16} color="#8A8680" />
+            </Tap>
+            <Tap
+              onClick={() => toggleSave(r.id, 'resource')}
+              style={{ width: 34, height: 34, borderRadius: 999, background: C.fill, display: 'flex',
+                       alignItems: 'center', justifyContent: 'center', flex: 'none' }}
+            >
+              <Heart size={17} filled={saved} color={saved ? accent : '#2A2A28'} />
+            </Tap>
+          </div>
         }
       />
 

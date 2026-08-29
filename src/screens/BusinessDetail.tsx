@@ -8,7 +8,7 @@ import { alpha, isHotline, mapHref, telHref, webHref } from '../lib/data'
 import type { Business, BusinessSection, SectionItem } from '../lib/types'
 import { AgeGate } from '../components/AgeGate'
 import { SubscriptionPanel } from '../components/SubscriptionPanel'
-import { Heart, Verified } from '../components/icons'
+import { Heart, Share, Verified } from '../components/icons'
 import { ActionRow, AgePill, Empty, Img, StickyBar, Tap, font } from '../components/ui'
 
 /** Glide match = 200px banner + overlapping logo tile. Editorial = 330px full bleed. */
@@ -60,11 +60,25 @@ export function BusinessDetail({ variant = 'glide', showConfig = false }: {
       <StickyBar
         title={b.name}
         right={
-          <Tap onClick={() => toggleSave(b.id, 'business')}
-               style={{ width: 34, height: 34, borderRadius: 999, background: C.fill, display: 'flex',
-                        alignItems: 'center', justifyContent: 'center', flex: 'none' }}>
-            <Heart size={18} filled={saved} color={saved ? accent : '#8A8680'} />
-          </Tap>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <Tap onClick={() => {
+              const url = window.location.href
+              if (navigator.share) {
+                void navigator.share({ title: b.name, text: `${b.name} on LGBTQ UT`, url })
+              } else {
+                void navigator.clipboard.writeText(url)
+              }
+            }}
+                 style={{ width: 34, height: 34, borderRadius: 999, background: C.fill, display: 'flex',
+                          alignItems: 'center', justifyContent: 'center', flex: 'none' }}>
+              <Share size={16} color="#8A8680" />
+            </Tap>
+            <Tap onClick={() => toggleSave(b.id, 'business')}
+                 style={{ width: 34, height: 34, borderRadius: 999, background: C.fill, display: 'flex',
+                          alignItems: 'center', justifyContent: 'center', flex: 'none' }}>
+              <Heart size={18} filled={saved} color={saved ? accent : '#8A8680'} />
+            </Tap>
+          </div>
         }
       />
 
