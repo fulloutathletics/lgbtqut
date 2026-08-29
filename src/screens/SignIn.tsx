@@ -60,12 +60,6 @@ export default function SignIn() {
   }
 
   const submit = async () => {
-    const validationError = validate()
-    if (validationError) {
-      setError(validationError)
-      return
-    }
-
     if (step === 'forgot') {
       const username = loginUsername.trim()
       if (!username) {
@@ -84,6 +78,12 @@ export default function SignIn() {
       } finally {
         setBusy(false)
       }
+      return
+    }
+
+    const validationError = validate()
+    if (validationError) {
+      setError(validationError)
       return
     }
 
