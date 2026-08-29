@@ -19,11 +19,12 @@ interface Persisted {
   rsvp: Record<string, 'going' | 'interested' | 'cant_go'>
   votes: Record<string, number>
   hideAdult: boolean
+  follows: string[]
 }
 
 const EMPTY: Persisted = {
   theme: DEFAULT_THEME, saved: {}, pauseAll: false,
-  blocked: [], muted: [], rsvp: {}, votes: {}, hideAdult: false,
+  blocked: [], muted: [], rsvp: {}, votes: {}, hideAdult: false, follows: [],
 }
 
 function read(): Persisted {
@@ -65,6 +66,8 @@ interface Store extends Persisted {
   unmute: (name: string) => void
   isBlocked: (name: string) => boolean
   isMuted: (name: string) => boolean
+  isFollowing: (profileId: string) => boolean
+  toggleFollow: (profileId: string) => void
   /** Age in years from the stored DOB, or null when anonymous. */
   age: number | null
   canSee: (ageRating: string | null) => boolean
@@ -100,13 +103,17 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     const sync = async (userId: string | undefined) => {
       if (!userId) {
         if (alive) setAccount({ tier: 'anonymous', dob: null, username: null, displayName: null, profileId: null })
+        patch((s) => ({ ...s, follows: [] }))
         return
       }
       const { data: profile } = await supabase
         .from('profiles').select('id, login_username, dob').eq('id', userId).maybeSingle()
       const { data: social } = await supabase
         .from('social_profiles').select('display_name, public_handle').eq('id', userId).maybeSingle()
+      const { data: followRows } = await supabase
+        .from('follows').select('followee_id').eq('follower_id', userId)
       if (!alive || !profile) return
+      const follows = (followRows ?? []).map((r) => r.followee_id)
       setAccount({
         tier: social ? 'public' : 'account',
         dob: profile.dob,
@@ -114,6 +121,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         displayName: social?.display_name ?? null,
         profileId: profile.id,
       })
+      patch((s) => ({ ...s, follows }))
     }
     supabase.auth.getSession().then(({ data }) => {
       void sync(data.session?.user.id)
@@ -185,6 +193,17 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       isBlocked: (name) => state.blocked.includes(name),
       isMuted: (name) => state.muted.includes(name),
 
+      isFollowing: (profileId) => state.follows.includes(profileId),
+      toggleFollow: (profileId) =>
+        patch((s) => {
+          const following = s.follows.includes(profileId)
+          const follows = following
+            ? s.follows.filter((id) => id !== profileId)
+            : [...new Set([...s.follows, profileId])]
+          if (account.profileId) void syncFollow(account.profileId, profileId, !following)
+          return { ...s, follows }
+        }),
+
       // Anonymous users fail both thresholds regardless of any setting, because
       // no date of birth is on file.
       canSee: (ageRating) => {
@@ -209,6 +228,14 @@ async function syncSave(
     profile_id: profileId, kind, entity_id: entityId,
     events: entry.events, offers: entry.offers, newsletter: entry.newsletter,
   })
+}
+
+async function syncFollow(followerId: string, followeeId: string, follow: boolean) {
+  if (follow) {
+    await supabase.from('follows').upsert({ follower_id: followerId, followee_id: followeeId })
+  } else {
+    await supabase.from('follows').delete().match({ follower_id: followerId, followee_id: followeeId })
+  }
 }
 
 export function useStore() {

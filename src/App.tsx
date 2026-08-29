@@ -24,6 +24,7 @@ const BecomeHost = lazy(() => import('./screens/BecomeHost'))
 const UserProfile = lazy(() => import('./screens/UserProfile'))
 const EditProfile = lazy(() => import('./screens/UserProfile').then((m) => ({ default: m.EditProfile })))
 const Upload = lazy(() => import('./screens/Upload'))
+const Feed = lazy(() => import('./screens/Feed'))
 
 export default function App() {
   return (
@@ -36,6 +37,7 @@ export default function App() {
             <Routes>
               <Route path="/" element={<Home />} />
               <Route path="/crisis" element={<Crisis />} />
+              <Route path="/feed" element={<Feed />} />
               <Route path="/list/:mode" element={<ResourceList />} />
               <Route path="/list/:mode/:selection" element={<ResourceList />} />
               <Route path="/resource/:id" element={<ResourceDetail />} />

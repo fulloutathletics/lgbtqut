@@ -8,6 +8,19 @@ import { supabase } from '../lib/supabase'
 import { font } from '../components/ui'
 import { Back } from '../components/icons'
 
+interface RemoteProfile {
+  id: string
+  display_name: string
+  public_handle: string | null
+  avatar_url: string | null
+  bio: string | null
+  pronouns: string | null
+  county: string | null
+  social_links: string[]
+  identity_labels: string[]
+  interests: string[]
+}
+
 // UserProfile — route `/u/:name`, and EditProfile — route `/profile/edit`.
 //
 // There is no seeded users table, so display data is derived deterministically
@@ -117,15 +130,32 @@ export default function UserProfile({ style = 'social' }: { style?: ProfileStyle
   const nav = useNavigate()
   const params = useParams<{ name: string }>()
   const data = useData()
-  const { accent, tint, account, isBlocked, isMuted, block, unblock, mute, unmute } = useStore()
+  const { accent, tint, account, signedIn, isBlocked, isMuted, isFollowing, toggleFollow, block, unblock, mute, unmute } = useStore()
+  const [remote, setRemote] = useState<RemoteProfile | null>(null)
 
   const name = params.name ?? ''
+
+  useEffect(() => {
+    if (!name) return
+    let alive = true
+    void supabase.from('social_profiles').select('*').eq('display_name', name).maybeSingle()
+      .then(({ data: d }) => { if (alive && d) setRemote(d as RemoteProfile) })
+    return () => { alive = false }
+  }, [name])
+
   if (!data) return <div />
 
-  const person = personFor(name)
+  const person = remote ? {
+    pronouns: remote.pronouns ?? '',
+    county: remote.county ?? 'Utah',
+    bio: remote.bio ?? '',
+    links: remote.social_links ?? [],
+  } : personFor(name)
   const blocked = isBlocked(name)
   const muted = isMuted(name)
   const self = !!account.displayName && account.displayName === name
+  const remoteId = remote?.id ?? null
+  const following = remoteId ? isFollowing(remoteId) : false
 
   const seed = seedOf(name)
   const rand = prng(seed)
@@ -311,6 +341,17 @@ export default function UserProfile({ style = 'social' }: { style?: ProfileStyle
               </div>
             ) : (
               <>
+                {/* Follow button — only when viewing a real social profile */}
+                {remoteId && signedIn && (
+                  <div className="tap" role="button"
+                       onClick={() => toggleFollow(remoteId)}
+                       style={{ marginTop: 18, borderRadius: 12, padding: 13, textAlign: 'center',
+                                background: following ? 'transparent' : accent,
+                                border: following ? `1.5px solid ${C.border}` : 'none',
+                                font: font(700, 14, 1.2), color: following ? C.body : '#fff' }}>
+                    {following ? 'Following' : 'Follow'}
+                  </div>
+                )}
                 {muted && (
                   <div style={{ marginTop: 18, borderRadius: 12, background: '#F7F5F1', border: '1px solid #EAE7E2',
                                 padding: '12px 14px', font: font(400, 11.5, 1.45), color: '#7C7871',
@@ -329,7 +370,7 @@ export default function UserProfile({ style = 'social' }: { style?: ProfileStyle
                 </div>
                 <div style={{ font: font(400, 11.5, 1.5), color: C.faint, marginTop: 14, textAlign: 'center',
                               textWrap: 'pretty' }}>
-                  Profiles carry no followers, feeds or messages. Connect with people wherever they link to.
+                  Follow people to see their posts in your feed. Connect with people wherever they link to.
                 </div>
               </>
             )}
