@@ -70,7 +70,7 @@ export default function SignIn() {
       setError('')
       try {
         await supabase.functions.invoke('auth-reset', {
-          body: { login_username: username },
+          body: { login_username: username, redirect_to: `${window.location.origin}/reset` },
         })
         setStep('forgot-sent')
       } catch {

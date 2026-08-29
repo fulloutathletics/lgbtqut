@@ -24,7 +24,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { login_username } = await req.json()
+    const { login_username, redirect_to } = await req.json()
     if (typeof login_username !== 'string') {
       return new Response(JSON.stringify({ error: 'invalid_request' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -38,15 +38,22 @@ Deno.serve(async (req) => {
     )
 
     // Look up the profile by login_username to get the user id
-    const { data: profile } = await admin
+    const { data: profile, error: profileError } = await admin
       .from('profiles')
       .select('id')
       .eq('login_username', login_username.trim().toLowerCase())
       .maybeSingle()
 
+    if (profileError) {
+      console.error('auth-reset: profile lookup failed:', profileError.message)
+    }
+
     if (profile) {
       // Look up the auth email from the user's record
-      const { data: user } = await admin.auth.admin.getUserById(profile.id)
+      const { data: user, error: userError } = await admin.auth.admin.getUserById(profile.id)
+      if (userError) {
+        console.error('auth-reset: getUserById failed:', userError.message)
+      }
       if (user?.user?.email) {
         // Send the password reset email via the anon client (not admin)
         // so the email link uses the public site URL
@@ -55,10 +62,21 @@ Deno.serve(async (req) => {
           Deno.env.get('SUPABASE_ANON_KEY')!,
           { auth: { autoRefreshToken: false, persistSession: false } },
         )
-        await anon.auth.resetPasswordForEmail(user.user.email, {
-          redirectTo: `${new URL(req.url).origin}/reset`,
+        const { error: resetError } = await anon.auth.resetPasswordForEmail(user.user.email, {
+          redirectTo: typeof redirect_to === 'string' ? redirect_to : `${new URL(req.url).origin}/reset`,
         })
+        if (resetError) {
+          console.error('auth-reset: resetPasswordForEmail failed:', resetError.message)
+          // Surface the error to the caller for diagnostics
+          return new Response(JSON.stringify({ ok: true, debug: resetError.message }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          })
+        }
+      } else {
+        console.error('auth-reset: no email found for user', profile.id)
       }
+    } else {
+      console.error('auth-reset: no profile found for username:', login_username)
     }
 
     // Always return ok to avoid username enumeration
