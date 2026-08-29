@@ -25,6 +25,7 @@ const UserProfile = lazy(() => import('./screens/UserProfile'))
 const EditProfile = lazy(() => import('./screens/UserProfile').then((m) => ({ default: m.EditProfile })))
 const Upload = lazy(() => import('./screens/Upload'))
 const Feed = lazy(() => import('./screens/Feed'))
+const Reset = lazy(() => import('./screens/Reset'))
 
 export default function App() {
   return (
@@ -52,6 +53,7 @@ export default function App() {
               <Route path="/profile" element={<Profile />} />
               <Route path="/profile/edit" element={<EditProfile />} />
               <Route path="/signin" element={<SignIn />} />
+              <Route path="/reset" element={<Reset />} />
               <Route path="/apply" element={<BecomeHost />} />
               <Route path="/u/:name" element={<UserProfile />} />
               <Route path="/upload" element={<Upload />} />

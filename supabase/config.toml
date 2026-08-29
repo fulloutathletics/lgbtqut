@@ -1,2 +1,5 @@
 [functions.auth-signin]
 verify_jwt = false
+
+[functions.auth-reset]
+verify_jwt = false

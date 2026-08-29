@@ -13,7 +13,7 @@ import { StickyBar, font } from '../components/ui'
 // (display name, handle, pronouns, etc.) is a separate system the user can
 // create, hide, or delete independently.
 
-type Step = 'credentials' | 'dob' | 'review'
+type Step = 'credentials' | 'dob' | 'review' | 'forgot' | 'forgot-sent'
 type Mode = 'signin' | 'signup'
 
 const labelStyle = {
@@ -46,6 +46,7 @@ export default function SignIn() {
 
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [info, setInfo] = useState('')
 
   const validate = (): string | null => {
     const username = loginUsername.trim()
@@ -62,6 +63,27 @@ export default function SignIn() {
     const validationError = validate()
     if (validationError) {
       setError(validationError)
+      return
+    }
+
+    if (step === 'forgot') {
+      const username = loginUsername.trim()
+      if (!username) {
+        setError('Enter your login username and we will send a reset link to your recovery email.')
+        return
+      }
+      setBusy(true)
+      setError('')
+      try {
+        await supabase.functions.invoke('auth-reset', {
+          body: { login_username: username },
+        })
+        setStep('forgot-sent')
+      } catch {
+        setError('Something went wrong. Try again.')
+      } finally {
+        setBusy(false)
+      }
       return
     }
 
@@ -142,19 +164,20 @@ export default function SignIn() {
     }
   }
 
-  const cta = busy ? 'Working…' : mode === 'signin'
-    ? 'Sign in'
-    : step === 'credentials'
-      ? 'Continue'
-      : step === 'dob'
-        ? 'Continue'
-        : 'Create my account'
+  const cta = busy ? 'Working…'
+    : step === 'forgot' ? 'Send reset link'
+    : step === 'forgot-sent' ? 'Back to sign in'
+    : mode === 'signin' ? 'Sign in'
+    : step === 'credentials' ? 'Continue'
+    : step === 'dob' ? 'Continue'
+    : 'Create my account'
 
   return (
     <div style={{ minHeight: '100%', background: '#fff' }}>
-      <StickyBar title={mode === 'signup' ? 'Create an account' : 'Sign in'}
+      <StickyBar title={step === 'forgot' || step === 'forgot-sent' ? 'Reset password' : mode === 'signup' ? 'Create an account' : 'Sign in'}
                  onBack={() => {
-                   if (step !== 'credentials') { setStep('credentials'); setError('') }
+                   if (step === 'forgot' || step === 'forgot-sent') { setStep('credentials'); setError(''); setInfo('') }
+                   else if (step !== 'credentials') { setStep('credentials'); setError('') }
                    else nav(-1)
                  }} />
 
@@ -227,12 +250,43 @@ export default function SignIn() {
 
             {mode === 'signin' && (
               <div className="tap" role="button"
-                   onClick={() => { /* TODO: password reset flow */ }}
+                   onClick={() => { setStep('forgot'); setError(''); setInfo('') }}
                    style={{ font: font(600, 12.5, 1.3), color: accent, marginTop: 14, display: 'inline-block' }}>
                 Forgot your password?
               </div>
             )}
           </>
+        )}
+
+        {step === 'forgot' && (
+          <>
+            <div style={{ font: font(400, 13, 1.55), color: C.body, marginTop: 20, textWrap: 'pretty' }}>
+              Enter your login username and we will send a password reset link to the recovery email
+              on file. The link expires in one hour.
+            </div>
+            <div style={{ marginTop: 18 }}>
+              <div style={labelStyle}>Login username</div>
+              <input
+                value={loginUsername}
+                autoComplete="username"
+                placeholder="winterfox482"
+                onChange={(e) => setLoginUsername(e.target.value)}
+                style={inputStyle} />
+            </div>
+          </>
+        )}
+
+        {step === 'forgot-sent' && (
+          <div style={{ marginTop: 24, textAlign: 'center' }}>
+            <div style={{ font: font(700, 18, 1.3), color: C.ink, letterSpacing: '-.01em' }}>
+              Check your email
+            </div>
+            <div style={{ font: font(400, 14, 1.55), color: C.muted, marginTop: 10, textWrap: 'pretty',
+                          maxWidth: 280, marginLeft: 'auto', marginRight: 'auto' }}>
+              If an account exists for that username, we sent a password reset link to the recovery
+              email on file. Open the link on this device to set a new password.
+            </div>
+          </div>
         )}
 
         {step === 'dob' && (
@@ -273,15 +327,35 @@ export default function SignIn() {
           </div>
         )}
 
-        <div className="tap" role="button"
-             onClick={() => { if (!busy) void submit() }}
-             aria-disabled={busy}
-             style={{ marginTop: 22, borderRadius: 12, padding: 14, textAlign: 'center',
-                      background: busy ? C.border : accent,
-                      font: font(700, 14.5, 1.2), color: busy ? C.faint : '#fff',
-                      cursor: busy ? 'not-allowed' : 'pointer' }}>
-          {cta}
-        </div>
+        {info && (
+          <div style={{ marginTop: 18, borderRadius: 12, background: '#F0F7F4',
+                        border: `1px solid #D5E8E0`, padding: '12px 14px',
+                        font: font(500, 12.5, 1.5), color: '#2E7D5B', textWrap: 'pretty' }}>
+            {info}
+          </div>
+        )}
+
+        {step !== 'forgot-sent' && (
+          <div className="tap" role="button"
+               onClick={() => { if (!busy) void submit() }}
+               aria-disabled={busy}
+               style={{ marginTop: 22, borderRadius: 12, padding: 14, textAlign: 'center',
+                        background: busy ? C.border : accent,
+                        font: font(700, 14.5, 1.2), color: busy ? C.faint : '#fff',
+                        cursor: busy ? 'not-allowed' : 'pointer' }}>
+            {cta}
+          </div>
+        )}
+
+        {step === 'forgot-sent' && (
+          <div className="tap" role="button"
+               onClick={() => { setStep('credentials'); setInfo('') }}
+               style={{ marginTop: 22, borderRadius: 12, padding: 14, textAlign: 'center',
+                        background: accent,
+                        font: font(700, 14.5, 1.2), color: '#fff' }}>
+            {cta}
+          </div>
+        )}
 
         <div style={{ font: font(400, 11.5, 1.55), color: C.faint, marginTop: 16, textWrap: 'pretty',
                       textAlign: 'center' }}>
