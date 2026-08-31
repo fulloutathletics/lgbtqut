@@ -6,7 +6,8 @@ import { supabase } from '../lib/supabase'
 import { font } from '../components/ui'
 import { Back } from '../components/icons'
 import { useData } from '../lib/useData'
-import type { AppData } from '../lib/types'
+import { entityHref, entityRef } from '../lib/data'
+import type { EntityKind } from '../lib/types'
 
 // Feed — route `/feed`.
 //
@@ -31,13 +32,6 @@ interface Post extends RawPost {
   comment_count: number
 }
 
-/** Entity authors resolve against the already-loaded directory, not a query. */
-function entityById(data: AppData | null, kind: RawPost['author_kind'], id: string) {
-  if (!data || !kind) return null
-  const list = kind === 'resource' ? data.resources : kind === 'business' ? data.businesses : data.hosts
-  return list.find((e) => e.id === id) ?? null
-}
-
 interface Comment {
   id: number
   post_id: number
@@ -47,6 +41,9 @@ interface Comment {
   created_at: string
   author_name: string | null
   author_handle: string | null
+  /** Set when an admin published this under their entity's name. */
+  as_entity_kind: EntityKind | null
+  as_entity_id: string | null
 }
 
 const MAX_POST = 280
@@ -198,8 +195,12 @@ function CommentRow({ comment, onReply }: {
   comment: Comment
   onReply: (parent: Comment) => void
 }) {
-  const { accent } = useStore()
+  const { accent, tint } = useStore()
+  const data = useData()
   const nav = useNavigate()
+  // An entity reply is badged so an official answer reads differently from
+  // the same person speaking for themselves.
+  const official = entityRef(data, comment.as_entity_kind, comment.as_entity_id)
 
   return (
     <div style={{ padding: '10px 0', borderBottom: `1px solid ${C.hairline}` }}>
@@ -212,10 +213,22 @@ function CommentRow({ comment, onReply }: {
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 5, flexWrap: 'wrap' }}>
-            <span className="tap" onClick={() => comment.author_name && nav(`/u/${encodeURIComponent(comment.author_name)}`)}
-                  style={{ font: font(700, 12.5, 1.2), color: C.ink }}>
+            <span
+              className="tap"
+              onClick={() => {
+                if (official) nav(entityHref(official))
+                else if (comment.author_name) nav(`/u/${encodeURIComponent(comment.author_name)}`)
+              }}
+              style={{ font: font(700, 12.5, 1.2), color: C.ink }}
+            >
               {comment.author_name ?? 'Unknown'}
             </span>
+            {official && (
+              <span style={{ borderRadius: 4, padding: '2px 6px', background: tint, color: accent,
+                             font: font(700, 9, 1.4), letterSpacing: '.05em' }}>
+                {official.kind === 'host' ? 'HOST' : official.kind.toUpperCase()}
+              </span>
+            )}
             <span style={{ font: font(400, 11, 1.2), color: C.faint }}>· {timeAgo(comment.created_at)}</span>
           </div>
           <div style={{ font: font(400, 13.5, 1.5), color: C.body, marginTop: 3, textWrap: 'pretty',
@@ -234,6 +247,7 @@ function CommentRow({ comment, onReply }: {
 
 function CommentSheet({ post, onClose }: { post: Post; onClose: () => void }) {
   const { accent, account } = useStore()
+  const data = useData()
   const nav = useNavigate()
   const [comments, setComments] = useState<Comment[]>([])
   const [body, setBody] = useState('')
@@ -242,25 +256,30 @@ function CommentSheet({ post, onClose }: { post: Post; onClose: () => void }) {
   const [loading, setLoading] = useState(true)
 
   const loadComments = useCallback(async () => {
-    const { data } = await supabase
+    const { data: rows } = await supabase
       .from('comments')
-      .select('id, post_id, author_id, parent_id, body, created_at')
+      .select('id, post_id, author_id, parent_id, body, created_at, as_entity_kind, as_entity_id')
       .eq('post_id', post.id)
       .order('created_at', { ascending: true })
-    if (!data) return
-    const ids = data.map((c) => c.author_id)
+    if (!rows) return
+    const ids = rows.map((c) => c.author_id)
     const { data: profiles } = await supabase
       .from('social_profiles')
       .select('id, display_name, public_handle')
       .in('id', ids)
     const map = new Map((profiles ?? []).map((p) => [p.id, p]))
-    setComments(data.map((c) => ({
-      ...c,
-      author_name: map.get(c.author_id)?.display_name ?? null,
-      author_handle: map.get(c.author_id)?.public_handle ?? null,
-    })))
+    setComments(rows.map((c) => {
+      // Published under an entity's name by one of its admins: the entity is
+      // who the reader is talking to, so it is the identity shown.
+      const speaking = entityRef(data, c.as_entity_kind, c.as_entity_id)
+      return {
+        ...c,
+        author_name: speaking?.name ?? map.get(c.author_id)?.display_name ?? null,
+        author_handle: speaking ? null : map.get(c.author_id)?.public_handle ?? null,
+      }
+    }))
     setLoading(false)
-  }, [post.id])
+  }, [post.id, data])
 
   useEffect(() => { void loadComments() }, [loadComments])
 
@@ -516,7 +535,7 @@ export default function Feed() {
     }
 
     setPosts(rawPosts.map((p) => {
-      const entity = p.author_entity_id ? entityById(data, p.author_kind, p.author_entity_id) : null
+      const entity = entityRef(data, p.author_kind, p.author_entity_id)
       const prof = p.author_id ? map.get(p.author_id) : undefined
       return {
         ...p,
