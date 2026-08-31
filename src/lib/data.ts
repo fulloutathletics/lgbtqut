@@ -84,6 +84,23 @@ export function subscribeData(fn: () => void): () => void {
   return () => { listeners.delete(fn) }
 }
 
+const TABLE_KEY: Record<string, keyof AppData> = {
+  splash_tabs: 'tabs', resources: 'resources', businesses: 'businesses', hosts: 'hosts', events: 'events',
+}
+
+/**
+ * Reflects a direct table write (the inline image editor) into the live
+ * cache immediately, so every screen re-renders with the new URL without
+ * waiting on a refetch.
+ */
+export function patchItemField(table: string, id: string, column: string, value: string) {
+  if (!current) return
+  const key = TABLE_KEY[table]
+  if (!key) return
+  const list = current[key] as unknown as Array<Record<string, unknown>>
+  publish({ ...current, [key]: list.map((item) => (item.id === id ? { ...item, [column]: value } : item)) } as AppData, true)
+}
+
 /** Promise form, for callers outside React. */
 export function loadData(): Promise<AppData> {
   cache ??= new Promise<AppData>((resolve) => {

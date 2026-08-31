@@ -7,6 +7,7 @@ import { useData } from '../lib/useData'
 import { alpha, isHotline, mapHref, telHref, webHref } from '../lib/data'
 import type { Business, BusinessSection, SectionItem } from '../lib/types'
 import { AgeGate } from '../components/AgeGate'
+import { EditImageButton } from '../components/EditImageButton'
 import { SubscriptionPanel } from '../components/SubscriptionPanel'
 import { Verified } from '../components/icons'
 import { ActionRow, AgePill, Empty, Img, StickyBar, Tap, font } from '../components/ui'
@@ -90,17 +91,21 @@ export function BusinessDetail({ variant = 'glide', showConfig = false }: {
         <>
           <div style={{ position: 'relative', height: 200, background: b.color, overflow: 'hidden' }}>
             <Img src={b.background_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            <EditImageButton table="businesses" id={b.id} column="background_url" />
           </div>
           <div style={{ padding: '0 16px', marginTop: -46, position: 'relative' }}>
             <div style={{ width: 96, height: 96, borderRadius: 14, overflow: 'hidden', background: b.color,
-                          border: '3px solid #fff', boxShadow: '0 5px 18px rgba(0,0,0,.2)' }}>
+                          border: '3px solid #fff', boxShadow: '0 5px 18px rgba(0,0,0,.2)', position: 'relative' }}>
               <Img src={b.image_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              <EditImageButton table="businesses" id={b.id} column="image_url"
+                               style={{ width: 26, height: 26, bottom: 4, right: 4 }} />
             </div>
           </div>
         </>
       ) : (
         <div style={{ position: 'relative', height: 330, overflow: 'hidden', background: b.color }}>
           <Img src={b.background_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          <EditImageButton table="businesses" id={b.id} column="background_url" style={{ top: 14, bottom: 'auto', right: 14 }} />
           <div style={{ position: 'absolute', inset: 0,
                         background: 'linear-gradient(180deg,rgba(0,0,0,.25) 0%,rgba(0,0,0,.05) 42%,rgba(0,0,0,.82) 100%)' }} />
           <div style={{ position: 'absolute', left: 18, right: 18, bottom: 20 }}>

@@ -20,11 +20,13 @@ interface Persisted {
   votes: Record<string, number>
   hideAdult: boolean
   follows: string[]
+  /** Shows the inline "change image" button on every content image. Local-only, off by default. */
+  editMode: boolean
 }
 
 const EMPTY: Persisted = {
   theme: DEFAULT_THEME, saved: {}, pauseAll: false,
-  blocked: [], muted: [], rsvp: {}, votes: {}, hideAdult: false, follows: [],
+  blocked: [], muted: [], rsvp: {}, votes: {}, hideAdult: false, follows: [], editMode: false,
 }
 
 function read(): Persisted {
@@ -58,6 +60,7 @@ interface Store extends Persisted {
   toggleChannel: (id: string, key: keyof Channels) => void
   setPauseAll: (v: boolean) => void
   setHideAdult: (v: boolean) => void
+  setEditMode: (v: boolean) => void
   setRsvp: (eventId: string, status: 'going' | 'interested' | 'cant_go') => void
   vote: (pollId: string, option: number) => void
   block: (name: string) => void
@@ -179,6 +182,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
       setPauseAll: (v) => patch((s) => ({ ...s, pauseAll: v })),
       setHideAdult: (v) => patch((s) => ({ ...s, hideAdult: v })),
+      setEditMode: (v) => patch((s) => ({ ...s, editMode: v })),
 
       setRsvp: (eventId, status) =>
         patch((s) => ({ ...s, rsvp: { ...s.rsvp, [eventId]: status } })),
