@@ -8,7 +8,7 @@ import { alpha, isHotline, mapHref, telHref, webHref } from '../lib/data'
 import type { Business, BusinessSection, SectionItem } from '../lib/types'
 import { AgeGate } from '../components/AgeGate'
 import { SubscriptionPanel } from '../components/SubscriptionPanel'
-import { Heart, Share, Verified } from '../components/icons'
+import { Verified } from '../components/icons'
 import { ActionRow, AgePill, Empty, Img, StickyBar, Tap, font } from '../components/ui'
 
 /** Glide match = 200px banner + overlapping logo tile. Editorial = 330px full bleed. */
@@ -23,7 +23,7 @@ export function BusinessDetail({ variant = 'glide', showConfig = false }: {
 }) {
   const { id = '' } = useParams<{ id: string }>()
   const data = useData()
-  const { accent, canSee, isSaved, toggleSave } = useStore()
+  const { accent, tint, canSee, isSaved, toggleSave } = useStore()
   const [photoIdx, setPhotoIdx] = useState(0)
 
   const b = data?.businesses.find((x) => x.id === id)
@@ -69,14 +69,18 @@ export function BusinessDetail({ variant = 'glide', showConfig = false }: {
                 void navigator.clipboard.writeText(url)
               }
             }}
-                 style={{ width: 34, height: 34, borderRadius: 999, background: C.fill, display: 'flex',
-                          alignItems: 'center', justifyContent: 'center', flex: 'none' }}>
-              <Share size={16} color="#8A8680" />
+                 aria-label="Share business"
+                 style={{ height: 34, borderRadius: 999, background: C.fill, display: 'flex', padding: '0 13px',
+                          alignItems: 'center', justifyContent: 'center', flex: 'none',
+                          font: font(700, 12.5, 1.2), color: C.body }}>
+              Share
             </Tap>
             <Tap onClick={() => toggleSave(b.id, 'business')}
-                 style={{ width: 34, height: 34, borderRadius: 999, background: C.fill, display: 'flex',
-                          alignItems: 'center', justifyContent: 'center', flex: 'none' }}>
-              <Heart size={18} filled={saved} color={saved ? accent : '#8A8680'} />
+                 aria-label={saved ? 'Unfollow business' : 'Follow business'}
+                 style={{ height: 34, borderRadius: 999, background: saved ? tint : C.fill, display: 'flex',
+                          padding: '0 13px', alignItems: 'center', justifyContent: 'center', flex: 'none',
+                          font: font(700, 12.5, 1.2), color: saved ? accent : C.body }}>
+              {saved ? 'Following' : 'Follow'}
             </Tap>
           </div>
         }

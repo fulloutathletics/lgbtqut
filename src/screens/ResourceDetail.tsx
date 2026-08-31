@@ -1,7 +1,7 @@
 import { useParams } from 'react-router-dom'
 import { AgeGate } from '../components/AgeGate'
 import { SubscriptionPanel } from '../components/SubscriptionPanel'
-import { Heart, Share, Verified } from '../components/icons'
+import { Verified } from '../components/icons'
 import { ActionRow, Empty, Img, StickyBar, Tap, font } from '../components/ui'
 import { isHotline, mapHref, telHref, webHref } from '../lib/data'
 import { useStore } from '../lib/store'
@@ -65,17 +65,21 @@ export default function ResourceDetail() {
                   void navigator.clipboard.writeText(url)
                 }
               }}
-              style={{ width: 34, height: 34, borderRadius: 999, background: C.fill, display: 'flex',
-                       alignItems: 'center', justifyContent: 'center', flex: 'none' }}
+              aria-label="Share resource"
+              style={{ height: 34, borderRadius: 999, background: C.fill, display: 'flex', padding: '0 13px',
+                       alignItems: 'center', justifyContent: 'center', flex: 'none',
+                       font: font(700, 12.5, 1.2), color: C.body }}
             >
-              <Share size={16} color="#8A8680" />
+              Share
             </Tap>
             <Tap
               onClick={() => toggleSave(r.id, 'resource')}
-              style={{ width: 34, height: 34, borderRadius: 999, background: C.fill, display: 'flex',
-                       alignItems: 'center', justifyContent: 'center', flex: 'none' }}
+              aria-label={saved ? 'Unfollow resource' : 'Follow resource'}
+              style={{ height: 34, borderRadius: 999, background: saved ? tint : C.fill, display: 'flex',
+                       padding: '0 13px', alignItems: 'center', justifyContent: 'center', flex: 'none',
+                       font: font(700, 12.5, 1.2), color: saved ? accent : C.body }}
             >
-              <Heart size={17} filled={saved} color={saved ? accent : '#2A2A28'} />
+              {saved ? 'Following' : 'Follow'}
             </Tap>
           </div>
         }
