@@ -14,7 +14,6 @@ insert into public.splash_tabs (id, name, subtitle, image_url, position) values
 on conflict (id) do update set name = excluded.name, subtitle = excluded.subtitle, image_url = excluded.image_url, position = excluded.position;
 
 insert into public.resources (id, name, category, county, counties, communities, image_url, description, website, telephone, email, address, facebook, instagram, verified, age_rating, age_reason) values
-  ('UGSPlusQ7TxKmWv2Ld8aRw', 'Utah Gay Social+ (UGS+)', 'Social Groups', 'Davis County', array['Davis County','Utah County','Salt Lake County']::text[], '{}'::text[], null, null, null, null, null, null, 'https://www.facebook.com/groups/1496147761820051', 'https://www.instagram.com/utahgaysocial/', false, null, null),
   ('wS3PQcWURi-vUKg9n7rSyg', 'Adult Gay Male 18+ Friendship Circle', 'Support Circles', 'Salt Lake County', array['Salt Lake County','Utah County','Washington County']::text[], array['Gay Men']::text[], 'https://hosting.photobucket.com/images/i/lgbtqut/Encircle_Logo.png', 'This friendship circle is for adults (18+) that identify as gay and male.
 
 Friendship Circles? 
@@ -847,15 +846,15 @@ insert into public.hosts (id, name, image_url, header_url, verified, bio) values
   ('SyeSu4PGQNO4tXAIcNr0Gg', 'Utah LGBTQ+ Chamber of Commerce', 'https://storage.googleapis.com/glide-prod.appspot.com/uploads-v2/NSfaaNV0fRhAK9yZqEUi/pub/S4aShaJ5j01T6NIth6Ti.png', 'https://storage.googleapis.com/glide-prod.appspot.com/uploads-v2/NSfaaNV0fRhAK9yZqEUi/pub/tlEYnH7Jz9ZGrw1jMFkn.jpg', true, null)
 on conflict (id) do update set name = excluded.name, image_url = excluded.image_url, header_url = excluded.header_url, verified = excluded.verified, bio = excluded.bio;
 
-insert into public.events (id, host_id, name, date_label, starts_on, description, image_url, age_rating, age_reason, entity_kind, entity_id, source, source_url) values
-  ('e1', 'lVRAiVzrTKepP5D3wkawFA', 'Trans Pride-N-Joy Festival', 'August 22, 2026', '2026-08-22', 'Genderbands annual event. More details coming soon.', 'https://storage.googleapis.com/glide-prod.appspot.com/uploads-v2/NSfaaNV0fRhAK9yZqEUi/pub/EonY7Xc587MMdOGHea19.png', null, null, 'host', 'lVRAiVzrTKepP5D3wkawFA', 'directory', ''),
+insert into public.events (id, host_id, name, date_label, starts_on, description, image_url, age_rating, age_reason) values
+  ('e1', 'lVRAiVzrTKepP5D3wkawFA', 'Trans Pride-N-Joy Festival', 'August 22, 2026', '2026-08-22', 'Genderbands annual event. More details coming soon.', 'https://storage.googleapis.com/glide-prod.appspot.com/uploads-v2/NSfaaNV0fRhAK9yZqEUi/pub/EonY7Xc587MMdOGHea19.png', null, null),
   ('e2', 'SyeSu4PGQNO4tXAIcNr0Gg', 'Business After-Hours Mixer', 'April 24, 2025 at 5:00 PM', '2025-04-24', 'Let''s mix, mingle, and make moves! Join us for a Business After-Hours Mixer at Skullcandy HQ in Park City! Network with fellow professionals, enjoy drinks, light bites, and live music -- all while connecting with local chambers of commerce and celebrating inclusivity in business.
 
 When: April 24th, 2025 5:00-7:00 PM
 Where: Skullcandy HQ - 6301 N Landmark Dr, Park City
 Brought to you by: Heber Valley Chamber of Commerce, Visit Park City, and Skullcandy
 
-https://uk.eventsforce.net/parkcity/94/register', 'https://storage.googleapis.com/glide-prod.appspot.com/uploads-v2/NSfaaNV0fRhAK9yZqEUi/pub/uXHwioF5wVAZ3wIxueEQ.png', '21+', 'Alcohol served at this event', 'host', 'SyeSu4PGQNO4tXAIcNr0Gg', 'directory', '')
+https://uk.eventsforce.net/parkcity/94/register', 'https://storage.googleapis.com/glide-prod.appspot.com/uploads-v2/NSfaaNV0fRhAK9yZqEUi/pub/uXHwioF5wVAZ3wIxueEQ.png', '21+', 'Alcohol served at this event')
 on conflict (id) do update set host_id = excluded.host_id, name = excluded.name, date_label = excluded.date_label, starts_on = excluded.starts_on, description = excluded.description, image_url = excluded.image_url, age_rating = excluded.age_rating, age_reason = excluded.age_reason;
 
 insert into public.crisis_lines (name, description, action_label, telephone, position) values

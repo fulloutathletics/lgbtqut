@@ -6,7 +6,6 @@ import { eventsFor } from '../lib/data'
 import { Verified } from '../components/icons'
 import { SubscriptionPanel } from '../components/SubscriptionPanel'
 import { EditImageButton } from '../components/EditImageButton'
-import { AdminEditButton } from '../components/AdminEditButton'
 import { Empty, Img, StickyBar, font } from '../components/ui'
 import { EventCard } from './Events'
 
@@ -40,19 +39,16 @@ function HostProfile() {
       <StickyBar
         title={host.name}
         right={
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <AdminEditButton section="hosts" id={host.id} />
-            <div
-              className="tap"
-              role="button"
-              onClick={() => toggleSave(host.id, 'host')}
-              aria-label={saved ? 'Unfollow host' : 'Follow host'}
-              style={{ height: 34, borderRadius: 999, background: saved ? tint : C.fill, display: 'flex',
-                       padding: '0 13px', alignItems: 'center', justifyContent: 'center', flex: 'none',
-                       font: font(700, 12.5, 1.2), color: saved ? accent : C.body }}
-            >
-              {saved ? 'Following' : 'Follow'}
-            </div>
+          <div
+            className="tap"
+            role="button"
+            onClick={() => toggleSave(host.id, 'host')}
+            aria-label={saved ? 'Unfollow host' : 'Follow host'}
+            style={{ height: 34, borderRadius: 999, background: saved ? tint : C.fill, display: 'flex',
+                     padding: '0 13px', alignItems: 'center', justifyContent: 'center', flex: 'none',
+                     font: font(700, 12.5, 1.2), color: saved ? accent : C.body }}
+          >
+            {saved ? 'Following' : 'Follow'}
           </div>
         }
       />

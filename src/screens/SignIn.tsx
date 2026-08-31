@@ -160,9 +160,7 @@ export default function SignIn() {
           return
         }
 
-        // Land on the account pane, where the public-profile prompt lives.
-        // Creating one stays optional — this app defaults to no public face.
-        nav('/profile?pane=account')
+        nav('/profile')
       }
     } catch {
       setError('Something went wrong. Try again.')

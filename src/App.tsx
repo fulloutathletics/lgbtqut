@@ -24,9 +24,6 @@ const BecomeHost = lazy(() => import('./screens/BecomeHost'))
 const UserProfile = lazy(() => import('./screens/UserProfile'))
 const EditProfile = lazy(() => import('./screens/UserProfile').then((m) => ({ default: m.EditProfile })))
 const Upload = lazy(() => import('./screens/Upload'))
-const Admin = lazy(() => import('./screens/Admin'))
-const AdminList = lazy(() => import('./screens/Admin').then((m) => ({ default: m.AdminList })))
-const AdminEditor = lazy(() => import('./screens/Admin').then((m) => ({ default: m.AdminEditor })))
 const Feed = lazy(() => import('./screens/Feed'))
 const Reset = lazy(() => import('./screens/Reset'))
 
@@ -60,10 +57,6 @@ export default function App() {
               <Route path="/apply" element={<BecomeHost />} />
               <Route path="/u/:name" element={<UserProfile />} />
               <Route path="/upload" element={<Upload />} />
-              <Route path="/admin" element={<Admin />} />
-              <Route path="/admin/:kind" element={<AdminList />} />
-              <Route path="/admin/:kind/new" element={<AdminEditor />} />
-              <Route path="/admin/:kind/:id" element={<AdminEditor />} />
 
               <Route path="*" element={<Home />} />
             </Routes>

@@ -5,10 +5,8 @@ import { useStore } from '../lib/store'
 import { useData } from '../lib/useData'
 import type { AppEvent } from '../lib/types'
 import { AgeGate } from '../components/AgeGate'
-import { entityHref, entityRef, isDirectoryListed } from '../lib/data'
+import { entityHref, entityRef } from '../lib/data'
 import { EditImageButton } from '../components/EditImageButton'
-import { AdminEditButton } from '../components/AdminEditButton'
-import { SourceBadge, SourceNote } from '../components/SourceAttribution'
 import { Chevron, Heart, Star, Verified } from '../components/icons'
 import { AgePill, Empty, Img, StickyBar, font } from '../components/ui'
 
@@ -114,13 +112,7 @@ function shuffled(xs: string[], rand: () => number): string[] {
   return out
 }
 
-/**
- * `managed` is whether the organiser runs this listing from their own account.
- * When they do not, the thread has no host voice in it at all — a stand-in
- * comment badged HOST under a listing LGBTQ.UT typed in would be putting words
- * in the mouth of an organisation that has never seen the page.
- */
-function buildSocial(event: AppEvent, hostName: string, managed: boolean, past: boolean, daysSince: number): Social {
+function buildSocial(event: AppEvent, hostName: string, past: boolean, daysSince: number): Social {
   const rand = prng(hash(event.id))
 
   const going = 40 + Math.floor(rand() * 150)
@@ -143,7 +135,7 @@ function buildSocial(event: AppEvent, hostName: string, managed: boolean, past: 
   const comments: MockComment[] = []
   let minutes = 2200 + Math.floor(rand() * 3000)
   for (let i = 0; i < n; i++) {
-    const isHost = managed && (i === 0 || i === 2)
+    const isHost = i === 0 || i === 2
     comments.push({
       id: `${event.id}-c${i}`,
       who: isHost ? hostName : voices[i % voices.length],
@@ -219,11 +211,6 @@ function EventDetail() {
   // entity, and this page shows whichever face that entity has.
   const organiser = entityRef(data, event?.entity_kind ?? null, event?.entity_id ?? null)
   const host = data?.hosts.find((h) => h.id === (event?.entity_kind === 'host' ? event.entity_id : event?.host_id))
-  // Did the organiser put this here themselves? Everything that speaks in
-  // their voice — the HOST badge, the moderation line, the follow prompt —
-  // hangs off this, so an event LGBTQ.UT listed never sounds like them.
-  const managed = !!event && !isDirectoryListed(event)
-  const organiserName = organiser?.name ?? host?.name ?? 'The organiser'
 
   const today = new Date().toISOString().slice(0, 10)
   const past = !!event && event.starts_on < today
@@ -232,8 +219,8 @@ function EventDetail() {
     : 0
 
   const social = useMemo(
-    () => (event ? buildSocial(event, host?.name ?? 'The host', managed, past, daysSince) : null),
-    [event, host, managed, past, daysSince],
+    () => (event ? buildSocial(event, host?.name ?? 'The host', past, daysSince) : null),
+    [event, host, past, daysSince],
   )
 
   if (!data) return <div />
@@ -308,7 +295,7 @@ function EventDetail() {
 
   return (
     <>
-      <StickyBar title={event.name} right={<AdminEditButton section="events" id={event.id} />} />
+      <StickyBar title={event.name} />
 
       {/* hero */}
       <div style={{ height: 246, background: '#F4F2EE', display: 'flex', alignItems: 'center',
@@ -443,11 +430,9 @@ function EventDetail() {
           <div style={{ position: 'absolute', inset: 0,
                         background: 'linear-gradient(180deg,rgba(0,0,0,.42),rgba(0,0,0,.22))' }} />
           <div style={{ position: 'relative', padding: '14px 16px 20px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 11 }}>
-              <div style={{ font: font(700, 14, 1.2), color: '#fff', textShadow: '0 1px 5px rgba(0,0,0,.5)' }}>
-                {ORGANISER_LABEL[organiser.kind]}
-              </div>
-              <SourceBadge event={event} />
+            <div style={{ font: font(700, 14, 1.2), color: '#fff', textShadow: '0 1px 5px rgba(0,0,0,.5)',
+                          marginBottom: 11 }}>
+              {ORGANISER_LABEL[organiser.kind]}
             </div>
             <div
               className="tap"
@@ -467,9 +452,7 @@ function EventDetail() {
                   {organiser.verified && <Verified color={accent} />}
                 </div>
                 <div style={{ font: font(400, 11.5, 1.3), color: C.muted, marginTop: 3 }}>
-                  {managed
-                    ? `${store.isSaved(organiser.id) ? 'Following' : 'Follow'} for event alerts`
-                    : `${store.isSaved(organiser.id) ? 'Following' : 'Follow'} — alerts come from LGBTQ.UT`}
+                  {store.isSaved(organiser.id) ? 'Following' : 'Follow'} for event alerts
                 </div>
               </div>
               <div
@@ -486,9 +469,6 @@ function EventDetail() {
           </div>
         </div>
       )}
-
-      {/* who listed this — the whole point of the source mark */}
-      <SourceNote event={event} organiserName={organiserName} />
 
       {/* details */}
       <div style={{ padding: '22px 18px 8px' }}>
@@ -611,11 +591,6 @@ function EventDetail() {
             {plural(thread.length, 'comment', 'comments')}
           </div>
         </div>
-        {!managed && (
-          <div style={{ font: font(400, 12, 1.5), color: C.muted, marginTop: 6, textWrap: 'pretty' }}>
-            Between attendees. Nobody from {organiserName} is reading this — LGBTQ.UT moderates it.
-          </div>
-        )}
 
         <div style={{ marginTop: 12 }}>
           {thread.map((c) => {
@@ -708,10 +683,7 @@ function EventDetail() {
           </div>
         </div>
         <div style={{ font: font(400, 11, 1.5), color: C.faint, marginTop: 10, textWrap: 'pretty' }}>
-          Posting as {viewAsHost ? (host?.name ?? me) : me}.{' '}
-          {managed
-            ? `${organiserName} moderates this discussion.`
-            : `${organiserName} will not see this — reach them directly if you need an answer.`}
+          Posting as {viewAsHost ? (host?.name ?? me) : me}. Hosts moderate their own discussions.
         </div>
       </div>
     </>

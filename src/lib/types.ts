@@ -89,17 +89,6 @@ export interface Host {
   linked_resource_id?: string | null
 }
 
-/**
- * Who put a listing here, and who stands behind it.
- *
- * - `directory` — LGBTQ.UT added it from public information. The organisation
- *   named on it does not manage the page and may not know it exists, so
- *   nothing on it should read as coming from them.
- * - `entity` — the organiser posted it from their own account and maintains
- *   it. Only someone who administers that entity can write a row this way.
- */
-export type ContentSource = 'directory' | 'entity'
-
 export interface AppEvent {
   id: string
   /** Legacy organiser link, kept until every read moves to entity_kind/entity_id. */
@@ -114,12 +103,6 @@ export interface AppEvent {
   image_url: string
   age_rating: AgeRating
   age_reason: string | null
-  /** Who listed it. Absent (older rows, older bundles) reads as `directory`. */
-  source: ContentSource
-  /** Where a directory listing was taken from, for a reader to check against. */
-  source_url: string
-  /** Last date a person confirmed a directory listing still holds. */
-  last_checked_on: string | null
 }
 
 /** Shared shape behind a resource, business or host — the parts every face has. */

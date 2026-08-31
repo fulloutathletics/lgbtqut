@@ -79,13 +79,6 @@ function start() {
   void fromSupabase().then((d) => { if (d) publish(d, true) }).catch(() => {})
 }
 
-/** Re-pull the directory from Supabase — called after admin edits so the
- *  aggressively-cached copy doesn't serve stale content. */
-export async function refreshData(): Promise<void> {
-  const d = await fromSupabase().catch(() => null)
-  if (d) publish(d, true)
-}
-
 /** Current directory, or null until the first copy lands (a tick or two). */
 export function getData(): AppData | null {
   start()
@@ -198,13 +191,6 @@ export const entityHref = (ref: EntityRef) =>
   ref.kind === 'resource' ? `/resource/${ref.id}`
   : ref.kind === 'business' ? `/business/${ref.id}`
   : `/host/${ref.id}`
-
-/**
- * True when LGBTQ.UT listed this rather than the organiser. Anything that does
- * not positively read as the organiser's own posting counts as ours — an
- * unreadable value must never imply an absent host is standing behind a page.
- */
-export const isDirectoryListed = (e: Pick<AppEvent, 'source'>) => e.source !== 'entity'
 
 /** Upcoming-first events this entity organises, whichever face you came in by. */
 export function eventsFor(data: AppData | null, kind: EntityKind, id: string): AppEvent[] {
