@@ -151,6 +151,11 @@ export default function SignIn() {
         })
 
         if (profileError) {
+          // The auth user exists but has no profile, so the account is stuck:
+          // username sign-in resolves through profiles. Surface the real
+          // reason to the console — the friendly text alone made a schema
+          // fault look like a transient glitch.
+          console.error('Profile insert failed after sign-up:', profileError)
           setError('Account created, but we could not save your profile. Try signing in.')
           return
         }
