@@ -51,6 +51,7 @@ export function EditImageButton({ table, id, column, style }: Props) {
         type="file"
         accept="image/png,image/jpeg,image/webp,image/gif"
         style={{ display: 'none' }}
+        onClick={(e) => e.stopPropagation()}
         onChange={(e) => {
           const file = e.target.files?.[0]
           e.target.value = ''
