@@ -74,6 +74,30 @@ is the single most common way this design leaks.
 That is deliberate and load-bearing: a distinguishable response makes the endpoint
 an oracle for whether a given person has an account in a queer directory.
 
+## Attribution
+
+Most of this directory was typed in by LGBTQ.UT from public information. The
+organisation named on such a listing never agreed to run a page here, does not
+read the discussion under it, and cannot correct it when an event moves or is
+cancelled. `events.source` says which of the two an event is:
+
+| `source` | Meaning |
+|---|---|
+| `directory` | LGBTQ.UT listed it. We are answerable for it being right. |
+| `entity` | The organiser posted it from their own account and maintains it. |
+
+The mark is earned rather than typed. RLS lets whoever administers an entity
+run its events, and only ever as `source = 'entity'` — they are standing behind
+it. They cannot edit or delete a `directory` row: a listing we added stays ours
+until a super-admin deliberately hands it over by flipping `source` in the admin
+console. That is what keeps the badge worth reading.
+
+On screen, both states are labelled — an unbadged card among badged ones would
+read as endorsed by whoever it names. A `directory` event additionally drops
+every host voice from its discussion, says who is actually moderating, and
+carries `source_url` and `last_checked_on` so a reader can go check the
+organiser's own posting when ours may have gone stale.
+
 ## Structure
 
 ```
@@ -119,3 +143,6 @@ represents.
 - **PWA icons** are a generated pride-flag placeholder. Swap in the real logo.
 - **Moderation queue.** Per the handoff, the social layer should not launch
   without one, and it does not exist yet.
+- **Reporting a stale listing.** A `directory` event tells a reader to tell us
+  when something on it is wrong, but there is no button that does it — they
+  have to find another way to reach us. Wire one to the moderation queue.

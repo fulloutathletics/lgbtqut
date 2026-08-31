@@ -5,6 +5,7 @@ import { useStore } from '../lib/store'
 import { useData } from '../lib/useData'
 import type { AppEvent, EntityRef } from '../lib/types'
 import { entityHref, entityRef } from '../lib/data'
+import { SourceBadge } from '../components/SourceAttribution'
 import { AgePill, Empty, Eyebrow, Img, ProfileHeader, SearchField, font } from '../components/ui'
 
 /**
@@ -12,6 +13,10 @@ import { AgePill, Empty, Eyebrow, Img, ProfileHeader, SearchField, font } from '
  * The host row is its own tap target and swallows the event so it can route to
  * the host profile instead of opening the event. `showHost` is off on the host
  * profile itself, where repeating the host would be noise.
+ *
+ * Every card carries a source badge, including the organiser's own. An
+ * unbadged card in a list of badged ones would read as endorsed by whoever it
+ * names, which is the misreading the badge exists to prevent.
  */
 export function EventCard({ event, organiser, showOrganiser = true }: {
   event: AppEvent
@@ -36,6 +41,7 @@ export function EventCard({ event, organiser, showOrganiser = true }: {
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           <Eyebrow>{event.date_label}</Eyebrow>
           {event.age_rating && <AgePill label={event.age_rating} />}
+          <SourceBadge event={event} />
         </div>
         <div style={{ font: font(800, 19, 1.2), color: C.ink, marginTop: 7, letterSpacing: '-.01em',
                       textWrap: 'pretty' }}>

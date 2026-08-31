@@ -199,6 +199,13 @@ export const entityHref = (ref: EntityRef) =>
   : ref.kind === 'business' ? `/business/${ref.id}`
   : `/host/${ref.id}`
 
+/**
+ * True when LGBTQ.UT listed this rather than the organiser. Anything that does
+ * not positively read as the organiser's own posting counts as ours — an
+ * unreadable value must never imply an absent host is standing behind a page.
+ */
+export const isDirectoryListed = (e: Pick<AppEvent, 'source'>) => e.source !== 'entity'
+
 /** Upcoming-first events this entity organises, whichever face you came in by. */
 export function eventsFor(data: AppData | null, kind: EntityKind, id: string): AppEvent[] {
   if (!data) return []

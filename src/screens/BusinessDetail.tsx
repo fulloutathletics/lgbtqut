@@ -8,6 +8,7 @@ import { alpha, isHotline, mapHref, telHref, webHref } from '../lib/data'
 import type { Business, BusinessSection, SectionItem } from '../lib/types'
 import { AgeGate } from '../components/AgeGate'
 import { EditImageButton } from '../components/EditImageButton'
+import { AdminEditButton } from '../components/AdminEditButton'
 import { EntityEvents } from '../components/EntityEvents'
 import { SubscriptionPanel } from '../components/SubscriptionPanel'
 import { Verified } from '../components/icons'
@@ -63,6 +64,7 @@ export function BusinessDetail({ variant = 'glide', showConfig = false }: {
         title={b.name}
         right={
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <AdminEditButton section="businesses" id={b.id} />
             <Tap onClick={() => {
               const url = window.location.href
               if (navigator.share) {
