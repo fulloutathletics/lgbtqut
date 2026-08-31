@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { C } from '../lib/theme'
 import { useStore } from '../lib/store'
 import { useData } from '../lib/useData'
-import type { AppEvent, Host } from '../lib/types'
+import type { AppEvent, EntityRef } from '../lib/types'
+import { entityHref, entityRef } from '../lib/data'
 import { AgePill, Empty, Eyebrow, Img, ProfileHeader, SearchField, font } from '../components/ui'
 
 /**
@@ -12,10 +13,11 @@ import { AgePill, Empty, Eyebrow, Img, ProfileHeader, SearchField, font } from '
  * the host profile instead of opening the event. `showHost` is off on the host
  * profile itself, where repeating the host would be noise.
  */
-export function EventCard({ event, host, showHost = true }: {
+export function EventCard({ event, organiser, showOrganiser = true }: {
   event: AppEvent
-  host?: Host
-  showHost?: boolean
+  /** Whoever runs it — a host, business or resource. */
+  organiser?: EntityRef | null
+  showOrganiser?: boolean
 }) {
   const nav = useNavigate()
 
@@ -39,20 +41,20 @@ export function EventCard({ event, host, showHost = true }: {
                       textWrap: 'pretty' }}>
           {event.name}
         </div>
-        {showHost && host && (
+        {showOrganiser && organiser && (
           <div
             className="tap"
             role="button"
-            onClick={(e) => { e.stopPropagation(); nav(`/host/${host.id}`) }}
+            onClick={(e) => { e.stopPropagation(); nav(entityHref(organiser)) }}
             style={{ display: 'flex', alignItems: 'center', gap: 9, marginTop: 12 }}
           >
             <div style={{ width: 26, height: 26, borderRadius: 999, overflow: 'hidden', background: '#EFEDE9',
                           flex: 'none' }}>
-              <Img src={host.image_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              <Img src={organiser.image_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
             </div>
             <div style={{ font: font(500, 12.5, 1.3), color: '#7C7871', minWidth: 0, overflow: 'hidden',
                           textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {host.name}
+              {organiser.name}
             </div>
           </div>
         )}
@@ -100,8 +102,8 @@ function Events() {
       .filter((e) => canSee(e.age_rating))
       .filter((e) => {
         if (!needle) return true
-        const host = data.hosts.find((h) => h.id === e.host_id)
-        return `${e.name} ${e.date_label} ${e.description} ${host?.name ?? ''}`
+        const org = entityRef(data, e.entity_kind, e.entity_id)
+        return `${e.name} ${e.date_label} ${e.description} ${org?.name ?? ''}`
           .toLowerCase().includes(needle)
       })
       .sort((a, b) => a.starts_on.localeCompare(b.starts_on))
@@ -117,7 +119,7 @@ function Events() {
       <div style={{ padding: '12px 16px 28px', display: 'flex', flexDirection: 'column', gap: 16 }}>
         {events.length === 0 && <Empty>Nothing matches that search yet.</Empty>}
         {events.map((e) => (
-          <EventCard key={e.id} event={e} host={data.hosts.find((h) => h.id === e.host_id)} />
+          <EventCard key={e.id} event={e} organiser={entityRef(data, e.entity_kind, e.entity_id)} />
         ))}
         <BecomeHostCard />
       </div>

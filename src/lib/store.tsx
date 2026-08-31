@@ -2,13 +2,32 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import type { ReactNode } from 'react'
 import { supabase } from './supabase'
 import { DEFAULT_THEME, THEMES } from './theme'
-import type { AccountTier, Channels, EntityKind, SavedEntry } from './types'
+import type { AccountTier, Channels, EntityKind, ProfileVisibility, SavedEntry } from './types'
 
 // Anonymous state is device-only by design — the Saved and Alerts panes say so.
 // Once signed in the same shape is mirrored to `public.saves`, so the local copy
 // stays authoritative for the session and writes are pushed through.
 
 const KEY = 'lgbtqut.state'
+const SEEN_KEY = 'lgbtqut.lastSeen'
+
+// An anonymous reader's follows and saves are the only copy that exists — there
+// is no account to sync them to. They are kept so the feed has something to
+// read, but they lapse after this long without opening the app, so a shared or
+// borrowed device does not carry someone's interests forever.
+const ANON_TTL_DAYS = 14
+
+/** ms since the app was last opened, or null when there is no record. */
+function idleFor(): number | null {
+  const raw = localStorage.getItem(SEEN_KEY)
+  if (!raw) return null
+  const seen = Number(raw)
+  return Number.isFinite(seen) ? Date.now() - seen : null
+}
+
+function markSeen() {
+  try { localStorage.setItem(SEEN_KEY, String(Date.now())) } catch { /* private mode */ }
+}
 
 interface Persisted {
   theme: string
@@ -44,6 +63,8 @@ interface Account {
   username: string | null
   displayName: string | null
   profileId: string | null
+  /** Null when no social profile exists — the account is private by default. */
+  visibility: ProfileVisibility | null
 }
 
 interface Store extends Persisted {
@@ -91,12 +112,20 @@ function yearsSince(dob: string): number {
 export function StoreProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<Persisted>(read)
   const [account, setAccount] = useState<Account>({
-    tier: 'anonymous', dob: null, username: null, displayName: null, profileId: null,
+    tier: 'anonymous', dob: null, username: null, displayName: null, profileId: null, visibility: null,
   })
+
+  // Read during the first render, before the effect below overwrites the
+  // stamp — otherwise the gap always measures as zero and never lapses.
+  const [idleAtLoad] = useState(idleFor)
 
   useEffect(() => {
     localStorage.setItem(KEY, JSON.stringify(state))
   }, [state])
+
+  // Stamped once per app open, so the TTL measures time away from the app
+  // rather than time since the last tap.
+  useEffect(() => { markSeen() }, [])
 
   // Auth uses Supabase's built-in email/password. The profile row holds DOB
   // for age gates and login_username for display. The social_profiles row
@@ -105,24 +134,34 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     let alive = true
     const sync = async (userId: string | undefined) => {
       if (!userId) {
-        if (alive) setAccount({ tier: 'anonymous', dob: null, username: null, displayName: null, profileId: null })
-        patch((s) => ({ ...s, follows: [] }))
+        if (alive) setAccount({ tier: 'anonymous', dob: null, username: null, displayName: null, profileId: null, visibility: null })
+        // An anonymous reader keeps their follows and saves — they are what
+        // fills the read-only feed, and there is no account to hold them.
+        // They lapse only after ANON_TTL_DAYS of not opening the app.
+        if (idleAtLoad !== null && idleAtLoad > ANON_TTL_DAYS * 86400000) {
+          patch((s) => ({ ...s, follows: [], saved: {} }))
+        }
         return
       }
       const { data: profile } = await supabase
         .from('profiles').select('id, login_username, dob').eq('id', userId).maybeSingle()
       const { data: social } = await supabase
-        .from('social_profiles').select('display_name, public_handle').eq('id', userId).maybeSingle()
+        .from('social_profiles').select('display_name, public_handle, visibility').eq('id', userId).maybeSingle()
       const { data: followRows } = await supabase
         .from('follows').select('followee_id').eq('follower_id', userId)
       if (!alive || !profile) return
       const follows = (followRows ?? []).map((r) => r.followee_id)
+      // 'public' means findable by other people, not merely that a row
+      // exists — someone who made a profile and set it private is still a
+      // private account, and the tier label should say so.
+      const visibility = (social?.visibility as ProfileVisibility | undefined) ?? null
       setAccount({
-        tier: social ? 'public' : 'account',
+        tier: visibility && visibility !== 'private' ? 'public' : 'account',
         dob: profile.dob,
         username: profile.login_username,
         displayName: social?.display_name ?? null,
         profileId: profile.id,
+        visibility,
       })
       patch((s) => ({ ...s, follows }))
     }
@@ -133,7 +172,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       void sync(session?.user.id)
     })
     return () => { alive = false; sub.subscription.unsubscribe() }
-  }, [])
+    // idleAtLoad is set once from useState and never changes.
+  }, [idleAtLoad])
 
   const patch = useCallback((fn: (s: Persisted) => Persisted) => setState(fn), [])
 

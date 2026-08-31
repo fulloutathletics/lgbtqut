@@ -102,7 +102,12 @@ export default function ResourceList() {
     : results
 
   const title = selection ?? meta.title
-  const tagline = data.tabs.find((t) => t.name === meta.title)?.subtitle || meta.tagline
+  // The banner borrows the splash card's own artwork and tagline, so the page
+  // you land on is visibly the page you tapped — and so replacing the splash
+  // image updates both places at once.
+  const tab = data.tabs.find((t) => t.name === meta.title)
+  const tagline = tab?.subtitle || meta.tagline
+  const banner = tab?.image_url || BANNER
   const hint = selection ? `Search in ${selection}` : meta.searchHint
 
   return (
@@ -112,9 +117,12 @@ export default function ResourceList() {
         onBack={selection ? () => nav(`/list/${mode}`) : undefined}
       />
 
-      {onChooser && (
+      {/* Every splash tab keeps its banner at the top level, including Books
+          and All, which skip the chooser and go straight to results. Drilling
+          into a selection drops it — that page is titled by the selection. */}
+      {!selection && (
         <div style={{ position: 'relative', height: 104, overflow: 'hidden', background: '#2A2438' }}>
-          <Img src={BANNER} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+          <Img src={banner} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
           <div style={{ position: 'absolute', inset: 0,
                         background: 'linear-gradient(180deg,rgba(0,0,0,.52),rgba(0,0,0,.62))' }} />
           <div style={{ position: 'absolute', left: 18, right: 18, top: '50%', transform: 'translateY(-50%)' }}>
@@ -131,9 +139,15 @@ export default function ResourceList() {
       {onChooser ? (
         <div style={{ padding: '14px 16px 24px', display: 'flex', flexDirection: 'column', gap: 14 }}>
           {shownBuckets.map((b, i) => {
-            // Only the six counties carry photography; everything else rotates
-            // through the fallback swatches.
-            const img = mode === 'county' ? data.countyImages[b.name] : undefined
+            const imgMap = mode === 'county' ? data.countyImages
+              : mode === 'community' ? data.communityImages
+              : mode === 'category' ? data.categoryImages
+              : undefined
+            const img = imgMap?.[b.name] || undefined
+            const editTable = mode === 'county' ? 'county_images'
+              : mode === 'community' ? 'community_images'
+              : mode === 'category' ? 'category_images'
+              : null
             return (
               <RouterCard
                 key={b.name}
@@ -142,6 +156,7 @@ export default function ResourceList() {
                 title={b.name}
                 count={`${b.count} ${b.count === 1 ? 'resource' : 'resources'}`}
                 onClick={() => nav(`/list/${mode}/${encodeURIComponent(b.name)}`)}
+                editImage={editTable ? { table: editTable, id: b.name, column: 'image_url' } : undefined}
               />
             )
           })}
