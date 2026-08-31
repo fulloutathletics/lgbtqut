@@ -9,6 +9,7 @@ import { entityHref, entityRef, isDirectoryListed } from '../lib/data'
 import { EditImageButton } from '../components/EditImageButton'
 import { AdminEditButton } from '../components/AdminEditButton'
 import { SourceBadge } from '../components/SourceAttribution'
+import { RichText } from '../components/RichText'
 import { Chevron, Heart, Star, Verified } from '../components/icons'
 import { AgePill, Empty, Img, StickyBar, font } from '../components/ui'
 
@@ -491,10 +492,8 @@ function EventDetail() {
       <div style={{ padding: '22px 18px 8px' }}>
         <div style={{ font: font(800, 21, 1.2), color: C.ink, letterSpacing: '-.01em' }}>Details</div>
         <div style={{ font: font(600, 13, 1.35), color: '#6E6A64', marginTop: 10 }}>{event.date_label}</div>
-        <div style={{ font: font(400, 14.5, 1.62), color: C.body, marginTop: 11, whiteSpace: 'pre-wrap',
-                      textWrap: 'pretty' }}>
-          {event.description}
-        </div>
+        <RichText text={event.description}
+                  style={{ font: font(400, 14.5, 1.62), color: C.body, marginTop: 11 }} />
       </div>
 
       {/* poll */}

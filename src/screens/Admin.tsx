@@ -6,6 +6,7 @@ import { refreshData } from '../lib/data'
 import { useData } from '../lib/useData'
 import { useStore } from '../lib/store'
 import { C } from '../lib/theme'
+import { RichText } from '../components/RichText'
 import { Empty, Img, SearchField, StickyBar, Tap, Toggle, font } from '../components/ui'
 import { Chevron } from '../components/icons'
 
@@ -16,6 +17,7 @@ import { Chevron } from '../components/icons'
 
 type FieldType =
   | 'text' | 'textarea' | 'number' | 'bool' | 'date'
+  | 'prose'  // textarea + the RichText subset, previewed as it will render
   | 'list'   // text[] ↔ comma-separated input
   | 'json'   // jsonb  ↔ pretty-printed textarea
   | 'image'  // URL input + upload into the app-images bucket
@@ -74,7 +76,7 @@ const ENTITIES: Record<string, EntityDef> = {
       { key: 'name', label: 'Name', type: 'text' },
       { key: 'starts_on', label: 'Date', type: 'date' },
       { key: 'date_label', label: 'Date label', type: 'text', hint: 'Shown on cards, e.g. "Fri Sep 12 · 7pm"' },
-      { key: 'description', label: 'Description', type: 'textarea' },
+      { key: 'description', label: 'Description', type: 'prose' },
       { key: 'image_url', label: 'Image', type: 'image' },
       { key: 'age_rating', label: 'Age rating', type: 'select', options: AGE_OPTIONS },
       { key: 'age_reason', label: 'Age reason', type: 'text' },
@@ -91,7 +93,7 @@ const ENTITIES: Record<string, EntityDef> = {
     listTitle: (r) => str(r.name), listImg: (r) => str(r.image_url),
     fields: [
       { key: 'name', label: 'Name', type: 'text' },
-      { key: 'bio', label: 'Bio', type: 'textarea' },
+      { key: 'bio', label: 'Bio', type: 'prose' },
       { key: 'image_url', label: 'Avatar', type: 'image' },
       { key: 'header_url', label: 'Header image', type: 'image' },
       { key: 'verified', label: 'Verified', type: 'bool' },
@@ -137,7 +139,7 @@ const ENTITIES: Record<string, EntityDef> = {
       { key: 'counties', label: 'Counties', type: 'list' },
       { key: 'communities', label: 'Communities', type: 'list' },
       { key: 'image_url', label: 'Image', type: 'image' },
-      { key: 'description', label: 'Description', type: 'textarea' },
+      { key: 'description', label: 'Description', type: 'prose' },
       { key: 'website', label: 'Website', type: 'text' },
       { key: 'telephone', label: 'Telephone', type: 'text' },
       { key: 'email', label: 'Email', type: 'text' },
@@ -165,7 +167,7 @@ const ENTITIES: Record<string, EntityDef> = {
     listTitle: (r) => str(r.name), listSub: (r) => str(r.telephone),
     fields: [
       { key: 'name', label: 'Name', type: 'text' },
-      { key: 'description', label: 'Description', type: 'textarea' },
+      { key: 'description', label: 'Description', type: 'prose' },
       { key: 'action_label', label: 'Action label', type: 'text', hint: 'Button text, e.g. "Call now"' },
       { key: 'telephone', label: 'Telephone', type: 'text' },
       { key: 'position', label: 'Position', type: 'number' },
@@ -573,6 +575,9 @@ function FieldInput({ field, value, onChange, folder, options }: {
       return <textarea value={String(value)} onChange={(e) => onChange(e.target.value)}
                        rows={5} style={{ ...inputStyle, resize: 'vertical' }} />
 
+    case 'prose':
+      return <ProseInput value={String(value)} onChange={onChange} />
+
     case 'json':
       return <textarea value={String(value)} onChange={(e) => onChange(e.target.value)}
                        rows={7} spellCheck={false}
@@ -651,6 +656,42 @@ function FieldInput({ field, value, onChange, folder, options }: {
     default:
       return <input value={String(value)} onChange={(e) => onChange(e.target.value)} style={inputStyle} />
   }
+}
+
+/**
+ * Formatting is only worth offering if an author can see what it does, and the
+ * imported listings prove the point: they were already written in Markdown
+ * against a field that showed them their own asterisks. The preview renders
+ * through the same component the app does, so what is shown here is the page.
+ */
+function ProseInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [preview, setPreview] = useState(false)
+
+  return (
+    <div>
+      <textarea value={value} onChange={(e) => onChange(e.target.value)} rows={8}
+                style={{ ...inputStyle, resize: 'vertical' }} />
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginTop: 6 }}>
+        <div style={{ flex: 1, minWidth: 0, font: font(400, 11.5, 1.45), color: C.muted }}>
+          <code>**bold**</code>, <code>_italic_</code>, <code># heading</code>, <code>- bullets</code>,{' '}
+          <code>1. numbered</code>, <code>[text](https://…)</code>. Blank line for a new paragraph.
+          A lone <code>*</code> is left alone, so Trans* stays Trans*.
+        </div>
+        <Tap onClick={() => setPreview((p) => !p)}
+             style={{ font: font(700, 11.5, 1.2), color: C.body, flex: 'none' }}>
+          {preview ? 'Hide preview' : 'Preview'}
+        </Tap>
+      </div>
+      {preview && (
+        <div style={{ marginTop: 8, borderRadius: 10, border: `1px dashed ${C.border}`, padding: '12px 13px',
+                      background: '#FBFAF8' }}>
+          {value.trim()
+            ? <RichText text={value} style={{ font: font(400, 14, 1.6), color: C.body }} />
+            : <div style={{ font: font(400, 13, 1.4), color: C.faint }}>Nothing to preview yet.</div>}
+        </div>
+      )}
+    </div>
+  )
 }
 
 function ErrorNote({ children }: { children: ReactNode }) {

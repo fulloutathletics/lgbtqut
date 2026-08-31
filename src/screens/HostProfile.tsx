@@ -7,6 +7,7 @@ import { Verified } from '../components/icons'
 import { SubscriptionPanel } from '../components/SubscriptionPanel'
 import { EditImageButton } from '../components/EditImageButton'
 import { AdminEditButton } from '../components/AdminEditButton'
+import { RichText } from '../components/RichText'
 import { Empty, Img, StickyBar, font } from '../components/ui'
 import { EventCard } from './Events'
 
@@ -86,10 +87,9 @@ function HostProfile() {
         <div style={{ font: font(400, 14, 1.4), color: '#87837C', marginTop: 6 }}>No reviews</div>
 
         {host.bio && (
-          <div style={{ font: font(400, 14, 1.6), color: C.body, marginTop: 12, maxWidth: 320,
-                        marginLeft: 'auto', marginRight: 'auto', textWrap: 'pretty' }}>
-            {host.bio}
-          </div>
+          <RichText text={host.bio}
+                    style={{ font: font(400, 14, 1.6), color: C.body, marginTop: 12, maxWidth: 320,
+                             marginLeft: 'auto', marginRight: 'auto', textAlign: 'left' }} />
         )}
 
         <div style={{ display: 'flex', gap: 9, justifyContent: 'center', marginTop: 14 }}>

@@ -101,6 +101,30 @@ from its discussion, says who is actually moderating, and carries `source_url`
 and `last_checked_on` so a reader can go check the organiser's own posting when
 ours may have gone stale.
 
+## Descriptions
+
+Descriptions and bios render a small Markdown subset — `#`–`######` headings,
+`**bold**`, `_italic_`, `[text](url)`, bare URLs, `-`/`*`/`•` bullets, `1.`
+numbered lists, blank-line paragraphs. This is not a new capability so much as
+catching up with the content: the imported directory was already written in
+Markdown against fields that rendered none of it, so listings were showing
+readers their own `**Our aims:**` and `## Let's grow together.`.
+
+`src/components/RichText.tsx` builds React elements and never touches
+`dangerouslySetInnerHTML`. There is deliberately no path from a description to
+markup: entity admins write their own events now, and a directory of queer
+resources is the wrong place to trust an author with raw HTML. Link targets are
+limited to http(s), mailto and tel — a `javascript:` or `data:` URL renders as
+inert text, as does anything that looks like a tag.
+
+**Single-asterisk italics are not supported, on purpose.** `Trans*` is a term
+this directory uses in earnest; `*text*` emphasis would italicise everything
+between two of them. Use `_italic_`.
+
+Plain prose passes through unchanged, so a listing with no markup reads exactly
+as it did. The admin console previews the rendered result through the same
+component the app uses.
+
 ## Structure
 
 ```
