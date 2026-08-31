@@ -45,6 +45,29 @@
   ],
   "resources": [
     {
+      "id": "UGSPlusQ7TxKmWv2Ld8aRw",
+      "name": "Utah Gay Social+ (UGS+)",
+      "category": "Social Groups",
+      "county": "Davis County",
+      "counties": [
+        "Davis County",
+        "Utah County",
+        "Salt Lake County"
+      ],
+      "communities": [],
+      "image_url": "",
+      "description": "",
+      "website": "",
+      "telephone": "",
+      "email": "",
+      "address": "",
+      "facebook": "https://www.facebook.com/groups/1496147761820051",
+      "instagram": "https://www.instagram.com/utahgaysocial/",
+      "verified": false,
+      "age_rating": null,
+      "age_reason": null
+    },
+    {
       "id": "wS3PQcWURi-vUKg9n7rSyg",
       "name": "Adult Gay Male 18+ Friendship Circle",
       "category": "Support Circles",

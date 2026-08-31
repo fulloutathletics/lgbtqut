@@ -14,6 +14,7 @@ insert into public.splash_tabs (id, name, subtitle, image_url, position) values
 on conflict (id) do update set name = excluded.name, subtitle = excluded.subtitle, image_url = excluded.image_url, position = excluded.position;
 
 insert into public.resources (id, name, category, county, counties, communities, image_url, description, website, telephone, email, address, facebook, instagram, verified, age_rating, age_reason) values
+  ('UGSPlusQ7TxKmWv2Ld8aRw', 'Utah Gay Social+ (UGS+)', 'Social Groups', 'Davis County', array['Davis County','Utah County','Salt Lake County']::text[], '{}'::text[], null, null, null, null, null, null, 'https://www.facebook.com/groups/1496147761820051', 'https://www.instagram.com/utahgaysocial/', false, null, null),
   ('wS3PQcWURi-vUKg9n7rSyg', 'Adult Gay Male 18+ Friendship Circle', 'Support Circles', 'Salt Lake County', array['Salt Lake County','Utah County','Washington County']::text[], array['Gay Men']::text[], 'https://hosting.photobucket.com/images/i/lgbtqut/Encircle_Logo.png', 'This friendship circle is for adults (18+) that identify as gay and male.
 
 Friendship Circles? 

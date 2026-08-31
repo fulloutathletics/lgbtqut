@@ -175,7 +175,10 @@ const tabs = TABS.map((t, i) => ({
 const seed = { tabs, resources, businesses, hosts, events, crisis: CRISIS, countyImages: COUNTY_IMG, communityImages: {}, categoryImages: {} }
 
 mkdirSync(resolve(root, 'public/data'), { recursive: true })
-writeFileSync(resolve(root, 'public/data/seed.json'), JSON.stringify(seed))
+// Pretty-printed so adding one listing shows as a few changed lines rather
+// than a whole-file rewrite. The file had been formatted by hand, which the
+// compact output silently undid on the next run.
+writeFileSync(resolve(root, 'public/data/seed.json'), JSON.stringify(seed, null, 2) + '\n')
 
 // ---- SQL ----------------------------------------------------------------
 
