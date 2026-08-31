@@ -8,6 +8,7 @@ import { alpha, isHotline, mapHref, telHref, webHref } from '../lib/data'
 import type { Business, BusinessSection, SectionItem } from '../lib/types'
 import { AgeGate } from '../components/AgeGate'
 import { EditImageButton } from '../components/EditImageButton'
+import { EntityEvents } from '../components/EntityEvents'
 import { SubscriptionPanel } from '../components/SubscriptionPanel'
 import { Verified } from '../components/icons'
 import { ActionRow, AgePill, Empty, Img, StickyBar, Tap, font } from '../components/ui'
@@ -191,6 +192,8 @@ export function BusinessDetail({ variant = 'glide', showConfig = false }: {
       {sections.map((s, i) => (
         <Section key={`${s.title}-${i}`} section={s} color={b.color} showConfig={showConfig} />
       ))}
+
+      <EntityEvents kind="business" id={b.id} />
 
       <VisitRows b={b} />
     </div>
