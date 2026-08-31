@@ -3,7 +3,7 @@ import { compressImage } from './imageCompress'
 
 const BUCKET = 'app-images'
 
-export type ImageTable = 'splash_tabs' | 'resources' | 'businesses' | 'hosts' | 'events' | 'county_images'
+export type ImageTable = 'splash_tabs' | 'resources' | 'businesses' | 'hosts' | 'events' | 'county_images' | 'community_images' | 'category_images'
 
 const FOLDER: Record<ImageTable, string> = {
   splash_tabs: 'splash',
@@ -12,6 +12,8 @@ const FOLDER: Record<ImageTable, string> = {
   hosts: 'hosts',
   events: 'events',
   county_images: 'counties',
+  community_images: 'communities',
+  category_images: 'categories',
 }
 
 function extOf(file: File): string {

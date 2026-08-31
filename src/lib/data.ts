@@ -10,7 +10,7 @@ import type { AppData } from './types'
 let cache: Promise<AppData> | null = null
 
 async function fromSupabase(): Promise<AppData | null> {
-  const [tabs, resources, businesses, hosts, events, crisis, counties] = await Promise.all([
+  const [tabs, resources, businesses, hosts, events, crisis, counties, communities, categories] = await Promise.all([
     supabase.from('splash_tabs').select('*').order('position'),
     supabase.from('resources').select('*'),
     supabase.from('businesses').select('*'),
@@ -18,9 +18,11 @@ async function fromSupabase(): Promise<AppData | null> {
     supabase.from('events').select('*').order('starts_on'),
     supabase.from('crisis_lines').select('*').order('position'),
     supabase.from('county_images').select('*').order('position'),
+    supabase.from('community_images').select('*').order('position'),
+    supabase.from('category_images').select('*').order('position'),
   ])
 
-  const failed = [tabs, resources, businesses, hosts, events, crisis, counties].some((r) => r.error)
+  const failed = [tabs, resources, businesses, hosts, events, crisis, counties, communities, categories].some((r) => r.error)
   if (failed || !resources.data?.length) return null
 
   return {
@@ -32,20 +34,19 @@ async function fromSupabase(): Promise<AppData | null> {
     crisis: (crisis.data ?? []).map((c: Record<string, string>) => ({
       name: c.name, desc: c.description, action: c.action_label, tel: c.telephone,
     })),
-    countyImages: await countyImages(counties.data ?? []),
+    countyImages: imageMap(counties.data ?? []),
+    communityImages: imageMap(communities.data ?? []),
+    categoryImages: imageMap(categories.data ?? []),
   } as AppData
 }
 
-// County artwork is editable through the inline image editor, so it lives in
-// the database. The bundled copy is the fallback for the first paint.
-async function countyImages(dbRows: Array<{ id: string; image_url: string }>): Promise<Record<string, string>> {
-  if (dbRows.length) {
-    const map: Record<string, string> = {}
-    for (const row of dbRows) map[row.id] = row.image_url
-    return map
-  }
-  const seed = await fromBundle()
-  return seed.countyImages
+// Builds a name→url map from a table of { id, image_url } rows. Rows with
+// empty URLs are included so the editor can patch them; the UI falls back
+// to a color swatch when the URL is falsy.
+function imageMap(rows: Array<{ id: string; image_url: string }>): Record<string, string> {
+  const map: Record<string, string> = {}
+  for (const row of rows) map[row.id] = row.image_url
+  return map
 }
 
 let bundle: Promise<AppData> | null = null
@@ -102,9 +103,17 @@ const TABLE_KEY: Record<string, keyof AppData> = {
 export function patchItemField(table: string, id: string, column: string, value: string) {
   if (!current) return
 
-  // county_images is a map keyed by county name, not an array — patch it directly.
+  // county/community/category images are maps keyed by name, not arrays — patch directly.
   if (table === 'county_images') {
     publish({ ...current, countyImages: { ...current.countyImages, [id]: value } } as AppData, true)
+    return
+  }
+  if (table === 'community_images') {
+    publish({ ...current, communityImages: { ...current.communityImages, [id]: value } } as AppData, true)
+    return
+  }
+  if (table === 'category_images') {
+    publish({ ...current, categoryImages: { ...current.categoryImages, [id]: value } } as AppData, true)
     return
   }
 

@@ -131,9 +131,15 @@ export default function ResourceList() {
       {onChooser ? (
         <div style={{ padding: '14px 16px 24px', display: 'flex', flexDirection: 'column', gap: 14 }}>
           {shownBuckets.map((b, i) => {
-            // Only the six counties carry photography; everything else rotates
-            // through the fallback swatches.
-            const img = mode === 'county' ? data.countyImages[b.name] : undefined
+            const imgMap = mode === 'county' ? data.countyImages
+              : mode === 'community' ? data.communityImages
+              : mode === 'category' ? data.categoryImages
+              : undefined
+            const img = imgMap?.[b.name] || undefined
+            const editTable = mode === 'county' ? 'county_images'
+              : mode === 'community' ? 'community_images'
+              : mode === 'category' ? 'category_images'
+              : null
             return (
               <RouterCard
                 key={b.name}
@@ -142,7 +148,7 @@ export default function ResourceList() {
                 title={b.name}
                 count={`${b.count} ${b.count === 1 ? 'resource' : 'resources'}`}
                 onClick={() => nav(`/list/${mode}/${encodeURIComponent(b.name)}`)}
-                editImage={mode === 'county' ? { table: 'county_images', id: b.name, column: 'image_url' } : undefined}
+                editImage={editTable ? { table: editTable, id: b.name, column: 'image_url' } : undefined}
               />
             )
           })}

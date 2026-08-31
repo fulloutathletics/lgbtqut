@@ -116,6 +116,8 @@ export interface AppData {
   events: AppEvent[]
   crisis: CrisisLine[]
   countyImages: Record<string, string>
+  communityImages: Record<string, string>
+  categoryImages: Record<string, string>
 }
 
 export type EntityKind = 'resource' | 'business' | 'host'
