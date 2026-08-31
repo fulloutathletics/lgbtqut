@@ -5,6 +5,7 @@ import { useStore } from '../lib/store'
 import { useData } from '../lib/useData'
 import type { AppEvent } from '../lib/types'
 import { AgeGate } from '../components/AgeGate'
+import { EditImageButton } from '../components/EditImageButton'
 import { Chevron, Heart, Star, Verified } from '../components/icons'
 import { AgePill, Empty, Img, StickyBar, font } from '../components/ui'
 
@@ -288,8 +289,9 @@ function EventDetail() {
 
       {/* hero */}
       <div style={{ height: 246, background: '#F4F2EE', display: 'flex', alignItems: 'center',
-                    justifyContent: 'center', overflow: 'hidden' }}>
+                    justifyContent: 'center', overflow: 'hidden', position: 'relative' }}>
         <Img src={event.image_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        <EditImageButton table="events" id={event.id} column="image_url" />
       </div>
 
       <div style={{ padding: '16px 18px 18px' }}>

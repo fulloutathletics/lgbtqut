@@ -4,6 +4,8 @@ import { C, FONT } from '../lib/theme'
 import { useStore } from '../lib/store'
 import { imgSrc } from '../lib/data'
 import { Back, Chevron, Search, Verified } from './icons'
+import { EditImageButton } from './EditImageButton'
+import type { ImageTable } from '../lib/imageEdit'
 
 export const font = (weight: number, size: number | string, leading: number | string = 1.3) =>
   `${weight} ${typeof size === 'number' ? `${size}px` : size}/${leading} ${FONT}`
@@ -97,13 +99,18 @@ export function SearchField({ value, onChange, placeholder }: {
 }
 
 /** Full-width 240px image card with scrim, title, subtitle and count pill. */
-export function RouterCard({ img, bg, title, sub, count, onClick }: {
+export function RouterCard({ img, bg, title, sub, count, onClick, editImage }: {
   img?: string; bg?: string; title: string; sub?: string; count?: string; onClick?: () => void
+  editImage?: { table: ImageTable; id: string; column: string }
 }) {
   return (
     <Tap onClick={onClick} style={{ position: 'relative', borderRadius: 14, overflow: 'hidden', height: 240,
                                     background: bg || '#D6D2CC', boxShadow: '0 3px 12px rgba(0,0,0,.09)' }}>
       {img && <Img src={img} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />}
+      {editImage && (
+        <EditImageButton table={editImage.table} id={editImage.id} column={editImage.column}
+                         style={{ top: 14, bottom: 'auto', right: 14 }} />
+      )}
       <div style={{ position: 'absolute', inset: 0,
                     background: 'linear-gradient(160deg,rgba(0,0,0,.62) 0%,rgba(0,0,0,.22) 55%,rgba(0,0,0,.05) 100%)' }} />
       <div style={{ position: 'absolute', top: 14, left: 16, right: 16 }}>
