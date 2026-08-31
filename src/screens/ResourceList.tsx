@@ -102,7 +102,12 @@ export default function ResourceList() {
     : results
 
   const title = selection ?? meta.title
-  const tagline = data.tabs.find((t) => t.name === meta.title)?.subtitle || meta.tagline
+  // The banner borrows the splash card's own artwork and tagline, so the page
+  // you land on is visibly the page you tapped — and so replacing the splash
+  // image updates both places at once.
+  const tab = data.tabs.find((t) => t.name === meta.title)
+  const tagline = tab?.subtitle || meta.tagline
+  const banner = tab?.image_url || BANNER
   const hint = selection ? `Search in ${selection}` : meta.searchHint
 
   return (
@@ -114,7 +119,7 @@ export default function ResourceList() {
 
       {onChooser && (
         <div style={{ position: 'relative', height: 104, overflow: 'hidden', background: '#2A2438' }}>
-          <Img src={BANNER} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+          <Img src={banner} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
           <div style={{ position: 'absolute', inset: 0,
                         background: 'linear-gradient(180deg,rgba(0,0,0,.52),rgba(0,0,0,.62))' }} />
           <div style={{ position: 'absolute', left: 18, right: 18, top: '50%', transform: 'translateY(-50%)' }}>
