@@ -142,6 +142,7 @@ export default function ResourceList() {
                 title={b.name}
                 count={`${b.count} ${b.count === 1 ? 'resource' : 'resources'}`}
                 onClick={() => nav(`/list/${mode}/${encodeURIComponent(b.name)}`)}
+                editImage={mode === 'county' ? { table: 'county_images', id: b.name, column: 'image_url' } : undefined}
               />
             )
           })}

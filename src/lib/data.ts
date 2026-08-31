@@ -10,16 +10,17 @@ import type { AppData } from './types'
 let cache: Promise<AppData> | null = null
 
 async function fromSupabase(): Promise<AppData | null> {
-  const [tabs, resources, businesses, hosts, events, crisis] = await Promise.all([
+  const [tabs, resources, businesses, hosts, events, crisis, counties] = await Promise.all([
     supabase.from('splash_tabs').select('*').order('position'),
     supabase.from('resources').select('*'),
     supabase.from('businesses').select('*'),
     supabase.from('hosts').select('*'),
     supabase.from('events').select('*').order('starts_on'),
     supabase.from('crisis_lines').select('*').order('position'),
+    supabase.from('county_images').select('*').order('position'),
   ])
 
-  const failed = [tabs, resources, businesses, hosts, events, crisis].some((r) => r.error)
+  const failed = [tabs, resources, businesses, hosts, events, crisis, counties].some((r) => r.error)
   if (failed || !resources.data?.length) return null
 
   return {
@@ -31,13 +32,18 @@ async function fromSupabase(): Promise<AppData | null> {
     crisis: (crisis.data ?? []).map((c: Record<string, string>) => ({
       name: c.name, desc: c.description, action: c.action_label, tel: c.telephone,
     })),
-    countyImages: await countyImages(),
+    countyImages: await countyImages(counties.data ?? []),
   } as AppData
 }
 
-// County artwork lives with the seed rather than the DB — it is presentation,
-// not content, and the six images are client-supplied fixtures.
-async function countyImages(): Promise<Record<string, string>> {
+// County artwork is editable through the inline image editor, so it lives in
+// the database. The bundled copy is the fallback for the first paint.
+async function countyImages(dbRows: Array<{ id: string; image_url: string }>): Promise<Record<string, string>> {
+  if (dbRows.length) {
+    const map: Record<string, string> = {}
+    for (const row of dbRows) map[row.id] = row.image_url
+    return map
+  }
   const seed = await fromBundle()
   return seed.countyImages
 }
@@ -95,6 +101,13 @@ const TABLE_KEY: Record<string, keyof AppData> = {
  */
 export function patchItemField(table: string, id: string, column: string, value: string) {
   if (!current) return
+
+  // county_images is a map keyed by county name, not an array — patch it directly.
+  if (table === 'county_images') {
+    publish({ ...current, countyImages: { ...current.countyImages, [id]: value } } as AppData, true)
+    return
+  }
+
   const key = TABLE_KEY[table]
   if (!key) return
   const list = current[key] as unknown as Array<Record<string, unknown>>
