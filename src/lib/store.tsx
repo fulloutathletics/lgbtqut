@@ -9,6 +9,25 @@ import type { AccountTier, Channels, EntityKind, SavedEntry } from './types'
 // stays authoritative for the session and writes are pushed through.
 
 const KEY = 'lgbtqut.state'
+const SEEN_KEY = 'lgbtqut.lastSeen'
+
+// An anonymous reader's follows and saves are the only copy that exists — there
+// is no account to sync them to. They are kept so the feed has something to
+// read, but they lapse after this long without opening the app, so a shared or
+// borrowed device does not carry someone's interests forever.
+const ANON_TTL_DAYS = 14
+
+/** ms since the app was last opened, or null when there is no record. */
+function idleFor(): number | null {
+  const raw = localStorage.getItem(SEEN_KEY)
+  if (!raw) return null
+  const seen = Number(raw)
+  return Number.isFinite(seen) ? Date.now() - seen : null
+}
+
+function markSeen() {
+  try { localStorage.setItem(SEEN_KEY, String(Date.now())) } catch { /* private mode */ }
+}
 
 interface Persisted {
   theme: string
@@ -94,9 +113,17 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     tier: 'anonymous', dob: null, username: null, displayName: null, profileId: null,
   })
 
+  // Read during the first render, before the effect below overwrites the
+  // stamp — otherwise the gap always measures as zero and never lapses.
+  const [idleAtLoad] = useState(idleFor)
+
   useEffect(() => {
     localStorage.setItem(KEY, JSON.stringify(state))
   }, [state])
+
+  // Stamped once per app open, so the TTL measures time away from the app
+  // rather than time since the last tap.
+  useEffect(() => { markSeen() }, [])
 
   // Auth uses Supabase's built-in email/password. The profile row holds DOB
   // for age gates and login_username for display. The social_profiles row
@@ -106,7 +133,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     const sync = async (userId: string | undefined) => {
       if (!userId) {
         if (alive) setAccount({ tier: 'anonymous', dob: null, username: null, displayName: null, profileId: null })
-        patch((s) => ({ ...s, follows: [] }))
+        // An anonymous reader keeps their follows and saves — they are what
+        // fills the read-only feed, and there is no account to hold them.
+        // They lapse only after ANON_TTL_DAYS of not opening the app.
+        if (idleAtLoad !== null && idleAtLoad > ANON_TTL_DAYS * 86400000) {
+          patch((s) => ({ ...s, follows: [], saved: {} }))
+        }
         return
       }
       const { data: profile } = await supabase
@@ -133,7 +165,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       void sync(session?.user.id)
     })
     return () => { alive = false; sub.subscription.unsubscribe() }
-  }, [])
+    // idleAtLoad is set once from useState and never changes.
+  }, [idleAtLoad])
 
   const patch = useCallback((fn: (s: Persisted) => Persisted) => setState(fn), [])
 

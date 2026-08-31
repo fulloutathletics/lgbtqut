@@ -5,6 +5,8 @@ import { useStore } from '../lib/store'
 import { supabase } from '../lib/supabase'
 import { font } from '../components/ui'
 import { Back } from '../components/icons'
+import { useData } from '../lib/useData'
+import type { AppData } from '../lib/types'
 
 // Feed — route `/feed`.
 //
@@ -12,15 +14,28 @@ import { Back } from '../components/icons'
 // follow other users to fill their feed. No photo uploads in posts —
 // images are limited to profile avatars/headers.
 
-interface Post {
+/** A post row as stored: authored either by a user or by a directory entity. */
+interface RawPost {
   id: number
-  author_id: string
+  author_id: string | null
+  author_kind: 'resource' | 'business' | 'host' | null
+  author_entity_id: string | null
   body: string
   created_at: string
+}
+
+interface Post extends RawPost {
   author_name: string | null
   author_handle: string | null
   author_avatar: string | null
   comment_count: number
+}
+
+/** Entity authors resolve against the already-loaded directory, not a query. */
+function entityById(data: AppData | null, kind: RawPost['author_kind'], id: string) {
+  if (!data || !kind) return null
+  const list = kind === 'resource' ? data.resources : kind === 'business' ? data.businesses : data.hosts
+  return list.find((e) => e.id === id) ?? null
 }
 
 interface Comment {
@@ -428,7 +443,8 @@ function EmptyFeed() {
 // ----------------------------------------------------------- Feed screen
 
 export default function Feed() {
-  const { accent, account, signedIn, follows } = useStore()
+  const { accent, account, signedIn, follows, saved } = useStore()
+  const data = useData()
   const nav = useNavigate()
   const [posts, setPosts] = useState<Post[]>([])
   const [loading, setLoading] = useState(true)
@@ -436,34 +452,55 @@ export default function Feed() {
   const [reloadKey, setReloadKey] = useState(0)
 
   const loadPosts = useCallback(async () => {
-    if (!account.profileId) {
-      setLoading(false)
-      return
-    }
-
-    // Fetch posts by the user and people they follow
+    // Anonymous readers get the same feed, built from the follows and saves
+    // held on this device. Reading is all they can do — the composer, likes
+    // and replies stay behind sign-in — so no profileId is required here.
     const authorIds = [...follows]
-    if (!authorIds.includes(account.profileId)) authorIds.push(account.profileId)
+    if (account.profileId && !authorIds.includes(account.profileId)) authorIds.push(account.profileId)
 
-    const { data: rawPosts } = await supabase
-      .from('posts')
-      .select('id, author_id, body, created_at')
-      .in('author_id', authorIds)
-      .order('created_at', { ascending: false })
-      .limit(50)
+    // Saved resources/businesses/hosts publish as entities, not as users.
+    const entityIds = Object.values(saved).map((s) => s.id)
 
-    if (!rawPosts || rawPosts.length === 0) {
+    if (authorIds.length === 0 && entityIds.length === 0) {
       setPosts([])
       setLoading(false)
       return
     }
 
-    // Fetch author profiles
-    const ids = [...new Set(rawPosts.map((p) => p.author_id))]
-    const { data: profiles } = await supabase
-      .from('social_profiles')
-      .select('id, display_name, public_handle, avatar_url')
-      .in('id', ids)
+    const [byUser, byEntity] = await Promise.all([
+      authorIds.length
+        ? supabase.from('posts')
+            .select('id, author_id, author_kind, author_entity_id, body, created_at')
+            .in('author_id', authorIds)
+            .order('created_at', { ascending: false }).limit(50)
+        : Promise.resolve({ data: [] as RawPost[] }),
+      entityIds.length
+        ? supabase.from('posts')
+            .select('id, author_id, author_kind, author_entity_id, body, created_at')
+            .in('author_entity_id', entityIds)
+            .order('created_at', { ascending: false }).limit(50)
+        : Promise.resolve({ data: [] as RawPost[] }),
+    ])
+
+    const rawPosts = [...(byUser.data ?? []), ...(byEntity.data ?? [])]
+      .sort((a, b) => b.created_at.localeCompare(a.created_at))
+      .slice(0, 50)
+
+    if (rawPosts.length === 0) {
+      setPosts([])
+      setLoading(false)
+      return
+    }
+
+    // Fetch author profiles (user-authored posts only — entity posts resolve
+    // against the already-cached directory below).
+    const ids = [...new Set(rawPosts.map((p) => p.author_id).filter((id): id is string => !!id))]
+    const { data: profiles } = ids.length
+      ? await supabase
+          .from('social_profiles')
+          .select('id, display_name, public_handle, avatar_url')
+          .in('id', ids)
+      : { data: [] }
     const map = new Map((profiles ?? []).map((p) => [p.id, p]))
 
     // Fetch comment counts
@@ -479,17 +516,18 @@ export default function Feed() {
     }
 
     setPosts(rawPosts.map((p) => {
-      const prof = map.get(p.author_id)
+      const entity = p.author_entity_id ? entityById(data, p.author_kind, p.author_entity_id) : null
+      const prof = p.author_id ? map.get(p.author_id) : undefined
       return {
         ...p,
-        author_name: prof?.display_name ?? null,
+        author_name: prof?.display_name ?? entity?.name ?? null,
         author_handle: prof?.public_handle ?? null,
-        author_avatar: prof?.avatar_url ?? null,
+        author_avatar: prof?.avatar_url ?? entity?.image_url ?? null,
         comment_count: countMap.get(p.id) ?? 0,
       }
     }))
     setLoading(false)
-  }, [account.profileId, follows])
+  }, [account.profileId, follows, saved, data])
 
   useEffect(() => { void loadPosts() }, [loadPosts, reloadKey])
 
@@ -518,24 +556,39 @@ export default function Feed() {
 
       {signedIn && <Composer onPosted={reload} />}
 
+      {/* Reading is the whole of the anonymous experience, so say plainly what
+          is being kept and for how long rather than letting follows vanish. */}
+      {!signedIn && posts.length > 0 && (
+        <div style={{ margin: '12px 16px 0', background: C.fill, borderRadius: 12, padding: '10px 13px',
+                      font: font(400, 12, 1.45), color: '#6E6A64', textWrap: 'pretty' }}>
+          You are reading as a guest. Your follows are stored on this device, lapse after two weeks
+          away, and posting or replying needs an account.
+        </div>
+      )}
+
       {/* Feed */}
       {loading ? (
         <div style={{ padding: 30, textAlign: 'center', font: font(400, 14, 1.4), color: C.muted }}>
           Loading…
         </div>
-      ) : !signedIn ? (
+      ) : !signedIn && posts.length === 0 ? (
         <div style={{ padding: '36px 24px', textAlign: 'center' }}>
           <div style={{ font: font(700, 18, 1.25), color: C.ink, letterSpacing: '-.01em' }}>
-            Sign in to see your feed
+            Follow something to fill your feed
           </div>
           <div style={{ font: font(400, 13.5, 1.55), color: C.muted, marginTop: 7, textWrap: 'pretty',
-                        maxWidth: 280, marginLeft: 'auto', marginRight: 'auto' }}>
-            Create an account or sign in to follow people and post updates.
+                        maxWidth: 300, marginLeft: 'auto', marginRight: 'auto' }}>
+            Follow resources, businesses and hosts and their updates land here — no account needed.
+            Your follows stay on this device, and lapse if you are away for a couple of weeks.
           </div>
-          <div className="tap" role="button" onClick={() => nav('/signin')}
+          <div className="tap" role="button" onClick={() => nav('/list/all')}
                style={{ display: 'inline-block', marginTop: 18, borderRadius: 999, padding: '10px 24px',
                         background: accent, font: font(700, 14, 1.2), color: '#fff' }}>
-            Get started
+            Browse resources
+          </div>
+          <div className="tap" role="button" onClick={() => nav('/signin')}
+               style={{ display: 'inline-block', marginTop: 10, font: font(600, 13, 1.2), color: C.muted }}>
+            Or sign in to post and keep them
           </div>
         </div>
       ) : posts.length === 0 ? (
