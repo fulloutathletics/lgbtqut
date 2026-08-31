@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { C, THEMES } from '../lib/theme'
 import { useStore } from '../lib/store'
 import { useData } from '../lib/useData'
@@ -412,6 +412,73 @@ const TIERS = {
   },
 }
 
+/** What each visibility state means, said plainly rather than as a keyword. */
+const VISIBILITY_NOTE: Record<string, string> = {
+  private: 'Only you can see it. Nobody can find or follow you.',
+  visible: 'People you interact with can see it. You stay out of search.',
+  discoverable: 'You can appear in search, communities and recommendations.',
+}
+
+/**
+ * Public presence, kept apart from the Sign-in card — a social profile is not
+ * a login setting, and filing it there is why it read as missing. When there
+ * is no profile yet the absence is stated rather than left blank, since
+ * nothing else in the app hints that a public page is even possible.
+ */
+function PublicProfileSection() {
+  const nav = useNavigate()
+  const { account, accent, tint } = useStore()
+  const has = account.visibility !== null
+
+  return (
+    <div style={{ marginTop: 22 }}>
+      <Eyebrow>Your public profile</Eyebrow>
+      {has ? (
+        <Card>
+          <div style={{ padding: '14px 14px 12px', borderBottom: `1px solid ${C.hairline}` }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <div style={{ font: font(600, 14, 1.25), color: '#1A1A18' }}>
+                {account.displayName || 'Unnamed profile'}
+              </div>
+              <span style={{ borderRadius: 999, padding: '3px 9px', background: tint, color: accent,
+                             font: font(700, 10, 1.3), letterSpacing: '.04em', textTransform: 'uppercase' }}>
+                {account.visibility}
+              </span>
+            </div>
+            <div style={{ font: font(400, 11.5, 1.4), color: C.muted, marginTop: 5, textWrap: 'pretty' }}>
+              {VISIBILITY_NOTE[account.visibility ?? 'private']}
+            </div>
+          </div>
+          <LinkRow title="Edit profile"
+                   sub="Name, pronouns, area, bio and links. Change who can see it."
+                   onClick={() => nav('/profile/edit')} />
+          {account.displayName && (
+            <LinkRow title="View as others see it"
+                     sub="Open your public page."
+                     onClick={() => nav(`/u/${encodeURIComponent(account.displayName ?? '')}`)} last />
+          )}
+        </Card>
+      ) : (
+        <div style={{ border: `1px solid ${C.border}`, borderRadius: 14, padding: 16 }}>
+          <div style={{ font: font(700, 15, 1.25), color: C.ink, textWrap: 'pretty' }}>
+            You do not have a public profile
+          </div>
+          <div style={{ font: font(400, 12.5, 1.5), color: '#7C7871', marginTop: 7, textWrap: 'pretty' }}>
+            You can browse, follow and read without one. Make one when you want people to
+            recognise you in discussions, or to be findable by others in the community.
+            You choose who can see it, and you can delete it at any time.
+          </div>
+          <div className="tap" role="button" onClick={() => nav('/profile/edit')}
+               style={{ display: 'inline-block', marginTop: 13, borderRadius: 999, padding: '9px 20px',
+                        background: accent, font: font(700, 13, 1.2), color: '#fff' }}>
+            Create a public profile
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function AccountPane() {
   const nav = useNavigate()
   const {
@@ -451,6 +518,8 @@ function AccountPane() {
         )}
       </div>
 
+      {signedIn && <PublicProfileSection />}
+
       <div style={{ marginTop: 22 }}>
         <Eyebrow>Sign-in</Eyebrow>
         <Card>
@@ -464,19 +533,9 @@ function AccountPane() {
                        onClick={() => nav('/signin')} last />
             </>
           ) : (
-            <>
-              <LinkRow title="Edit your social profile"
-                       sub="Name, pronouns, area, bio and links. Control who can see it."
-                       onClick={() => nav('/profile/edit')} />
-              {account.displayName && (
-                <LinkRow title="View my profile"
-                         sub="See what other people see."
-                         onClick={() => nav(`/u/${encodeURIComponent(account.displayName ?? '')}`)} />
-              )}
-              <LinkRow title="Sign out"
-                       sub="Saved listings stay on this device."
-                       onClick={signOut} last />
-            </>
+            <LinkRow title="Sign out"
+                     sub="Saved listings stay on this device."
+                     onClick={signOut} last />
           )}
         </Card>
       </div>
@@ -573,7 +632,13 @@ function AccountPane() {
 // -------------------------------------------------------------------- shell
 
 export default function Profile() {
-  const [pane, setPane] = useState<Pane>('saved')
+  // ?pane= lets another screen open a specific tab — sign-up sends people to
+  // the account pane so the public-profile prompt is the first thing they
+  // meet, rather than hiding behind the default Saved tab.
+  const [params] = useSearchParams()
+  const requested = params.get('pane')
+  const initial = PANES.some((p) => p.key === requested) ? (requested as Pane) : 'saved'
+  const [pane, setPane] = useState<Pane>(initial)
   const { saved, accent } = useStore()
   const data = useData()
 
