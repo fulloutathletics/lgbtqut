@@ -72,6 +72,13 @@ function start() {
   void fromSupabase().then((d) => { if (d) publish(d, true) }).catch(() => {})
 }
 
+/** Re-pull the directory from Supabase — called after admin edits so the
+ *  aggressively-cached copy doesn't serve stale content. */
+export async function refreshData(): Promise<void> {
+  const d = await fromSupabase().catch(() => null)
+  if (d) publish(d, true)
+}
+
 /** Current directory, or null until the first copy lands (a tick or two). */
 export function getData(): AppData | null {
   start()

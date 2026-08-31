@@ -33,7 +33,7 @@ function fmtDate(iso: string): string {
 
 export default function Upload() {
   const nav = useNavigate()
-  const { signedIn, accent } = useStore()
+  const { signedIn, isAdmin, accent } = useStore()
   const [folder, setFolder] = useState('splash')
   const [items, setItems] = useState<StorageItem[]>([])
   const [loading, setLoading] = useState(true)
@@ -126,7 +126,7 @@ export default function Upload() {
     })
   }
 
-  if (!signedIn) {
+  if (!isAdmin) {
     return (
       <>
         <div style={stickyBarStyle}>
@@ -134,7 +134,9 @@ export default function Upload() {
           <span style={{ font: font(700, 16, 1.2), color: C.ink, flex: 1 }}>Image Manager</span>
         </div>
         <div style={{ padding: 40, textAlign: 'center', font: font(400, 15, 1.5), color: C.muted }}>
-          You must be signed in to manage images.
+          {signedIn
+            ? 'This account does not have admin access.'
+            : 'You must be signed in as an admin to manage images.'}
         </div>
       </>
     )
