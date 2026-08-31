@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useStore } from '../lib/store'
+import { compressImage } from '../lib/imageCompress'
 import { C } from '../lib/theme'
 import { font } from '../components/ui'
 import { Back } from '../components/icons'
@@ -33,12 +34,13 @@ function fmtDate(iso: string): string {
 
 export default function Upload() {
   const nav = useNavigate()
-  const { signedIn, isAdmin, accent } = useStore()
+  const { signedIn, isAdmin, accent, editMode, setEditMode } = useStore()
   const [folder, setFolder] = useState('splash')
   const [items, setItems] = useState<StorageItem[]>([])
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [notice, setNotice] = useState<string | null>(null)
   const [dragOver, setDragOver] = useState(false)
   const [replaceTarget, setReplaceTarget] = useState<StorageItem | null>(null)
   const [copied, setCopied] = useState<string | null>(null)
@@ -71,17 +73,29 @@ export default function Upload() {
   const doUpload = useCallback(async (files: FileList | File[], path?: string) => {
     setUploading(true)
     setError(null)
+    setNotice(null)
     const arr = Array.from(files)
+    let beforeBytes = 0
+    let afterBytes = 0
+    let failed = false
     for (const file of arr) {
-      const filePath = path ?? `${folder}/${file.name}`
-      const { error: upErr } = await supabase.storage.from(BUCKET).upload(filePath, file, {
+      const compressed = await compressImage(file)
+      beforeBytes += file.size
+      afterBytes += compressed.size
+      const filePath = path ?? `${folder}/${compressed.name}`
+      const { error: upErr } = await supabase.storage.from(BUCKET).upload(filePath, compressed, {
         upsert: true,
-        contentType: file.type,
+        contentType: compressed.type,
       })
       if (upErr) {
         setError(upErr.message)
+        failed = true
         break
       }
+    }
+    if (!failed) {
+      const saved = Math.round((1 - afterBytes / beforeBytes) * 100)
+      if (saved > 0) setNotice(`Compressed ${arr.length === 1 ? 'image' : 'images'} by ${saved}% (${fmtSize(beforeBytes)} → ${fmtSize(afterBytes)}).`)
     }
     setUploading(false)
     setReplaceTarget(null)
@@ -142,11 +156,36 @@ export default function Upload() {
     )
   }
 
+
   return (
     <>
       <div style={stickyBarStyle}>
         <button onClick={() => nav(-1)} style={backBtnStyle}><Back /></button>
         <span style={{ font: font(700, 16, 1.2), color: C.ink, flex: 1 }}>Image Manager</span>
+      </div>
+
+      <div style={{ margin: '12px 16px 0', padding: '12px 14px', borderRadius: 12, background: C.fill,
+                    display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ font: font(600, 13.5, 1.3), color: C.ink }}>Edit images on pages</div>
+          <div style={{ font: font(400, 11.5, 1.4), color: C.muted, marginTop: 2 }}>
+            Shows a camera button on every resource, business, host, event, and splash image so you can
+            replace it right where it appears — no need to come back here.
+          </div>
+        </div>
+        <button
+          onClick={() => setEditMode(!editMode)}
+          aria-pressed={editMode}
+          style={{
+            border: 0, borderRadius: 999, width: 46, height: 27, padding: 3, flex: 'none', cursor: 'pointer',
+            background: editMode ? accent : C.border, transition: 'background .15s',
+          }}
+        >
+          <div style={{
+            width: 21, height: 21, borderRadius: 999, background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,.25)',
+            transform: editMode ? 'translateX(19px)' : 'translateX(0)', transition: 'transform .15s',
+          }} />
+        </button>
       </div>
 
       <div style={{ padding: '12px 16px 0' }}>
@@ -203,6 +242,13 @@ export default function Upload() {
         <div style={{ margin: '0 16px 12px', padding: '10px 14px', borderRadius: 10,
                       background: C.dangerBg, color: C.danger, font: font(500, 13, 1.4) }}>
           {error}
+        </div>
+      )}
+
+      {notice && (
+        <div style={{ margin: '0 16px 12px', padding: '10px 14px', borderRadius: 10,
+                      background: C.fill, color: C.body, font: font(500, 13, 1.4) }}>
+          {notice}
         </div>
       )}
 

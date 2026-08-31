@@ -20,6 +20,7 @@ type FieldType =
   | 'json'   // jsonb  ↔ pretty-printed textarea
   | 'image'  // URL input + upload into the app-images bucket
   | 'select'
+  | 'entity' // "kind:id" in the form ↔ entity_kind + entity_id (+ legacy host_id) columns
 
 interface FieldDef {
   key: string
@@ -58,8 +59,8 @@ const ENTITIES: Record<string, EntityDef> = {
     table: 'events', title: 'Events', singular: 'event', imageFolder: 'events', orderBy: 'starts_on',
     listTitle: (r) => str(r.name), listSub: (r) => str(r.date_label), listImg: (r) => str(r.image_url),
     fields: [
+      { key: 'organiser', label: 'Organiser', type: 'entity' },
       { key: 'name', label: 'Name', type: 'text' },
-      { key: 'host_id', label: 'Host', type: 'select', options: 'hosts' },
       { key: 'starts_on', label: 'Date', type: 'date' },
       { key: 'date_label', label: 'Date label', type: 'text', hint: 'Shown on cards, e.g. "Fri Sep 12 · 7pm"' },
       { key: 'description', label: 'Description', type: 'textarea' },
@@ -155,7 +156,7 @@ const ENTITIES: Record<string, EntityDef> = {
   },
   'county-images': {
     table: 'county_images', title: 'County images', singular: 'county image',
-    imageFolder: 'menu-cards', orderBy: 'position',
+    imageFolder: 'counties', orderBy: 'position',
     listTitle: (r) => str(r.id), listImg: (r) => str(r.image_url),
     fields: [
       { key: 'image_url', label: 'Image', type: 'image' },
@@ -164,7 +165,7 @@ const ENTITIES: Record<string, EntityDef> = {
   },
   'community-images': {
     table: 'community_images', title: 'Community images', singular: 'community image',
-    imageFolder: 'menu-cards', orderBy: 'position',
+    imageFolder: 'communities', orderBy: 'position',
     listTitle: (r) => str(r.id), listImg: (r) => str(r.image_url),
     fields: [
       { key: 'image_url', label: 'Image', type: 'image' },
@@ -173,7 +174,7 @@ const ENTITIES: Record<string, EntityDef> = {
   },
   'category-images': {
     table: 'category_images', title: 'Category images', singular: 'category image',
-    imageFolder: 'menu-cards', orderBy: 'position',
+    imageFolder: 'categories', orderBy: 'position',
     listTitle: (r) => str(r.id), listImg: (r) => str(r.image_url),
     fields: [
       { key: 'image_url', label: 'Image', type: 'image' },
@@ -342,6 +343,9 @@ function toForm(def: EntityDef, row: Record<string, unknown>): FormState {
   for (const field of def.fields) {
     const v = row[field.key]
     if (field.type === 'bool') f[field.key] = v === true
+    else if (field.type === 'entity') {
+      f[field.key] = row.entity_kind && row.entity_id ? `${row.entity_kind}:${row.entity_id}` : ''
+    }
     else if (field.type === 'list') f[field.key] = Array.isArray(v) ? v.join(', ') : ''
     else if (field.type === 'json') f[field.key] = v == null ? '' : JSON.stringify(v, null, 2)
     else f[field.key] = str(v)
@@ -355,6 +359,15 @@ function fromForm(def: EntityDef, f: FormState): Record<string, unknown> {
   for (const field of def.fields) {
     const v = f[field.key]
     if (field.type === 'bool') out[field.key] = v === true
+    else if (field.type === 'entity') {
+      const [entityKind, ...rest] = String(v).split(':')
+      const entityId = rest.join(':')
+      if (!entityKind || !entityId) throw new Error(`Choose an ${field.label.toLowerCase()}.`)
+      out.entity_kind = entityKind
+      out.entity_id = entityId
+      // Legacy readers still join on host_id.
+      out.host_id = entityKind === 'host' ? entityId : null
+    }
     else if (field.type === 'number') {
       const s = String(v).trim()
       out[field.key] = s === '' ? null : Number(s)
@@ -561,6 +574,22 @@ function FieldInput({ field, value, onChange, folder, options }: {
         </select>
       )
     }
+
+    case 'entity':
+      return (
+        <select value={String(value)} onChange={(e) => onChange(e.target.value)} style={inputStyle}>
+          <option value="">— choose —</option>
+          <optgroup label="Hosts">
+            {options.hosts.map((o) => <option key={o.value} value={`host:${o.value}`}>{o.label}</option>)}
+          </optgroup>
+          <optgroup label="Businesses">
+            {options.businesses.map((o) => <option key={o.value} value={`business:${o.value}`}>{o.label}</option>)}
+          </optgroup>
+          <optgroup label="Resources">
+            {options.resources.map((o) => <option key={o.value} value={`resource:${o.value}`}>{o.label}</option>)}
+          </optgroup>
+        </select>
+      )
 
     case 'image': {
       const upload = async (file: File) => {

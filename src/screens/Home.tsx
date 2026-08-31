@@ -73,6 +73,7 @@ export default function Home() {
             sub={tab.subtitle}
             count={plural(countFor(tab))}
             onClick={() => nav(ROUTES[tab.name] ?? '/list/all')}
+            editImage={{ table: 'splash_tabs', id: tab.id, column: 'image_url' }}
           />
         ))}
       </div>

@@ -1,5 +1,7 @@
 import { useParams } from 'react-router-dom'
 import { AgeGate } from '../components/AgeGate'
+import { EditImageButton } from '../components/EditImageButton'
+import { EntityEvents } from '../components/EntityEvents'
 import { SubscriptionPanel } from '../components/SubscriptionPanel'
 import { Verified } from '../components/icons'
 import { ActionRow, Empty, Img, StickyBar, Tap, font } from '../components/ui'
@@ -85,9 +87,10 @@ export default function ResourceDetail() {
         }
       />
 
-      <div style={{ width: '100%', aspectRatio: '4/3', background: tint, overflow: 'hidden' }}>
+      <div style={{ width: '100%', aspectRatio: '4/3', background: tint, overflow: 'hidden', position: 'relative' }}>
         <Img src={r.image_url} alt={r.name}
              style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        <EditImageButton table="resources" id={r.id} column="image_url" />
       </div>
 
       <div style={{ padding: '20px 18px 28px' }}>
@@ -117,6 +120,10 @@ export default function ResourceDetail() {
             ))}
           </div>
         )}
+      </div>
+
+      <div style={{ marginTop: -12, paddingBottom: 20 }}>
+        <EntityEvents kind="resource" id={r.id} />
       </div>
     </>
   )

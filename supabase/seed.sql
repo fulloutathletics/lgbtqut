@@ -6,7 +6,7 @@ begin;
 
 insert into public.splash_tabs (id, name, subtitle, image_url, position) values
   ('vK7l9.QkTZ6OVby84fGEsg', 'Crisis Resources', 'You are not alone. Help is available.', 'https://storage.googleapis.com/glide-prod.appspot.com/uploads-v2/NSfaaNV0fRhAK9yZqEUi/pub/62OOPJBZPpU7jd1RdHF9.png', 0),
-  ('vz5rAYPZT3O7W7OvMScleQ', 'Location Search', 'Find resources near you', '/images/location-splash-page-card.jpg', 1),
+  ('vz5rAYPZT3O7W7OvMScleQ', 'Location Search', 'Find resources near you', 'https://hczpjsblllaprflndifh.supabase.co/storage/v1/object/public/app-images/splash/location-search.jpg', 1),
   ('9BsLWxDfRRabo.EMQCjD0g', 'Community Search', 'Search resources by demographic', 'https://storage.googleapis.com/glide-prod.appspot.com/uploads-v2/NSfaaNV0fRhAK9yZqEUi/pub/uuLcUHt8u2To1OBUNOgt.png', 2),
   ('6t57Jr1cTciDwp146ZPoVA', 'Category Search', 'Search resources by type', 'https://storage.googleapis.com/glide-prod.appspot.com/uploads-v2/NSfaaNV0fRhAK9yZqEUi/pub/PlRYeqUmoff6LpoHstqC.png', 3),
   ('F5kVtq7KS6i1CuS.cWj3LQ', 'Books & Podcasts', 'Books and podcasts with a Utah LGBTQ+ focus', 'https://storage.googleapis.com/glide-prod.appspot.com/uploads-v2/NSfaaNV0fRhAK9yZqEUi/pub/r7xGczlmVnh2CdOlCqQV.png', 4),
@@ -14,6 +14,7 @@ insert into public.splash_tabs (id, name, subtitle, image_url, position) values
 on conflict (id) do update set name = excluded.name, subtitle = excluded.subtitle, image_url = excluded.image_url, position = excluded.position;
 
 insert into public.resources (id, name, category, county, counties, communities, image_url, description, website, telephone, email, address, facebook, instagram, verified, age_rating, age_reason) values
+  ('UGSPlusQ7TxKmWv2Ld8aRw', 'Utah Gay Social+ (UGS+)', 'Social Groups', 'Davis County', array['Davis County','Utah County','Salt Lake County']::text[], '{}'::text[], null, null, null, null, null, null, 'https://www.facebook.com/groups/1496147761820051', 'https://www.instagram.com/utahgaysocial/', false, null, null),
   ('wS3PQcWURi-vUKg9n7rSyg', 'Adult Gay Male 18+ Friendship Circle', 'Support Circles', 'Salt Lake County', array['Salt Lake County','Utah County','Washington County']::text[], array['Gay Men']::text[], 'https://hosting.photobucket.com/images/i/lgbtqut/Encircle_Logo.png', 'This friendship circle is for adults (18+) that identify as gay and male.
 
 Friendship Circles? 

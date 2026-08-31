@@ -130,7 +130,7 @@ export default function UserProfile({ style = 'social' }: { style?: ProfileStyle
   const nav = useNavigate()
   const params = useParams<{ name: string }>()
   const data = useData()
-  const { accent, tint, account, signedIn, isBlocked, isMuted, isFollowing, toggleFollow, block, unblock, mute, unmute } = useStore()
+  const { accent, tint, account, isBlocked, isMuted, isFollowing, toggleFollow, block, unblock, mute, unmute } = useStore()
   const [remote, setRemote] = useState<RemoteProfile | null>(null)
 
   const name = params.name ?? ''
@@ -341,8 +341,11 @@ export default function UserProfile({ style = 'social' }: { style?: ProfileStyle
               </div>
             ) : (
               <>
-                {/* Follow button — only when viewing a real social profile */}
-                {remoteId && signedIn && (
+                {/* Follow button — only when viewing a real social profile.
+                    Open to guests too: toggleFollow is device-local until
+                    there is an account to sync it to, and following is what
+                    fills an anonymous reader's feed. */}
+                {remoteId && (
                   <div className="tap" role="button"
                        onClick={() => toggleFollow(remoteId)}
                        style={{ marginTop: 18, borderRadius: 12, padding: 13, textAlign: 'center',

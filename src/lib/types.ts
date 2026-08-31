@@ -91,7 +91,11 @@ export interface Host {
 
 export interface AppEvent {
   id: string
-  host_id: string
+  /** Legacy organiser link, kept until every read moves to entity_kind/entity_id. */
+  host_id: string | null
+  /** The organiser, addressed the same way posts and saves address entities. */
+  entity_kind: EntityKind
+  entity_id: string
   name: string
   date_label: string
   starts_on: string
@@ -99,6 +103,15 @@ export interface AppEvent {
   image_url: string
   age_rating: AgeRating
   age_reason: string | null
+}
+
+/** Shared shape behind a resource, business or host — the parts every face has. */
+export interface EntityRef {
+  kind: EntityKind
+  id: string
+  name: string
+  image_url: string
+  verified: boolean
 }
 
 export interface CrisisLine {
@@ -116,6 +129,8 @@ export interface AppData {
   events: AppEvent[]
   crisis: CrisisLine[]
   countyImages: Record<string, string>
+  communityImages: Record<string, string>
+  categoryImages: Record<string, string>
 }
 
 export type EntityKind = 'resource' | 'business' | 'host'
