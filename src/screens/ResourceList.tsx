@@ -117,7 +117,10 @@ export default function ResourceList() {
         onBack={selection ? () => nav(`/list/${mode}`) : undefined}
       />
 
-      {onChooser && (
+      {/* Every splash tab keeps its banner at the top level, including Books
+          and All, which skip the chooser and go straight to results. Drilling
+          into a selection drops it — that page is titled by the selection. */}
+      {!selection && (
         <div style={{ position: 'relative', height: 104, overflow: 'hidden', background: '#2A2438' }}>
           <Img src={banner} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
           <div style={{ position: 'absolute', inset: 0,
