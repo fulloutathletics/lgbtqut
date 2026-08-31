@@ -161,11 +161,19 @@ const hosts = HOSTS.map((h) => ({
   verified: true, bio: '', linked_business_id: null, linked_resource_id: null,
 }))
 
+// Everything in the handoff bundle was collected by LGBTQ.UT from public
+// information — none of it was posted by the organisation it names. It is
+// therefore all `source: 'directory'`, and stays that way until an organiser
+// takes a listing over from their own account.
 const events = EVENTS.map((e) => ({
   id: e.id, host_id: e.hostId, name: e.name, date_label: e.date,
   starts_on: e.iso, description: e.desc || '', image_url: e.img || '',
   age_rating: ADULT[e.id]?.tag || null,
   age_reason: ADULT[e.id]?.why || null,
+  source: 'directory', source_url: e.sourceUrl || '', last_checked_on: null,
+  // Events address their organiser as (kind, id) since the entity migration.
+  // The handoff only knows hosts, so every seeded event enters as one.
+  entity_kind: 'host', entity_id: e.hostId,
 }))
 
 const tabs = TABS.map((t, i) => ({
@@ -190,6 +198,9 @@ const arr = (v) => (v && v.length ? `array[${v.map(q).join(',')}]::text[]` : `'{
 const json = (v) => `'${JSON.stringify(v ?? []).replace(/'/g, "''")}'::jsonb`
 const num = (v) => (v === null || v === undefined ? 'null' : String(v))
 const bool = (v) => (v ? 'true' : 'false')
+// For NOT NULL DEFAULT '' text columns: `q` renders '' as null, which the
+// constraint rejects.
+const txt = (v) => `'${String(v ?? '').replace(/'/g, "''")}'`
 
 // Upsert rather than truncate: this file is re-run every time the source sheets
 // change, and `truncate ... cascade` on a live database would take the RSVPs,
@@ -234,9 +245,14 @@ lines.push(hosts.map((h) => `  (${q(h.id)}, ${q(h.name)}, ${q(h.image_url)}, ${q
 lines.push(upsert(HOST_COLS) + ';')
 lines.push('')
 
+// `source`, `entity_kind` and `entity_id` are set on insert but left out of
+// the update list. Both are changed from inside the app — an organiser taking
+// a listing over, an admin moving an event onto a business or resource face —
+// and re-seeding must not walk either of those back.
 const EVENT_COLS = ['host_id', 'name', 'date_label', 'starts_on', 'description', 'image_url', 'age_rating', 'age_reason']
-lines.push(`insert into public.events (id, ${EVENT_COLS.join(', ')}) values`)
-lines.push(events.map((e) => `  (${q(e.id)}, ${q(e.host_id)}, ${q(e.name)}, ${q(e.date_label)}, ${q(e.starts_on)}, ${q(e.description)}, ${q(e.image_url)}, ${q(e.age_rating)}, ${q(e.age_reason)})`).join(',\n'))
+const EVENT_INSERT_COLS = [...EVENT_COLS, 'entity_kind', 'entity_id', 'source', 'source_url']
+lines.push(`insert into public.events (id, ${EVENT_INSERT_COLS.join(', ')}) values`)
+lines.push(events.map((e) => `  (${q(e.id)}, ${q(e.host_id)}, ${q(e.name)}, ${q(e.date_label)}, ${q(e.starts_on)}, ${txt(e.description)}, ${txt(e.image_url)}, ${q(e.age_rating)}, ${q(e.age_reason)}, ${q(e.entity_kind)}, ${q(e.entity_id)}, ${q(e.source)}, ${txt(e.source_url)})`).join(',\n'))
 lines.push(upsert(EVENT_COLS) + ';')
 lines.push('')
 

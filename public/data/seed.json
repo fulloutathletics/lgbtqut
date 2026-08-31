@@ -4902,7 +4902,12 @@
       "description": "Genderbands annual event. More details coming soon.",
       "image_url": "https://storage.googleapis.com/glide-prod.appspot.com/uploads-v2/NSfaaNV0fRhAK9yZqEUi/pub/EonY7Xc587MMdOGHea19.png",
       "age_rating": null,
-      "age_reason": null
+      "age_reason": null,
+      "source": "directory",
+      "source_url": "",
+      "last_checked_on": null,
+      "entity_kind": "host",
+      "entity_id": "lVRAiVzrTKepP5D3wkawFA"
     },
     {
       "id": "e2",
@@ -4913,7 +4918,12 @@
       "description": "Let's mix, mingle, and make moves! Join us for a Business After-Hours Mixer at Skullcandy HQ in Park City! Network with fellow professionals, enjoy drinks, light bites, and live music -- all while connecting with local chambers of commerce and celebrating inclusivity in business.\n\nWhen: April 24th, 2025 5:00-7:00 PM\nWhere: Skullcandy HQ - 6301 N Landmark Dr, Park City\nBrought to you by: Heber Valley Chamber of Commerce, Visit Park City, and Skullcandy\n\nhttps://uk.eventsforce.net/parkcity/94/register",
       "image_url": "https://storage.googleapis.com/glide-prod.appspot.com/uploads-v2/NSfaaNV0fRhAK9yZqEUi/pub/uXHwioF5wVAZ3wIxueEQ.png",
       "age_rating": "21+",
-      "age_reason": "Alcohol served at this event"
+      "age_reason": "Alcohol served at this event",
+      "source": "directory",
+      "source_url": "",
+      "last_checked_on": null,
+      "entity_kind": "host",
+      "entity_id": "SyeSu4PGQNO4tXAIcNr0Gg"
     }
   ],
   "crisis": [

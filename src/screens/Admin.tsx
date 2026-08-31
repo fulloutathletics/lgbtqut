@@ -28,6 +28,8 @@ interface FieldDef {
   type: FieldType
   /** For selects: fixed options, or a directory to offer every entity from. */
   options?: { value: string; label: string }[] | 'hosts' | 'businesses' | 'resources'
+  /** Used when the row has no value yet — a NOT NULL select must start on something. */
+  defaultValue?: string
   hint?: string
 }
 
@@ -52,6 +54,15 @@ const AGE_OPTIONS = [
   { value: '21+', label: '21+' },
 ]
 
+// Who is answerable for a listing. `entity` is what an organiser's own posting
+// writes itself as; setting it here is the deliberate handover of a listing we
+// added to the organisation that runs it, so it should follow them actually
+// having an account and an entity-admin role.
+const SOURCE_OPTIONS = [
+  { value: 'directory', label: 'LGBTQ.UT added this' },
+  { value: 'entity', label: 'The organiser manages this' },
+]
+
 const str = (v: unknown) => (v == null ? '' : String(v))
 
 const ENTITIES: Record<string, EntityDef> = {
@@ -67,6 +78,12 @@ const ENTITIES: Record<string, EntityDef> = {
       { key: 'image_url', label: 'Image', type: 'image' },
       { key: 'age_rating', label: 'Age rating', type: 'select', options: AGE_OPTIONS },
       { key: 'age_reason', label: 'Age reason', type: 'text' },
+      { key: 'source', label: 'Listed by', type: 'select', options: SOURCE_OPTIONS, defaultValue: 'directory',
+        hint: 'Shown on the event. Only switch to the organiser once they administer this entity and are actually watching it.' },
+      { key: 'source_url', label: 'Source link', type: 'text',
+        hint: 'Where we took the listing from. Readers follow it to check details we may not have updated.' },
+      { key: 'last_checked_on', label: 'Last checked', type: 'date',
+        hint: 'The day someone confirmed this is still accurate. Leave blank if nobody has.' },
     ],
   },
   hosts: {
@@ -348,6 +365,7 @@ function toForm(def: EntityDef, row: Record<string, unknown>): FormState {
     }
     else if (field.type === 'list') f[field.key] = Array.isArray(v) ? v.join(', ') : ''
     else if (field.type === 'json') f[field.key] = v == null ? '' : JSON.stringify(v, null, 2)
+    else if (v == null && field.defaultValue !== undefined) f[field.key] = field.defaultValue
     else f[field.key] = str(v)
   }
   return f
@@ -380,7 +398,10 @@ function fromForm(def: EntityDef, f: FormState): Record<string, unknown> {
         try { out[field.key] = JSON.parse(s) } catch { throw new Error(`${field.label} is not valid JSON.`) }
       }
     } else if (field.type === 'select' || field.type === 'date') {
-      out[field.key] = String(v).trim() === '' ? null : String(v).trim()
+      const s = String(v).trim()
+      // A select carrying a defaultValue backs a NOT NULL column; fall back to
+      // that rather than sending a null the constraint will reject.
+      out[field.key] = s === '' ? (field.defaultValue ?? null) : s
     } else {
       out[field.key] = String(v)
     }
