@@ -2,7 +2,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { C } from '../lib/theme'
 import { useStore } from '../lib/store'
 import { useData } from '../lib/useData'
-import { Heart, Verified } from '../components/icons'
+import { Verified } from '../components/icons'
 import { SubscriptionPanel } from '../components/SubscriptionPanel'
 import { Empty, Img, StickyBar, font } from '../components/ui'
 import { EventCard } from './Events'
@@ -45,10 +45,11 @@ function HostProfile() {
             role="button"
             onClick={() => toggleSave(host.id, 'host')}
             aria-label={saved ? 'Unfollow host' : 'Follow host'}
-            style={{ width: 34, height: 34, borderRadius: 999, background: C.fill, display: 'flex',
-                     alignItems: 'center', justifyContent: 'center', flex: 'none' }}
+            style={{ height: 34, borderRadius: 999, background: saved ? tint : C.fill, display: 'flex',
+                     padding: '0 13px', alignItems: 'center', justifyContent: 'center', flex: 'none',
+                     font: font(700, 12.5, 1.2), color: saved ? accent : C.body }}
           >
-            <Heart size={18} filled={saved} color={saved ? accent : '#8A867F'} />
+            {saved ? 'Following' : 'Follow'}
           </div>
         }
       />

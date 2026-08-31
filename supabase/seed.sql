@@ -6,7 +6,7 @@ begin;
 
 insert into public.splash_tabs (id, name, subtitle, image_url, position) values
   ('vK7l9.QkTZ6OVby84fGEsg', 'Crisis Resources', 'You are not alone. Help is available.', 'https://storage.googleapis.com/glide-prod.appspot.com/uploads-v2/NSfaaNV0fRhAK9yZqEUi/pub/62OOPJBZPpU7jd1RdHF9.png', 0),
-  ('vz5rAYPZT3O7W7OvMScleQ', 'Location Search', 'Find resources near you', 'https://storage.googleapis.com/glide-prod.appspot.com/uploads-v2/NSfaaNV0fRhAK9yZqEUi/pub/mMVZe6MVCoCiP7FMZSYk.png', 1),
+  ('vz5rAYPZT3O7W7OvMScleQ', 'Location Search', 'Find resources near you', '/images/location-splash-page-card.jpg', 1),
   ('9BsLWxDfRRabo.EMQCjD0g', 'Community Search', 'Search resources by demographic', 'https://storage.googleapis.com/glide-prod.appspot.com/uploads-v2/NSfaaNV0fRhAK9yZqEUi/pub/uuLcUHt8u2To1OBUNOgt.png', 2),
   ('6t57Jr1cTciDwp146ZPoVA', 'Category Search', 'Search resources by type', 'https://storage.googleapis.com/glide-prod.appspot.com/uploads-v2/NSfaaNV0fRhAK9yZqEUi/pub/PlRYeqUmoff6LpoHstqC.png', 3),
   ('F5kVtq7KS6i1CuS.cWj3LQ', 'Books & Podcasts', 'Books and podcasts with a Utah LGBTQ+ focus', 'https://storage.googleapis.com/glide-prod.appspot.com/uploads-v2/NSfaaNV0fRhAK9yZqEUi/pub/r7xGczlmVnh2CdOlCqQV.png', 4),
