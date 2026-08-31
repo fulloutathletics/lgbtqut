@@ -16,7 +16,9 @@ import { AgePill, Empty, Eyebrow, Img, ProfileHeader, SearchField, font } from '
  *
  * Every card carries a source badge, including the organiser's own. An
  * unbadged card in a list of badged ones would read as endorsed by whoever it
- * names, which is the misreading the badge exists to prevent.
+ * names, which is the misreading the badge exists to prevent. `organiser` is
+ * therefore worth passing even with `showOrganiser` off — the badge names them
+ * when it is opened.
  */
 export function EventCard({ event, organiser, showOrganiser = true }: {
   event: AppEvent
@@ -41,7 +43,7 @@ export function EventCard({ event, organiser, showOrganiser = true }: {
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           <Eyebrow>{event.date_label}</Eyebrow>
           {event.age_rating && <AgePill label={event.age_rating} />}
-          <SourceBadge event={event} />
+          <SourceBadge event={event} organiserName={organiser?.name} />
         </div>
         <div style={{ font: font(800, 19, 1.2), color: C.ink, marginTop: 7, letterSpacing: '-.01em',
                       textWrap: 'pretty' }}>

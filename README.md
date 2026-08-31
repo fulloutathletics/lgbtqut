@@ -93,10 +93,13 @@ until a super-admin deliberately hands it over by flipping `source` in the admin
 console. That is what keeps the badge worth reading.
 
 On screen, both states are labelled — an unbadged card among badged ones would
-read as endorsed by whoever it names. A `directory` event additionally drops
-every host voice from its discussion, says who is actually moderating, and
-carries `source_url` and `last_checked_on` so a reader can go check the
-organiser's own posting when ours may have gone stale.
+read as endorsed by whoever it names. The label is a tag, not a paragraph: the
+full explanation matters to whoever stops to ask and is a footnote for everyone
+else, so tapping it (or hovering, with a mouse) opens the detail over the page
+rather than inside it. A `directory` event additionally drops every host voice
+from its discussion, says who is actually moderating, and carries `source_url`
+and `last_checked_on` so a reader can go check the organiser's own posting when
+ours may have gone stale.
 
 ## Structure
 

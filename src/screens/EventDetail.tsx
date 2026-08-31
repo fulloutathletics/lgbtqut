@@ -8,7 +8,7 @@ import { AgeGate } from '../components/AgeGate'
 import { entityHref, entityRef, isDirectoryListed } from '../lib/data'
 import { EditImageButton } from '../components/EditImageButton'
 import { AdminEditButton } from '../components/AdminEditButton'
-import { SourceBadge, SourceNote } from '../components/SourceAttribution'
+import { SourceBadge } from '../components/SourceAttribution'
 import { Chevron, Heart, Star, Verified } from '../components/icons'
 import { AgePill, Empty, Img, StickyBar, font } from '../components/ui'
 
@@ -447,7 +447,7 @@ function EventDetail() {
               <div style={{ font: font(700, 14, 1.2), color: '#fff', textShadow: '0 1px 5px rgba(0,0,0,.5)' }}>
                 {ORGANISER_LABEL[organiser.kind]}
               </div>
-              <SourceBadge event={event} />
+              <SourceBadge event={event} organiserName={organiserName} />
             </div>
             <div
               className="tap"
@@ -486,9 +486,6 @@ function EventDetail() {
           </div>
         </div>
       )}
-
-      {/* who listed this — the whole point of the source mark */}
-      <SourceNote event={event} organiserName={organiserName} />
 
       {/* details */}
       <div style={{ padding: '22px 18px 8px' }}>

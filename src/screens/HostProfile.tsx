@@ -2,7 +2,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { C } from '../lib/theme'
 import { useStore } from '../lib/store'
 import { useData } from '../lib/useData'
-import { eventsFor } from '../lib/data'
+import { entityRef, eventsFor } from '../lib/data'
 import { Verified } from '../components/icons'
 import { SubscriptionPanel } from '../components/SubscriptionPanel'
 import { EditImageButton } from '../components/EditImageButton'
@@ -136,7 +136,10 @@ function HostProfile() {
         </div>
         {events.length === 0
           ? <Empty>No events listed yet.</Empty>
-          : events.map((e) => <EventCard key={e.id} event={e} showOrganiser={false} />)}
+          : events.map((e) => (
+              <EventCard key={e.id} event={e} organiser={entityRef(data, 'host', host.id)}
+                         showOrganiser={false} />
+            ))}
       </div>
 
       <div className="tap" role="button" onClick={() => nav('/events')}
