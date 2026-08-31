@@ -483,7 +483,7 @@ function AccountPane() {
   const nav = useNavigate()
   const {
     account, signedIn, age, hideAdult, setHideAdult,
-    blocked, muted, unblock, unmute, accent,
+    blocked, muted, unblock, unmute, accent, isAdmin,
   } = useStore()
 
   const tier = TIERS[account.tier]
@@ -539,6 +539,20 @@ function AccountPane() {
           )}
         </Card>
       </div>
+
+      {isAdmin && (
+        <div style={{ marginTop: 22 }}>
+          <Eyebrow>Admin</Eyebrow>
+          <Card>
+            <LinkRow title="Admin console"
+                     sub="Manage events, hosts, businesses, resources, splash cards and crisis lines."
+                     onClick={() => nav('/admin')} />
+            <LinkRow title="Image manager"
+                     sub="Upload and organize files in the app-images bucket."
+                     onClick={() => nav('/upload')} last />
+          </Card>
+        </div>
+      )}
 
       <div style={{ marginTop: 22 }}>
         <Eyebrow>Blocked and muted</Eyebrow>

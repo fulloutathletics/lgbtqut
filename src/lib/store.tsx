@@ -63,6 +63,8 @@ interface Account {
   username: string | null
   displayName: string | null
   profileId: string | null
+  /** Super-admin flag from profiles.is_admin — set only via the service role. */
+  isAdmin: boolean
   /** Null when no social profile exists — the account is private by default. */
   visibility: ProfileVisibility | null
 }
@@ -96,6 +98,7 @@ interface Store extends Persisted {
   age: number | null
   canSee: (ageRating: string | null) => boolean
   signedIn: boolean
+  isAdmin: boolean
 }
 
 const Ctx = createContext<Store | null>(null)
@@ -112,7 +115,7 @@ function yearsSince(dob: string): number {
 export function StoreProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<Persisted>(read)
   const [account, setAccount] = useState<Account>({
-    tier: 'anonymous', dob: null, username: null, displayName: null, profileId: null, visibility: null,
+    tier: 'anonymous', dob: null, username: null, displayName: null, profileId: null, isAdmin: false, visibility: null,
   })
 
   // Read during the first render, before the effect below overwrites the
@@ -134,7 +137,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     let alive = true
     const sync = async (userId: string | undefined) => {
       if (!userId) {
-        if (alive) setAccount({ tier: 'anonymous', dob: null, username: null, displayName: null, profileId: null, visibility: null })
+        if (alive) setAccount({ tier: 'anonymous', dob: null, username: null, displayName: null, profileId: null, isAdmin: false, visibility: null })
         // An anonymous reader keeps their follows and saves — they are what
         // fills the read-only feed, and there is no account to hold them.
         // They lapse only after ANON_TTL_DAYS of not opening the app.
@@ -144,7 +147,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         return
       }
       const { data: profile } = await supabase
-        .from('profiles').select('id, login_username, dob').eq('id', userId).maybeSingle()
+        .from('profiles').select('id, login_username, dob, is_admin').eq('id', userId).maybeSingle()
       const { data: social } = await supabase
         .from('social_profiles').select('display_name, public_handle, visibility').eq('id', userId).maybeSingle()
       const { data: followRows } = await supabase
@@ -161,6 +164,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         username: profile.login_username,
         displayName: social?.display_name ?? null,
         profileId: profile.id,
+        isAdmin: profile.is_admin === true,
         visibility,
       })
       patch((s) => ({ ...s, follows }))
@@ -186,6 +190,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       ...state,
       account,
       signedIn,
+      isAdmin: account.isAdmin,
       age,
       accent: theme.accent,
       tint: theme.tint,
