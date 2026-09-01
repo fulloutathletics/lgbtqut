@@ -210,4 +210,9 @@ export interface SocialProfile {
   search_visible: boolean
   recommendable: boolean
   indexable: boolean
+  /** Owner's own say-so that the profile is for adults. */
+  adult_content: boolean
+  /** Computed by the database: '18+' when adult_content is set or a link points at an adult platform. */
+  age_rating: AgeRating
+  age_reason: string | null
 }

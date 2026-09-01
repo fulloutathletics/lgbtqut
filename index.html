@@ -8,6 +8,20 @@
     <meta name="description" content="Find LGBTQ+ resources, events and affirming businesses across Utah." />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+
+    <!-- Every picture in the directory is hosted somewhere else, so the first
+         paint is gated on a DNS lookup and a TLS handshake to an origin the
+         browser has never met. Warming the two the splash page needs — the old
+         Glide bucket holds the logo and most splash artwork, Supabase serves
+         the data and the newer uploads — overlaps that with booting the app.
+         `crossorigin` because an <img> for another origin is a no-cors
+         request; without it the warmed socket is the wrong kind and goes
+         unused. The remaining two hosts only appear once a reader opens a
+         list, so they get the cheaper DNS-only hint. -->
+    <link rel="preconnect" href="https://storage.googleapis.com" crossorigin />
+    <link rel="preconnect" href="%VITE_SUPABASE_URL%" crossorigin />
+    <link rel="dns-prefetch" href="https://hosting.photobucket.com" />
+    <link rel="dns-prefetch" href="https://uploads-ssl.webflow.com" />
     <title>LGBTQ.UT</title>
   </head>
   <body>

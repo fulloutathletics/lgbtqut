@@ -48,6 +48,9 @@ const BANNER =
 
 const isMode = (m: string | undefined): m is Mode => !!m && m in MODES
 
+/** Same 240px stack as the splash page — see `Home`. */
+const ABOVE_FOLD_CARDS = 2
+
 /** The bucket a resource belongs to, per mode. A resource can span several. */
 const keysOf = (r: Resource, mode: Mode): string[] =>
   mode === 'county' ? r.counties : mode === 'community' ? r.communities : [r.category]
@@ -112,17 +115,18 @@ export default function ResourceList() {
 
   return (
     <>
-      <StickyBar
-        title={title}
-        onBack={selection ? () => nav(`/list/${mode}`) : undefined}
-      />
+      {/* Back is the trail's, not this screen's: pushing `/list/${mode}` here
+          is what used to strand a reader on the chooser with the county they
+          had just left sitting behind them. See `lib/trail`. */}
+      <StickyBar title={title} />
 
       {/* Every splash tab keeps its banner at the top level, including Books
           and All, which skip the chooser and go straight to results. Drilling
           into a selection drops it — that page is titled by the selection. */}
       {!selection && (
         <div style={{ position: 'relative', height: 104, overflow: 'hidden', background: '#2A2438' }}>
-          <Img src={banner} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+          <Img src={banner} priority
+               style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
           <div style={{ position: 'absolute', inset: 0,
                         background: 'linear-gradient(180deg,rgba(0,0,0,.52),rgba(0,0,0,.62))' }} />
           <div style={{ position: 'absolute', left: 18, right: 18, top: '50%', transform: 'translateY(-50%)' }}>
@@ -152,6 +156,7 @@ export default function ResourceList() {
               <RouterCard
                 key={b.name}
                 img={img || undefined}
+                priority={i < ABOVE_FOLD_CARDS}
                 bg={img ? undefined : SWATCH[i % SWATCH.length]}
                 title={b.name}
                 count={`${b.count} ${b.count === 1 ? 'resource' : 'resources'}`}

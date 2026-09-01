@@ -64,7 +64,7 @@ function HostProfile() {
       {/* header image with the avatar overlapping its lower edge */}
       <div style={{ position: 'relative' }}>
         <div style={{ height: 132, background: tint, position: 'relative', overflow: 'hidden' }}>
-          <Img src={host.header_url} alt=""
+          <Img src={host.header_url} alt="" priority
                style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
           <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,.18)' }} />
           <EditImageButton table="hosts" id={host.id} column="header_url" />
@@ -72,7 +72,7 @@ function HostProfile() {
         <div style={{ display: 'flex', justifyContent: 'center', marginTop: -56, position: 'relative', zIndex: 2 }}>
           <div style={{ width: 112, height: 112, borderRadius: 999, overflow: 'hidden', background: '#fff',
                         border: '4px solid #fff', boxShadow: '0 6px 20px rgba(0,0,0,.25)', position: 'relative' }}>
-            <Img src={host.image_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            <Img src={host.image_url} alt="" priority style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
             <EditImageButton table="hosts" id={host.id} column="image_url"
                              style={{ width: 28, height: 28, bottom: 4, right: 4 }} />
           </div>

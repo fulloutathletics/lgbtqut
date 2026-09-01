@@ -525,7 +525,7 @@ function AccountPane() {
               </div>
             )}
             <LinkRow title={account.displayName ? 'Edit your personal profile' : 'Create a personal profile'}
-                     sub="Name, pronouns, area, bio, links — and who can find it."
+                     sub="Photo, background, pronouns, interests, links — and who can find it."
                      onClick={() => nav('/profile/edit')} last />
           </Card>
         </div>

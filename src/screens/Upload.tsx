@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useTrail } from '../lib/trail'
 import { supabase } from '../lib/supabase'
 import { useStore } from '../lib/store'
 import { compressImage } from '../lib/imageCompress'
@@ -33,7 +33,7 @@ function fmtDate(iso: string): string {
 }
 
 export default function Upload() {
-  const nav = useNavigate()
+  const { back } = useTrail()
   const { signedIn, isAdmin, accent, editMode, setEditMode } = useStore()
   const [folder, setFolder] = useState('splash')
   const [items, setItems] = useState<StorageItem[]>([])
@@ -144,7 +144,7 @@ export default function Upload() {
     return (
       <>
         <div style={stickyBarStyle}>
-          <button onClick={() => nav(-1)} style={backBtnStyle}><Back /></button>
+          <button onClick={back} style={backBtnStyle}><Back /></button>
           <span style={{ font: font(700, 16, 1.2), color: C.ink, flex: 1 }}>Image Manager</span>
         </div>
         <div style={{ padding: 40, textAlign: 'center', font: font(400, 15, 1.5), color: C.muted }}>
@@ -160,7 +160,7 @@ export default function Upload() {
   return (
     <>
       <div style={stickyBarStyle}>
-        <button onClick={() => nav(-1)} style={backBtnStyle}><Back /></button>
+        <button onClick={back} style={backBtnStyle}><Back /></button>
         <span style={{ font: font(700, 16, 1.2), color: C.ink, flex: 1 }}>Image Manager</span>
       </div>
 

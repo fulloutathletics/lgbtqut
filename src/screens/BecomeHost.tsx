@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useTrail } from '../lib/trail'
 import { C } from '../lib/theme'
 import { useStore } from '../lib/store'
 import { PAGE_KIND } from '../lib/pages'
@@ -19,6 +20,7 @@ const KINDS: EntityKind[] = ['resource', 'business', 'host']
 
 export default function BecomeHost() {
   const nav = useNavigate()
+  const { back: leave } = useTrail()
   const [params] = useSearchParams()
   const { signedIn, accent, tint } = useStore()
 
@@ -29,7 +31,7 @@ export default function BecomeHost() {
   if (!signedIn) {
     return (
       <div style={{ minHeight: '100%', background: '#fff' }}>
-        <FlowHeader title="Manage a page" onBack={() => nav(-1)} />
+        <FlowHeader title="Manage a page" onBack={leave} />
         <div style={{ padding: '22px 16px 32px' }}>
           <Title>Sign in first</Title>
           <Note>
@@ -44,7 +46,7 @@ export default function BecomeHost() {
 
   const back = () => {
     if (stage === 'form' && !preset) setStage('kind')
-    else nav(-1)
+    else leave()
   }
 
   return (

@@ -23,6 +23,13 @@ const CRISIS_SUB = 'You are not alone. Help is available.'
 
 const plural = (n: number) => `${n} ${n === 1 ? 'resource' : 'resources'}`
 
+/**
+ * Splash cards are 240px tall, so on the shortest phone the first is fully in
+ * view and the second is part-way up from the bottom. Those two load eagerly;
+ * the rest stay lazy so they don't compete with them for bandwidth.
+ */
+const ABOVE_FOLD_CARDS = 2
+
 export default function Home() {
   const data = useData()
   const { canSee } = useStore()
@@ -65,10 +72,11 @@ export default function Home() {
           <Chevron color="#8A8680" />
         </Tap>
 
-        {routerTabs.map((tab) => (
+        {routerTabs.map((tab, i) => (
           <RouterCard
             key={tab.id}
             img={tab.image_url}
+            priority={i < ABOVE_FOLD_CARDS}
             title={tab.name}
             sub={tab.subtitle}
             count={plural(countFor(tab))}
