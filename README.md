@@ -74,6 +74,46 @@ is the single most common way this design leaks.
 That is deliberate and load-bearing: a distinguishable response makes the endpoint
 an oracle for whether a given person has an account in a queer directory.
 
+## Accounts, profiles and pages
+
+One sign-in, many faces. The pieces:
+
+| Layer | Table | What it is |
+|---|---|---|
+| Account | `profiles` | Private. A login username, a date of birth for age gates. Never shown. |
+| Personal profile | `social_profiles` | Optional public face for the *person*: name, pronouns, bio, visibility. At most one per account. |
+| Pages | `resources` / `businesses` / `hosts` + `entity_admins` | An organization, business or event host. Belongs to the organisation, not the person; several people can run one, and one person can run several. |
+| Requests | `page_requests` | A person asking to run a listed page (with proof) or proposing a new one. |
+
+Someone who leads a local nonprofit, owns a shop and runs a hiking series has
+one account, one personal profile, and three pages. They post, reply and run
+events *as* whichever page fits from the same session; the feed composer and
+the event page's host controls follow `entity_admins`. Their personal profile
+shows which pages they run, and a page's replies are badged so an official
+answer reads differently from the same person speaking for themselves.
+
+**Hosting is a capability of any page**, not a separate identity. A resource or
+business posts events from its own page (`events.entity_kind/entity_id`); a
+`hosts` row is only for people or collectives that run events *outside* an
+existing listing.
+
+The journey:
+
+1. **Sign up** (`/signin`) — login, password, recovery email, date of birth.
+2. **Welcome** (`/welcome`, once) — pick what you are here for: a personal
+   profile, an organization, a business, an event host. Any mix, all optional.
+   Creates the personal profile and files page requests in one pass.
+3. **Profile → Account** — the hub. Your personal profile, the pages you run
+   (each with **Manage**), pending requests, and **Manage a page** to ask for more.
+4. **Manage** (`/manage/:kind/:id`) — edit a page's details and run its events.
+   Reached from the hub or from the "You manage this page" strip on the public page.
+
+**Listings are never self-claimed.** A request goes to a reviewer, who approves
+it from the SQL editor: `select public.approve_page_request(<id>);` (pass the
+new listing's id as a second argument for a new resource or business page). The
+`verified` badge is likewise reviewer-only; a trigger refuses to let a page
+change it on itself.
+
 ## Attribution
 
 Most of this directory was typed in by LGBTQ.UT from public information. The
@@ -125,13 +165,14 @@ Plain prose passes through unchanged, so a listing with no markup reads exactly
 as it did. The admin console previews the rendered result through the same
 component the app uses.
 
+
 ## Structure
 
 ```
 src/
   lib/        supabase client, data layer, theme tokens, app store, push
   components/ shared kit — header, sticky bar, cards, rows, toggles, age gate
-  screens/    one file per screen
+  screens/    one file per screen (Welcome, BecomeHost and ManagePage are the account flows)
   sw.ts       service worker: push + notificationclick
 supabase/
   migrations/ schema, RLS policies, column grants
@@ -170,6 +211,10 @@ represents.
 - **PWA icons** are a generated pride-flag placeholder. Swap in the real logo.
 - **Moderation queue.** Per the handoff, the social layer should not launch
   without one, and it does not exist yet.
+- **Reviewer tooling.** Page requests are approved with a SQL call. An in-app
+  queue for reviewers would replace that; the data model does not change.
+
 - **Reporting a stale listing.** A `directory` event tells a reader to tell us
   when something on it is wrong, but there is no button that does it — they
   have to find another way to reach us. Wire one to the moderation queue.
+

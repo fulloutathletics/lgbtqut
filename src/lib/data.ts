@@ -79,13 +79,6 @@ function start() {
   void fromSupabase().then((d) => { if (d) publish(d, true) }).catch(() => {})
 }
 
-/** Re-pull the directory from Supabase — called after admin edits so the
- *  aggressively-cached copy doesn't serve stale content. */
-export async function refreshData(): Promise<void> {
-  const d = await fromSupabase().catch(() => null)
-  if (d) publish(d, true)
-}
-
 /** Current directory, or null until the first copy lands (a tick or two). */
 export function getData(): AppData | null {
   start()
@@ -128,6 +121,18 @@ export function patchItemField(table: string, id: string, column: string, value:
   if (!key) return
   const list = current[key] as unknown as Array<Record<string, unknown>>
   publish({ ...current, [key]: list.map((item) => (item.id === id ? { ...item, [column]: value } : item)) } as AppData, true)
+}
+
+/**
+ * Re-reads the directory after a write the session made itself (a page
+ * edited, an event added). Cheap enough to call per save: the tables are
+ * small, and the alternative is a page that shows stale copy until reload.
+ */
+export async function refreshData(): Promise<void> {
+  try {
+    const d = await fromSupabase()
+    if (d) publish(d, true)
+  } catch { /* offline: the cache keeps whatever it had */ }
 }
 
 /** Promise form, for callers outside React. */

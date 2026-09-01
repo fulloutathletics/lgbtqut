@@ -166,6 +166,29 @@ export interface SavedEntry extends Channels {
 /** Anonymous users are cached on-device only and fail every age gate. */
 export type AccountTier = 'anonymous' | 'account' | 'public'
 
+/**
+ * A page this account administers — a resource, business or host face it
+ * can edit, post as, and run events for. One row of `entity_admins`.
+ */
+export interface ManagedPage {
+  kind: EntityKind
+  id: string
+  role: 'admin' | 'editor'
+}
+
+export type PageRequestStatus = 'pending' | 'approved' | 'declined'
+
+/** A request to manage a listing, or to add one. One row of `page_requests`. */
+export interface PageRequest {
+  id: number
+  entity_kind: EntityKind
+  /** Null while the request proposes a page that is not listed yet. */
+  entity_id: string | null
+  proposed_name: string
+  status: PageRequestStatus
+  created_at: string
+}
+
 /** Three privacy states for social profiles. */
 export type ProfileVisibility = 'private' | 'visible' | 'discoverable'
 

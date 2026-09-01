@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import type { ReactNode } from 'react'
 import { supabase } from './supabase'
 import { DEFAULT_THEME, THEMES } from './theme'
-import type { AccountTier, Channels, EntityKind, ProfileVisibility, SavedEntry } from './types'
+import type { AccountTier, Channels, EntityKind, ManagedPage, PageRequest, SavedEntry } from './types'
 
 // Anonymous state is device-only by design — the Saved and Alerts panes say so.
 // Once signed in the same shape is mirrored to `public.saves`, so the local copy
@@ -62,11 +62,21 @@ interface Account {
   dob: string | null
   username: string | null
   displayName: string | null
+  /** Public handle, when the personal profile has one. Routes to /u/:handle. */
+  handle: string | null
+  avatarUrl: string | null
   profileId: string | null
   /** Super-admin flag from profiles.is_admin — set only via the service role. */
   isAdmin: boolean
-  /** Null when no social profile exists — the account is private by default. */
-  visibility: ProfileVisibility | null
+  /** Pages — resource, business, host — this account administers. */
+  managed: ManagedPage[]
+  /** Outstanding and recent requests to manage or add a page. */
+  requests: PageRequest[]
+}
+
+const ANON_ACCOUNT: Account = {
+  tier: 'anonymous', dob: null, username: null, displayName: null, handle: null,
+  avatarUrl: null, profileId: null, isAdmin: false, managed: [], requests: [],
 }
 
 interface Store extends Persisted {
@@ -98,7 +108,12 @@ interface Store extends Persisted {
   age: number | null
   canSee: (ageRating: string | null) => boolean
   signedIn: boolean
+  /** Super-admin: full CRUD on directory content, enforced server-side by RLS. */
   isAdmin: boolean
+  /** Does this account administer the given page? Drives edit, post-as and host controls. */
+  administers: (kind: EntityKind, id: string) => boolean
+  /** Re-read the account after a write the session made (profile created, request filed). */
+  refreshAccount: () => Promise<void>
 }
 
 const Ctx = createContext<Store | null>(null)
@@ -114,9 +129,8 @@ function yearsSince(dob: string): number {
 
 export function StoreProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<Persisted>(read)
-  const [account, setAccount] = useState<Account>({
-    tier: 'anonymous', dob: null, username: null, displayName: null, profileId: null, isAdmin: false, visibility: null,
-  })
+  const [account, setAccount] = useState<Account>(ANON_ACCOUNT)
+  const [userId, setUserId] = useState<string | null>(null)
 
   // Read during the first render, before the effect below overwrites the
   // stamp — otherwise the gap always measures as zero and never lapses.
@@ -135,9 +149,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   // determines whether the user has a public-facing profile.
   useEffect(() => {
     let alive = true
-    const sync = async (userId: string | undefined) => {
-      if (!userId) {
-        if (alive) setAccount({ tier: 'anonymous', dob: null, username: null, displayName: null, profileId: null, isAdmin: false, visibility: null })
+    const sync = async (id: string | undefined) => {
+      if (!alive) return
+      setUserId(id ?? null)
+      if (!id) {
+        setAccount(ANON_ACCOUNT)
         // An anonymous reader keeps their follows and saves — they are what
         // fills the read-only feed, and there is no account to hold them.
         // They lapse only after ANON_TTL_DAYS of not opening the app.
@@ -146,28 +162,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         }
         return
       }
-      const { data: profile } = await supabase
-        .from('profiles').select('id, login_username, dob, is_admin').eq('id', userId).maybeSingle()
-      const { data: social } = await supabase
-        .from('social_profiles').select('display_name, public_handle, visibility').eq('id', userId).maybeSingle()
-      const { data: followRows } = await supabase
-        .from('follows').select('followee_id').eq('follower_id', userId)
-      if (!alive || !profile) return
-      const follows = (followRows ?? []).map((r) => r.followee_id)
-      // 'public' means findable by other people, not merely that a row
-      // exists — someone who made a profile and set it private is still a
-      // private account, and the tier label should say so.
-      const visibility = (social?.visibility as ProfileVisibility | undefined) ?? null
-      setAccount({
-        tier: visibility && visibility !== 'private' ? 'public' : 'account',
-        dob: profile.dob,
-        username: profile.login_username,
-        displayName: social?.display_name ?? null,
-        profileId: profile.id,
-        isAdmin: profile.is_admin === true,
-        visibility,
-      })
-      patch((s) => ({ ...s, follows }))
+      const next = await loadAccount(id)
+      if (!alive || !next) return
+      setAccount(next.account)
+      patch((s) => ({ ...s, follows: next.follows }))
     }
     supabase.auth.getSession().then(({ data }) => {
       void sync(data.session?.user.id)
@@ -178,6 +176,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     return () => { alive = false; sub.subscription.unsubscribe() }
     // idleAtLoad is set once from useState and never changes.
   }, [idleAtLoad])
+
+  const refreshAccount = useCallback(async () => {
+    if (!userId) return
+    const next = await loadAccount(userId)
+    if (!next) return
+    setAccount(next.account)
+    setState((s) => ({ ...s, follows: next.follows }))
+  }, [userId])
 
   const patch = useCallback((fn: (s: Persisted) => Persisted) => setState(fn), [])
 
@@ -192,6 +198,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       signedIn,
       isAdmin: account.isAdmin,
       age,
+      administers: (kind, id) => account.managed.some((m) => m.kind === kind && m.id === id),
+      refreshAccount,
       accent: theme.accent,
       tint: theme.tint,
       themeBar: theme.bar,
@@ -261,9 +269,48 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         return age >= (ageRating === '21+' ? 21 : 18)
       },
     }
-  }, [state, account, patch])
+  }, [state, account, patch, refreshAccount])
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
+}
+
+// Everything the app needs to know about who is signed in, in one round
+// trip's worth of parallel reads. The profile row holds DOB for age gates and
+// login_username for display; social_profiles says whether there is a
+// personal public face; entity_admins lists the pages this person runs; and
+// page_requests holds what they have asked for and are still waiting on.
+async function loadAccount(userId: string): Promise<{ account: Account; follows: string[] } | null> {
+  const [profile, social, followRows, adminRows, requestRows] = await Promise.all([
+    supabase.from('profiles').select('id, login_username, dob, is_admin').eq('id', userId).maybeSingle(),
+    supabase.from('social_profiles').select('display_name, public_handle, avatar_url').eq('id', userId).maybeSingle(),
+    supabase.from('follows').select('followee_id').eq('follower_id', userId),
+    supabase.from('entity_admins').select('entity_kind, entity_id, role').eq('profile_id', userId),
+    supabase.from('page_requests')
+      .select('id, entity_kind, entity_id, proposed_name, status, created_at')
+      .eq('profile_id', userId).order('created_at', { ascending: false }),
+  ])
+  if (!profile.data) return null
+  const managed: ManagedPage[] = (adminRows.data ?? []).map((r) => ({
+    kind: r.entity_kind as EntityKind, id: r.entity_id, role: r.role as ManagedPage['role'],
+  }))
+  // page_requests may not exist on a database behind this migration; an
+  // error there costs the requests list, not sign-in.
+  const requests = (requestRows.data ?? []) as PageRequest[]
+  return {
+    account: {
+      tier: social.data ? 'public' : 'account',
+      dob: profile.data.dob,
+      username: profile.data.login_username,
+      displayName: social.data?.display_name ?? null,
+      handle: social.data?.public_handle ?? null,
+      avatarUrl: social.data?.avatar_url ?? null,
+      profileId: profile.data.id,
+      isAdmin: profile.data.is_admin === true,
+      managed,
+      requests,
+    },
+    follows: (followRows.data ?? []).map((r) => r.followee_id),
+  }
 }
 
 async function syncSave(

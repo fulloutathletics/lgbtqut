@@ -4,6 +4,7 @@ import { EditImageButton } from '../components/EditImageButton'
 import { RichText } from '../components/RichText'
 import { AdminEditButton } from '../components/AdminEditButton'
 import { EntityEvents } from '../components/EntityEvents'
+import { ManageStrip } from '../components/ManageStrip'
 import { SubscriptionPanel } from '../components/SubscriptionPanel'
 import { Verified } from '../components/icons'
 import { ActionRow, Empty, Img, StickyBar, Tap, font } from '../components/ui'
@@ -89,6 +90,8 @@ export default function ResourceDetail() {
           </div>
         }
       />
+
+      <ManageStrip kind="resource" id={r.id} />
 
       <div style={{ width: '100%', aspectRatio: '4/3', background: tint, overflow: 'hidden', position: 'relative' }}>
         <Img src={r.image_url} alt={r.name}

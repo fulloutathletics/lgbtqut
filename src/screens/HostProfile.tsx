@@ -8,6 +8,7 @@ import { SubscriptionPanel } from '../components/SubscriptionPanel'
 import { EditImageButton } from '../components/EditImageButton'
 import { AdminEditButton } from '../components/AdminEditButton'
 import { RichText } from '../components/RichText'
+import { ManageStrip } from '../components/ManageStrip'
 import { Empty, Img, StickyBar, font } from '../components/ui'
 import { EventCard } from './Events'
 
@@ -57,6 +58,8 @@ function HostProfile() {
           </div>
         }
       />
+
+      <ManageStrip kind="host" id={host.id} />
 
       {/* header image with the avatar overlapping its lower edge */}
       <div style={{ position: 'relative' }}>

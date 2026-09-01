@@ -205,10 +205,7 @@ function EventDetail() {
   const store = useStore()
   const { accent, tint, canSee, isBlocked, isMuted } = store
 
-  // No host assignment exists yet, so host mode stays a code path rather than
-  // a control. Flip this to true to see the Host Controls panel and the poll
-  // results a host always sees.
-  const viewAsHost = false
+  const { administers } = store
 
   const [draft, setDraft] = useState('')
   const [posted, setPosted] = useState<MockComment[]>([])
@@ -225,6 +222,9 @@ function EventDetail() {
   // hangs off this, so an event LGBTQ.UT listed never sounds like them.
   const managed = !!event && !isDirectoryListed(event)
   const organiserName = organiser?.name ?? host?.name ?? 'The organiser'
+  // Host mode belongs to whoever administers the organising page — a person
+  // who runs the resource, business or host this event hangs off.
+  const viewAsHost = !!organiser && administers(organiser.kind, organiser.id)
 
   const today = new Date().toISOString().slice(0, 10)
   const past = !!event && event.starts_on < today

@@ -29,6 +29,8 @@ const AdminList = lazy(() => import('./screens/Admin').then((m) => ({ default: m
 const AdminEditor = lazy(() => import('./screens/Admin').then((m) => ({ default: m.AdminEditor })))
 const Feed = lazy(() => import('./screens/Feed'))
 const Reset = lazy(() => import('./screens/Reset'))
+const Welcome = lazy(() => import('./screens/Welcome'))
+const ManagePage = lazy(() => import('./screens/ManagePage'))
 
 export default function App() {
   return (
@@ -57,7 +59,9 @@ export default function App() {
               <Route path="/profile/edit" element={<EditProfile />} />
               <Route path="/signin" element={<SignIn />} />
               <Route path="/reset" element={<Reset />} />
+              <Route path="/welcome" element={<Welcome />} />
               <Route path="/apply" element={<BecomeHost />} />
+              <Route path="/manage/:kind/:id" element={<ManagePage />} />
               <Route path="/u/:name" element={<UserProfile />} />
               <Route path="/upload" element={<Upload />} />
               <Route path="/admin" element={<Admin />} />
