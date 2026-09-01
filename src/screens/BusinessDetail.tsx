@@ -9,6 +9,7 @@ import type { Business, BusinessSection, SectionItem } from '../lib/types'
 import { AgeGate } from '../components/AgeGate'
 import { EditImageButton } from '../components/EditImageButton'
 import { EntityEvents } from '../components/EntityEvents'
+import { ManageStrip } from '../components/ManageStrip'
 import { SubscriptionPanel } from '../components/SubscriptionPanel'
 import { Verified } from '../components/icons'
 import { ActionRow, AgePill, Empty, Img, StickyBar, Tap, font } from '../components/ui'
@@ -87,6 +88,8 @@ export function BusinessDetail({ variant = 'glide', showConfig = false }: {
           </div>
         }
       />
+
+      <ManageStrip kind="business" id={b.id} />
 
       {variant === 'glide' ? (
         <>

@@ -123,6 +123,18 @@ export function patchItemField(table: string, id: string, column: string, value:
   publish({ ...current, [key]: list.map((item) => (item.id === id ? { ...item, [column]: value } : item)) } as AppData, true)
 }
 
+/**
+ * Re-reads the directory after a write the session made itself (a page
+ * edited, an event added). Cheap enough to call per save: the tables are
+ * small, and the alternative is a page that shows stale copy until reload.
+ */
+export async function refreshData(): Promise<void> {
+  try {
+    const d = await fromSupabase()
+    if (d) publish(d, true)
+  } catch { /* offline: the cache keeps whatever it had */ }
+}
+
 /** Promise form, for callers outside React. */
 export function loadData(): Promise<AppData> {
   cache ??= new Promise<AppData>((resolve) => {

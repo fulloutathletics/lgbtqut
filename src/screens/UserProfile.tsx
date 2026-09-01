@@ -5,6 +5,10 @@ import { C } from '../lib/theme'
 import { useStore } from '../lib/store'
 import { useData } from '../lib/useData'
 import { supabase } from '../lib/supabase'
+import { entityRef } from '../lib/data'
+import { PAGE_KIND } from '../lib/pages'
+import type { EntityKind, EntityRef } from '../lib/types'
+import { EntityCard } from '../components/EntityCard'
 import { font } from '../components/ui'
 import { Back } from '../components/icons'
 
@@ -132,16 +136,32 @@ export default function UserProfile({ style = 'social' }: { style?: ProfileStyle
   const data = useData()
   const { accent, tint, account, isBlocked, isMuted, isFollowing, toggleFollow, block, unblock, mute, unmute } = useStore()
   const [remote, setRemote] = useState<RemoteProfile | null>(null)
+  const [represents, setRepresents] = useState<Array<{ kind: EntityKind; id: string }>>([])
 
-  const name = params.name ?? ''
+  const param = params.name ?? ''
 
+  // `/u/:name` takes a handle first, then a display name. Handles are unique;
+  // display names are not, so a handle is the address to share.
   useEffect(() => {
-    if (!name) return
+    if (!param) return
     let alive = true
-    void supabase.from('social_profiles').select('*').eq('display_name', name).maybeSingle()
-      .then(({ data: d }) => { if (alive && d) setRemote(d as RemoteProfile) })
+    const handle = param.replace(/^@/, '')
+    void (async () => {
+      const byHandle = await supabase.from('social_profiles').select('*').eq('public_handle', handle).maybeSingle()
+      const d = byHandle.data
+        ?? (await supabase.from('social_profiles').select('*').eq('display_name', param).maybeSingle()).data
+      if (!alive) return
+      if (d) {
+        setRemote(d as RemoteProfile)
+        const { data: admin } = await supabase.from('entity_admins')
+          .select('entity_kind, entity_id').eq('profile_id', d.id)
+        if (alive) setRepresents((admin ?? []).map((a) => ({ kind: a.entity_kind as EntityKind, id: a.entity_id })))
+      }
+    })()
     return () => { alive = false }
-  }, [name])
+  }, [param])
+
+  const name = remote?.display_name ?? param.replace(/^@/, '')
 
   if (!data) return <div />
 
@@ -153,7 +173,7 @@ export default function UserProfile({ style = 'social' }: { style?: ProfileStyle
   } : personFor(name)
   const blocked = isBlocked(name)
   const muted = isMuted(name)
-  const self = !!account.displayName && account.displayName === name
+  const self = !!account.profileId && (remote ? remote.id === account.profileId : account.displayName === name)
   const remoteId = remote?.id ?? null
   const following = remoteId ? isFollowing(remoteId) : false
 
@@ -299,6 +319,30 @@ export default function UserProfile({ style = 'social' }: { style?: ProfileStyle
                 )}
               </>
             )}
+
+            {/* ------------------------------------------------ pages they run */}
+            {(() => {
+              const pages = represents
+                .map((r) => entityRef(data, r.kind, r.id))
+                .filter((p): p is EntityRef => !!p)
+              if (!pages.length) return null
+              return (
+                <div style={{ marginTop: 22, textAlign: 'left', display: 'flex', flexDirection: 'column', gap: 9 }}>
+                  <div style={{ font: font(700, 11, 1.2), letterSpacing: '.1em', textTransform: 'uppercase',
+                                color: '#9A968F' }}>
+                    {pages.length === 1 ? 'Runs' : 'Runs these pages'}
+                  </div>
+                  {pages.map((p) => (
+                    <EntityCard key={`${p.kind}-${p.id}`} entity={p} />
+                  ))}
+                  <div style={{ font: font(400, 11.5, 1.5), color: C.faint, textWrap: 'pretty' }}>
+                    {pages.length === 1
+                      ? `Replies badged with the ${PAGE_KIND[pages[0].kind].label.toLowerCase()}'s name are official; everything else here is ${name} speaking for themselves.`
+                      : `Replies badged with a page's name are official; everything else here is ${name} speaking for themselves.`}
+                  </div>
+                </div>
+              )
+            })()}
 
             {/* ----------------------------------------------------- links */}
             {links.length > 0 && (

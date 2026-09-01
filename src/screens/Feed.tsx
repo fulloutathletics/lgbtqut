@@ -7,6 +7,7 @@ import { font } from '../components/ui'
 import { Back } from '../components/icons'
 import { useData } from '../lib/useData'
 import { entityHref, entityRef } from '../lib/data'
+import { resolveManaged } from '../lib/pages'
 import type { EntityKind } from '../lib/types'
 
 // Feed — route `/feed`.
@@ -66,11 +67,20 @@ function initials(name: string): string {
 
 // ----------------------------------------------------------- Post composer
 
+/** Who a post is published as: the person, or one of the pages they run. */
+type Voice = { kind: 'me' } | { kind: 'page'; page: EntityKind; id: string }
+
 function Composer({ onPosted }: { onPosted: () => void }) {
-  const { accent, account } = useStore()
+  const { accent, tint, account } = useStore()
+  const data = useData()
   const [body, setBody] = useState('')
+  const [voice, setVoice] = useState<Voice>({ kind: 'me' })
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+
+  const pages = resolveManaged(data, account.managed)
+  const speaking = voice.kind === 'page' ? pages.find((p) => p.kind === voice.page && p.id === voice.id) : null
+  const myName = account.displayName ?? account.username ?? 'You'
 
   const post = async () => {
     const text = body.trim()
@@ -82,8 +92,12 @@ function Composer({ onPosted }: { onPosted: () => void }) {
     setBusy(true)
     setError('')
     try {
+      // A page post keeps author_id: the page is who is speaking, the person
+      // is who is accountable. The insert policy checks they administer it.
       const { error: insertError } = await supabase.from('posts').insert({
         author_id: account.profileId,
+        author_kind: voice.kind === 'page' ? voice.page : null,
+        author_entity_id: voice.kind === 'page' ? voice.id : null,
         body: text,
       })
       if (insertError) {
@@ -103,15 +117,35 @@ function Composer({ onPosted }: { onPosted: () => void }) {
     <div style={{ padding: '14px 16px 12px', borderBottom: `1px solid ${C.hairline}` }}>
       <div style={{ display: 'flex', gap: 11 }}>
         <div style={{ width: 38, height: 38, borderRadius: 999, background: accent, flex: 'none',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
                       font: font(700, 13, 1), color: '#fff' }}>
-          {account.displayName ? initials(account.displayName) : '?'}
+          {speaking?.image_url
+            ? <img src={speaking.image_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            : initials(speaking?.name ?? myName)}
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
+          {pages.length > 0 && (
+            <div className="hs" style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 8 }}>
+              {[{ label: myName, v: { kind: 'me' } as Voice, on: voice.kind === 'me' },
+                ...pages.map((p) => ({
+                  label: p.name, v: { kind: 'page', page: p.kind, id: p.id } as Voice,
+                  on: voice.kind === 'page' && voice.page === p.kind && voice.id === p.id,
+                }))].map((c) => (
+                <div key={c.label} className="tap" role="button" onClick={() => setVoice(c.v)}
+                     style={{ flex: 'none', borderRadius: 999, padding: '5px 11px', maxWidth: 160,
+                              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                              border: `1.5px solid ${c.on ? accent : C.border}`,
+                              background: c.on ? tint : '#fff',
+                              font: font(c.on ? 700 : 600, 11.5, 1.2), color: c.on ? accent : C.body }}>
+                  {c.label}
+                </div>
+              ))}
+            </div>
+          )}
           <textarea
             value={body}
             onChange={(e) => setBody(e.target.value)}
-            placeholder="Share something with the community…"
+            placeholder={speaking ? `Post as ${speaking.name}…` : 'Share something with the community…'}
             rows={2}
             style={{ width: '100%', border: 'none', outline: 'none', resize: 'none',
                      font: font(400, 14.5, 1.5), color: C.ink, background: 'transparent',
@@ -539,9 +573,11 @@ export default function Feed() {
       const prof = p.author_id ? map.get(p.author_id) : undefined
       return {
         ...p,
-        author_name: prof?.display_name ?? entity?.name ?? null,
-        author_handle: prof?.public_handle ?? null,
-        author_avatar: prof?.avatar_url ?? entity?.image_url ?? null,
+        // A post published as a page is the page speaking; the person
+        // behind it is on the row for accountability, not for display.
+        author_name: entity?.name ?? prof?.display_name ?? null,
+        author_handle: entity ? null : prof?.public_handle ?? null,
+        author_avatar: entity?.image_url ?? prof?.avatar_url ?? null,
         comment_count: countMap.get(p.id) ?? 0,
       }
     }))
