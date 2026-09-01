@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useTrail } from '../lib/trail'
@@ -8,104 +8,43 @@ import { useData } from '../lib/useData'
 import { supabase } from '../lib/supabase'
 import { entityRef } from '../lib/data'
 import { PAGE_KIND } from '../lib/pages'
-import type { EntityKind, EntityRef } from '../lib/types'
+import { headerStyle, linkHref, linkMeta } from '../lib/profile'
+import type { EntityKind, EntityRef, SocialProfile } from '../lib/types'
 import { EntityCard } from '../components/EntityCard'
-import { font } from '../components/ui'
-import { Back } from '../components/icons'
+import { AgeGate } from '../components/AgeGate'
+import { AgePill, Img, font } from '../components/ui'
+import { Back, Share } from '../components/icons'
+import { Avatar, CommentSheet, POST_FIELDS, PostCard, hydratePosts } from '../components/Post'
+import type { Post, RawPost } from '../components/Post'
 
-interface RemoteProfile {
-  id: string
-  display_name: string
-  public_handle: string | null
-  avatar_url: string | null
-  bio: string | null
-  pronouns: string | null
-  county: string | null
-  social_links: string[]
-  identity_labels: string[]
-  interests: string[]
-}
-
-// UserProfile — route `/u/:name`, and EditProfile — route `/profile/edit`.
+// UserProfile — route `/u/:name`.
 //
-// There is no seeded users table, so display data is derived deterministically
-// from the :name param. This stands in for `public.public_profiles`; once that
-// table has rows, swap `personFor()` for a fetch and everything else holds.
-
-type ProfileStyle = 'minimal' | 'community' | 'social'
-
-interface Person {
-  pronouns: string
-  county: string
-  bio: string
-  links: string[]
-}
-
-/** The prototype's people, so matching names read like real profiles. */
-const PEOPLE: Record<string, Person> = {
-  'Rio M.': {
-    pronouns: 'she/her', county: 'Salt Lake County',
-    bio: 'Nurse, gardener, and the person who always brings folding chairs. Ask me about the Wednesday night group.',
-    links: ['riomartinez.me', 'instagram.com/rio.grows'],
-  },
-  'Tay B.': {
-    pronouns: 'they/them', county: 'Weber County',
-    bio: 'Ogden. Carpools to most Wasatch Front events — say hi if you need a ride.',
-    links: ['linktr.ee/taybee'],
-  },
-  'Wren D.': {
-    pronouns: 'he/him', county: 'Utah County',
-    bio: 'Photographer. Mostly shoot shows.', links: [],
-  },
-  'Dana R.': {
-    pronouns: 'she/her', county: 'Salt Lake County',
-    bio: 'Small business owner, chamber member, terrible at networking but I keep showing up.',
-    links: ['danarosecreative.com'],
-  },
-  'Ash P.': { pronouns: 'they/them', county: 'Davis County', bio: 'Layton. New here.', links: [] },
-  'June L.': { pronouns: 'she/her', county: 'Cache County', bio: 'Logan. Runs the campus group.', links: [] },
-  'Sam K.': { pronouns: 'he/they', county: 'Salt Lake County', bio: '', links: [] },
-  'Kai S.': {
-    pronouns: 'they/them', county: 'Washington County',
-    bio: 'St. George. Building something down here, slowly.', links: [],
-  },
-  'Noor A.': { pronouns: 'she/her', county: 'Salt Lake County', bio: '', links: [] },
-}
+// A person's public face: their picture and background, who they are, what
+// they are into, where else to find them, the pages they run, and everything
+// they have posted. `:name` is a handle first (unique, the address to share)
+// and a display name second.
+//
+// A profile the database withholds — private, or rated 18+ and the viewer is
+// not an adult — arrives here as no row at all, and reads as "not available"
+// with no reason given. That silence is deliberate: a minor is never told
+// something was filtered. An adult who opted out of adult content gets the
+// explanatory AgeGate instead, because they chose the setting.
 
 const AVATAR_COLORS = ['#7A2FA6', '#2C86B5', '#B0523E', '#2E8B45', '#9B4F96', '#4B3FBF', '#DD6317', '#2A7F70']
 
-const INTERESTS = [
-  'Mutual aid', 'Trans health', 'Book club', 'Hiking',
-  'Drag', 'Volunteering', 'Board games', 'Live music',
-]
-
-/** FNV-1a over the name, so every derived value is stable for a given person. */
-function seedOf(name: string): number {
+/** FNV-1a over the id, so a person without a picture keeps one colour. */
+function seedOf(s: string): number {
   let h = 2166136261
-  for (let i = 0; i < name.length; i++) {
-    h ^= name.charCodeAt(i)
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i)
     h = Math.imul(h, 16777619)
   }
   return h >>> 0
 }
 
-/** xorshift32 — enough randomness for placeholder stats, fully deterministic. */
-function prng(seed: number): () => number {
-  let s = seed || 1
-  return () => {
-    s ^= s << 13; s >>>= 0
-    s ^= s >>> 17
-    s ^= s << 5; s >>>= 0
-    return s / 4294967296
-  }
-}
-
-function personFor(name: string): Person {
-  return PEOPLE[name] ?? { pronouns: '', county: 'Utah', bio: '', links: [] }
-}
-
-function initialsOf(name: string): string {
-  return name.split(/\s+/).filter(Boolean).map((w) => w[0]).join('').slice(0, 2).toUpperCase() || '?'
+interface Counts {
+  followers: number
+  following: number
 }
 
 // ------------------------------------------------------------- small pieces
@@ -129,105 +68,193 @@ function OutlineButton({ children, onClick, color = '#2A2A28' }: {
   )
 }
 
+function Eyebrow({ children }: { children: ReactNode }) {
+  return (
+    <div style={{ font: font(700, 11, 1.2), letterSpacing: '.1em', textTransform: 'uppercase',
+                  color: '#9A968F' }}>{children}</div>
+  )
+}
+
+function Chip({ children, tone = 'plain' }: { children: ReactNode; tone?: 'plain' | 'accent' }) {
+  const { accent, tint } = useStore()
+  return (
+    <div style={{ borderRadius: 999, padding: '6px 13px',
+                  background: tone === 'accent' ? tint : '#F4F2EE',
+                  font: font(600, 11.5, 1.3), color: tone === 'accent' ? accent : '#5C5851' }}>
+      {children}
+    </div>
+  )
+}
+
+/** Circular glass button for the header. */
+function HeaderButton({ onClick, label, children }: { onClick: () => void; label: string; children: ReactNode }) {
+  return (
+    <div className="tap" role="button" onClick={onClick} aria-label={label}
+         style={{ width: 34, height: 34, borderRadius: 999, background: 'rgba(255,255,255,.78)',
+                  backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  zIndex: 3, flex: 'none' }}>
+      {children}
+    </div>
+  )
+}
+
+function Unavailable({ onBack }: { onBack: () => void }) {
+  return (
+    <div style={{ minHeight: '100%', background: '#fff' }}>
+      <div style={{ position: 'relative', height: 132, background: C.fill }}>
+        <div style={{ position: 'absolute', top: 58, left: 14 }}>
+          <HeaderButton onClick={onBack} label="Back"><Back /></HeaderButton>
+        </div>
+      </div>
+      <div style={{ padding: '48px 32px', textAlign: 'center' }}>
+        <div style={{ font: font(800, 21, 1.25), color: C.ink, letterSpacing: '-.01em' }}>Not available</div>
+        <div style={{ font: font(400, 14.5, 1.55), color: C.muted, marginTop: 9, textWrap: 'pretty' }}>
+          There is no profile at this address, or it is not available on your account.
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // --------------------------------------------------------------- the screen
 
-export default function UserProfile({ style = 'social' }: { style?: ProfileStyle }) {
+export default function UserProfile() {
   const nav = useNavigate()
   const { back } = useTrail()
   const params = useParams<{ name: string }>()
   const data = useData()
-  const { accent, tint, account, isBlocked, isMuted, isFollowing, toggleFollow, block, unblock, mute, unmute } = useStore()
-  const [remote, setRemote] = useState<RemoteProfile | null>(null)
+  const {
+    accent, account, signedIn, canSee,
+    isBlocked, isMuted, isFollowing, toggleFollow, block, unblock, mute, unmute,
+  } = useStore()
+
+  const [profile, setProfile] = useState<SocialProfile | null | undefined>(undefined)
   const [represents, setRepresents] = useState<Array<{ kind: EntityKind; id: string }>>([])
+  const [counts, setCounts] = useState<Counts>({ followers: 0, following: 0 })
+  const [posts, setPosts] = useState<Post[]>([])
+  const [postsLoading, setPostsLoading] = useState(true)
+  const [activePost, setActivePost] = useState<Post | null>(null)
+  const [copied, setCopied] = useState(false)
 
   const param = params.name ?? ''
 
-  // `/u/:name` takes a handle first, then a display name. Handles are unique;
-  // display names are not, so a handle is the address to share.
+  // Handle first, then display name. Handles are unique; names are not.
   useEffect(() => {
-    if (!param) return
+    if (!param) { setProfile(null); return }
     let alive = true
     const handle = param.replace(/^@/, '')
     void (async () => {
       const byHandle = await supabase.from('social_profiles').select('*').eq('public_handle', handle).maybeSingle()
-      const d = byHandle.data
-        ?? (await supabase.from('social_profiles').select('*').eq('display_name', param).maybeSingle()).data
+      const row = byHandle.data
+        ?? (await supabase.from('social_profiles').select('*').eq('display_name', param).limit(1).maybeSingle()).data
       if (!alive) return
-      if (d) {
-        setRemote(d as RemoteProfile)
-        const { data: admin } = await supabase.from('entity_admins')
-          .select('entity_kind, entity_id').eq('profile_id', d.id)
-        if (alive) setRepresents((admin ?? []).map((a) => ({ kind: a.entity_kind as EntityKind, id: a.entity_id })))
-      }
+      if (!row) { setProfile(null); return }
+      setProfile(row as SocialProfile)
+      const [admin, followers, following] = await Promise.all([
+        supabase.from('entity_admins').select('entity_kind, entity_id').eq('profile_id', row.id),
+        supabase.from('follows').select('followee_id', { count: 'exact', head: true }).eq('followee_id', row.id),
+        supabase.from('follows').select('follower_id', { count: 'exact', head: true }).eq('follower_id', row.id),
+      ])
+      if (!alive) return
+      setRepresents((admin.data ?? []).map((a) => ({ kind: a.entity_kind as EntityKind, id: a.entity_id })))
+      setCounts({ followers: followers.count ?? 0, following: following.count ?? 0 })
     })()
     return () => { alive = false }
   }, [param])
 
-  const name = remote?.display_name ?? param.replace(/^@/, '')
+  const profileId = profile?.id ?? null
 
-  if (!data) return <div />
+  const loadPosts = useCallback(async () => {
+    if (!profileId) return
+    setPostsLoading(true)
+    // Everything they wrote in their own voice; what they post as a page
+    // belongs on that page, not here.
+    const { data: rows } = await supabase.from('posts').select(POST_FIELDS)
+      .eq('author_id', profileId).is('author_kind', null)
+      .order('created_at', { ascending: false }).limit(50)
+    setPosts(await hydratePosts((rows ?? []) as RawPost[], data, account.profileId))
+    setPostsLoading(false)
+  }, [profileId, data, account.profileId])
 
-  const person = remote ? {
-    pronouns: remote.pronouns ?? '',
-    county: remote.county ?? 'Utah',
-    bio: remote.bio ?? '',
-    links: remote.social_links ?? [],
-  } : personFor(name)
+  useEffect(() => { void loadPosts() }, [loadPosts])
+
+  if (!data || profile === undefined) return <div style={{ minHeight: '60vh' }} />
+  if (profile === null) return <Unavailable onBack={back} />
+
+  const self = !!account.profileId && profile.id === account.profileId
+  const name = profile.display_name
+  const handle = profile.public_handle?.replace(/^@/, '') ?? null
   const blocked = isBlocked(name)
   const muted = isMuted(name)
-  const self = !!account.profileId && (remote ? remote.id === account.profileId : account.displayName === name)
-  const remoteId = remote?.id ?? null
-  const following = remoteId ? isFollowing(remoteId) : false
+  const following = isFollowing(profile.id)
 
-  const seed = seedOf(name)
-  const rand = prng(seed)
-  const color = self ? accent : AVATAR_COLORS[seed % AVATAR_COLORS.length]
+  // An adult who turned adult content off gets told why. Everyone else who
+  // cannot see it never reached this point — the row was withheld.
+  if (!self && !canSee(profile.age_rating)) return <AgeGate reason={profile.age_reason} />
 
-  const stats = [
-    { n: String(4 + Math.floor(rand() * 23)), label: 'Events' },
-    { n: String(Math.floor(rand() * 5)), label: 'Hosting' },
-    { n: `20${18 + Math.floor(rand() * 7)}`, label: 'Member since' },
-  ]
-  const interests = [
-    INTERESTS[seed % INTERESTS.length],
-    INTERESTS[(seed + 3) % INTERESTS.length],
-    INTERESTS[(seed + 5) % INTERESTS.length],
-  ]
-  const mutualCount = self || blocked ? 0 : (seed % 3) + 1
-  const mutual = mutualCount ? `${mutualCount} ${mutualCount === 1 ? 'event' : 'events'} in common` : ''
+  const color = self ? accent : AVATAR_COLORS[seedOf(profile.id) % AVATAR_COLORS.length]
+  const header = headerStyle(profile.header_url, color)
+  const links = blocked ? [] : profile.social_links
+  const website = blocked ? null : profile.website
+  const bio = profile.bio || (self ? 'No bio yet — tap Edit profile to add one.' : 'No bio yet.')
+  const pages = represents.map((r) => entityRef(data, r.kind, r.id)).filter((p): p is EntityRef => !!p)
 
-  const goingTo = data.events[seed % Math.max(data.events.length, 1)] ?? null
-
-  const links = blocked ? [] : person.links
-  const bio = person.bio || 'No bio yet.'
+  const share = async () => {
+    const url = `${window.location.origin}/u/${encodeURIComponent(handle ?? name)}`
+    try {
+      if (navigator.share) { await navigator.share({ title: name, url }); return }
+      await navigator.clipboard.writeText(url)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1800)
+    } catch { /* dismissed */ }
+  }
 
   const report = () => {
-    window.location.href =
-      `mailto:hello@lgbtq.ut?subject=${encodeURIComponent(`Report a profile: ${name}`)}`
+    window.location.href = `mailto:hello@lgbtq.ut?subject=${encodeURIComponent(`Report a profile: ${name}`)}`
   }
+
+  const stats = [
+    { n: posts.length, label: posts.length === 1 ? 'Post' : 'Posts' },
+    { n: counts.followers, label: counts.followers === 1 ? 'Follower' : 'Followers' },
+    { n: counts.following, label: 'Following' },
+  ]
 
   return (
     <div style={{ minHeight: '100%', background: '#fff' }}>
-      <div style={{ position: 'relative', height: 132, background: color, overflow: 'hidden' }}>
-        <div className="tap" role="button" onClick={back} aria-label="Back"
-             style={{ position: 'absolute', top: 58, left: 14, width: 34, height: 34, borderRadius: 999,
-                      background: 'rgba(255,255,255,.75)', backdropFilter: 'blur(8px)', display: 'flex',
-                      alignItems: 'center', justifyContent: 'center', zIndex: 3 }}>
-          <Back />
+      {/* ------------------------------------------------------ header */}
+      <div style={{ position: 'relative', height: 168, background: header.background, overflow: 'hidden' }}>
+        {header.image && (
+          <Img src={header.image} priority
+               style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+        )}
+        <div style={{ position: 'absolute', inset: 0,
+                      background: 'linear-gradient(180deg,rgba(0,0,0,.18) 0%,rgba(0,0,0,0) 45%,rgba(0,0,0,.12) 100%)' }} />
+        <div style={{ position: 'absolute', top: 58, left: 14, right: 14, display: 'flex', gap: 8 }}>
+          <HeaderButton onClick={back} label="Back"><Back /></HeaderButton>
+          <div style={{ flex: 1 }} />
+          {!blocked && <HeaderButton onClick={() => { void share() }} label="Share profile"><Share size={16} /></HeaderButton>}
         </div>
+        {copied && (
+          <div style={{ position: 'absolute', top: 100, left: 0, right: 0, textAlign: 'center' }}>
+            <span style={{ borderRadius: 999, padding: '5px 12px', background: 'rgba(0,0,0,.6)',
+                           font: font(600, 11.5, 1.3), color: '#fff' }}>Link copied</span>
+          </div>
+        )}
       </div>
 
-      <div style={{ padding: '0 18px 28px', marginTop: -48, textAlign: 'center' }}>
-        <div style={{ width: 96, height: 96, borderRadius: 999, background: color, border: '4px solid #fff',
-                      boxShadow: '0 4px 16px rgba(0,0,0,.18)', display: 'flex', alignItems: 'center',
-                      justifyContent: 'center', font: font(700, 30, 1), color: '#fff', margin: '0 auto' }}>
-          {initialsOf(name)}
+      <div style={{ padding: '0 18px 28px', marginTop: -48, textAlign: 'center', position: 'relative' }}>
+        <div style={{ display: 'inline-block', borderRadius: 999, border: '4px solid #fff',
+                      boxShadow: '0 4px 16px rgba(0,0,0,.18)', background: '#fff' }}>
+          <Avatar src={blocked ? null : profile.avatar_url} name={name} size={96} color={color} />
         </div>
 
-        <div style={{ font: font(800, 24, 1.18), color: C.ink, letterSpacing: '-.02em', marginTop: 14,
+        <div style={{ font: font(800, 24, 1.18), color: C.ink, letterSpacing: '-.02em', marginTop: 12,
                       textWrap: 'pretty' }}>
           {name}
         </div>
+        {handle && (
+          <div style={{ font: font(500, 13, 1.3), color: C.muted, marginTop: 3 }}>@{handle}</div>
+        )}
 
         {/* A blocked profile is reduced to a stub: avatar and name, so the user
             knows who they are unblocking. Everything else is suppressed. */}
@@ -246,476 +273,185 @@ export default function UserProfile({ style = 'social' }: { style?: ProfileStyle
           </>
         ) : (
           <>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 7,
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 9,
                           flexWrap: 'wrap' }}>
-              {person.pronouns && (
-                <div style={{ borderRadius: 999, padding: '4px 11px', background: tint,
-                              font: font(600, 11.5, 1.3), color: accent }}>{person.pronouns}</div>
+              {profile.pronouns && <Chip tone="accent">{profile.pronouns}</Chip>}
+              {profile.county && (
+                <div style={{ font: font(400, 12.5, 1.3), color: C.muted }}>{profile.county}</div>
               )}
-              <div style={{ font: font(400, 12.5, 1.3), color: C.muted }}>{person.county || 'Utah'}</div>
+              {profile.age_rating && <AgePill label={profile.age_rating} />}
             </div>
 
-            <div style={{ font: font(400, 14, 1.6), color: C.body, marginTop: 14, textWrap: 'pretty',
-                          maxWidth: 300, marginLeft: 'auto', marginRight: 'auto' }}>
+            <div style={{ font: font(400, 14, 1.6), color: profile.bio ? C.body : C.faint, marginTop: 12,
+                          textWrap: 'pretty', maxWidth: 320, marginLeft: 'auto', marginRight: 'auto' }}>
               {bio}
             </div>
 
-            {/* ------------------------------------------------- community */}
-            {style === 'community' && (
-              <>
-                <div style={{ display: 'flex', marginTop: 20, borderTop: `1px solid ${C.hairline}`,
-                              borderBottom: `1px solid ${C.hairline}`, padding: '14px 0' }}>
-                  {stats.map((s) => (
-                    <div key={s.label} style={{ flex: 1, textAlign: 'center' }}>
-                      <div style={{ font: font(800, 19, 1.1), color: '#161615', letterSpacing: '-.01em' }}>{s.n}</div>
-                      <div style={{ font: font(500, 10.5, 1.2), color: '#8C887F', marginTop: 5,
-                                    letterSpacing: '.04em' }}>{s.label}</div>
-                    </div>
-                  ))}
-                </div>
-                {mutual && (
-                  <div style={{ font: font(500, 12, 1.3), color: accent, marginTop: 12 }}>{mutual}</div>
-                )}
-                {goingTo && (
-                  <div style={{ marginTop: 18, textAlign: 'left' }}>
-                    <div style={{ font: font(700, 11, 1.2), letterSpacing: '.1em', textTransform: 'uppercase',
-                                  color: '#9A968F', marginBottom: 9 }}>Going to</div>
-                    <div className="tap" role="button" onClick={() => nav(`/event/${goingTo.id}`)}
-                         style={{ display: 'flex', alignItems: 'center', gap: 12, border: `1px solid ${C.border}`,
-                                  borderRadius: 12, padding: '12px 13px' }}>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ font: font(600, 13.5, 1.25), color: '#1A1A18', textWrap: 'pretty' }}>
-                          {goingTo.name}
-                        </div>
-                        <div style={{ font: font(400, 11.5, 1.3), color: C.muted, marginTop: 3 }}>
-                          {goingTo.date_label}
-                        </div>
-                      </div>
-                      <OutIcon color="#C3BFB8" />
-                    </div>
-                  </div>
-                )}
-              </>
-            )}
-
-            {/* ---------------------------------------------------- social */}
-            {style === 'social' && (
-              <>
-                <div style={{ display: 'flex', justifyContent: 'center', gap: 7, marginTop: 16, flexWrap: 'wrap' }}>
-                  {interests.map((i) => (
-                    <div key={i} style={{ borderRadius: 999, padding: '6px 13px', background: '#F4F2EE',
-                                          font: font(600, 11.5, 1.3), color: '#5C5851' }}>{i}</div>
-                  ))}
-                </div>
-                <div style={{ display: 'flex', gap: 10, marginTop: 18 }}>
-                  {stats.map((s) => (
-                    <div key={s.label} style={{ flex: 1, border: `1px solid ${C.border}`, borderRadius: 12,
-                                                padding: '13px 8px' }}>
-                      <div style={{ font: font(800, 20, 1.1), color: '#161615', letterSpacing: '-.01em' }}>{s.n}</div>
-                      <div style={{ font: font(500, 10, 1.2), color: '#8C887F', marginTop: 5 }}>{s.label}</div>
-                    </div>
-                  ))}
-                </div>
-                {mutual && (
-                  <div style={{ font: font(500, 12, 1.3), color: accent, marginTop: 14 }}>{mutual}</div>
-                )}
-              </>
-            )}
-
-            {/* ------------------------------------------------ pages they run */}
-            {(() => {
-              const pages = represents
-                .map((r) => entityRef(data, r.kind, r.id))
-                .filter((p): p is EntityRef => !!p)
-              if (!pages.length) return null
-              return (
-                <div style={{ marginTop: 22, textAlign: 'left', display: 'flex', flexDirection: 'column', gap: 9 }}>
-                  <div style={{ font: font(700, 11, 1.2), letterSpacing: '.1em', textTransform: 'uppercase',
-                                color: '#9A968F' }}>
-                    {pages.length === 1 ? 'Runs' : 'Runs these pages'}
-                  </div>
-                  {pages.map((p) => (
-                    <EntityCard key={`${p.kind}-${p.id}`} entity={p} />
-                  ))}
-                  <div style={{ font: font(400, 11.5, 1.5), color: C.faint, textWrap: 'pretty' }}>
-                    {pages.length === 1
-                      ? `Replies badged with the ${PAGE_KIND[pages[0].kind].label.toLowerCase()}'s name are official; everything else here is ${name} speaking for themselves.`
-                      : `Replies badged with a page's name are official; everything else here is ${name} speaking for themselves.`}
-                  </div>
-                </div>
-              )
-            })()}
-
-            {/* ----------------------------------------------------- links */}
-            {links.length > 0 && (
-              <div style={{ marginTop: 18 }}>
-                {style === 'social' ? (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
-                    {links.map((l) => (
-                      <a key={l} href={`https://${l}`} target="_blank" rel="noreferrer"
-                         style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 9,
-                                  borderRadius: 11, border: `1.5px solid ${C.border}`, padding: 12,
-                                  font: font(600, 13.5, 1.2), color: '#2A2A28', wordBreak: 'break-word',
-                                  textDecoration: 'none' }}>
-                        {l}<OutIcon />
-                      </a>
-                    ))}
-                  </div>
-                ) : (
-                  <div style={{ borderTop: `1px solid ${C.hairline}` }}>
-                    {links.map((l) => (
-                      <a key={l} href={`https://${l}`} target="_blank" rel="noreferrer"
-                         style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '13px 0',
-                                  borderBottom: `1px solid ${C.hairline}`, textAlign: 'left',
-                                  textDecoration: 'none' }}>
-                        <div style={{ flex: 1, minWidth: 0, font: font(500, 13.5, 1.35), color: accent,
-                                      wordBreak: 'break-word' }}>{l}</div>
-                        <OutIcon color="#C3BFB8" />
-                      </a>
-                    ))}
-                  </div>
-                )}
+            {(profile.identity_labels.length > 0 || profile.interests.length > 0) && (
+              <div style={{ display: 'flex', justifyContent: 'center', gap: 7, marginTop: 14, flexWrap: 'wrap' }}>
+                {profile.identity_labels.map((l) => <Chip key={`i-${l}`} tone="accent">{l}</Chip>)}
+                {profile.interests.map((i) => <Chip key={`n-${i}`}>{i}</Chip>)}
               </div>
             )}
 
-            {/* --------------------------------------------------- actions */}
+            {/* ------------------------------------------------- stats */}
+            <div style={{ display: 'flex', gap: 10, marginTop: 18 }}>
+              {stats.map((s) => (
+                <div key={s.label} style={{ flex: 1, border: `1px solid ${C.border}`, borderRadius: 12,
+                                            padding: '12px 8px' }}>
+                  <div style={{ font: font(800, 20, 1.1), color: '#161615', letterSpacing: '-.01em' }}>{s.n}</div>
+                  <div style={{ font: font(500, 10, 1.2), color: '#8C887F', marginTop: 5 }}>{s.label}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* ----------------------------------------------- actions */}
             {self ? (
-              <div className="tap" role="button" onClick={() => nav('/profile/edit')}
-                   style={{ marginTop: 20, borderRadius: 12, padding: 13, textAlign: 'center', background: accent,
-                            font: font(700, 14, 1.2), color: '#fff' }}>
-                Edit profile
+              <div style={{ display: 'flex', gap: 9, marginTop: 16 }}>
+                <div className="tap" role="button" onClick={() => nav('/profile/edit')}
+                     style={{ flex: 1, borderRadius: 12, padding: 13, textAlign: 'center', background: accent,
+                              font: font(700, 14, 1.2), color: '#fff' }}>
+                  Edit profile
+                </div>
+                <div className="tap" role="button" onClick={() => nav('/feed')}
+                     style={{ flex: 1, borderRadius: 12, padding: 13, textAlign: 'center',
+                              border: `1.5px solid ${C.border}`, font: font(700, 14, 1.2), color: C.body }}>
+                  New post
+                </div>
               </div>
             ) : (
-              <>
-                {/* Follow button — only when viewing a real social profile.
-                    Open to guests too: toggleFollow is device-local until
-                    there is an account to sync it to, and following is what
-                    fills an anonymous reader's feed. */}
-                {remoteId && (
-                  <div className="tap" role="button"
-                       onClick={() => toggleFollow(remoteId)}
-                       style={{ marginTop: 18, borderRadius: 12, padding: 13, textAlign: 'center',
-                                background: following ? 'transparent' : accent,
-                                border: following ? `1.5px solid ${C.border}` : 'none',
-                                font: font(700, 14, 1.2), color: following ? C.body : '#fff' }}>
-                    {following ? 'Following' : 'Follow'}
-                  </div>
-                )}
-                {muted && (
-                  <div style={{ marginTop: 18, borderRadius: 12, background: '#F7F5F1', border: '1px solid #EAE7E2',
-                                padding: '12px 14px', font: font(400, 11.5, 1.45), color: '#7C7871',
-                                textWrap: 'pretty' }}>
-                    Muted. Their comments are collapsed behind a tap and their reviews are hidden. They can still
-                    see you.
-                  </div>
-                )}
-                <div style={{ display: 'flex', gap: 9, marginTop: 18 }}>
-                  <OutlineButton onClick={() => (muted ? unmute(name) : mute(name))}
-                                 color={muted ? accent : '#2A2A28'}>
-                    {muted ? 'Unmute' : 'Mute'}
-                  </OutlineButton>
-                  <OutlineButton onClick={() => block(name)} color="#2A2A28">Block</OutlineButton>
-                  <OutlineButton onClick={report}>Report</OutlineButton>
+              // Open to guests too: toggleFollow is device-local until there
+              // is an account to sync it to, and following is what fills an
+              // anonymous reader's feed.
+              <div className="tap" role="button" onClick={() => toggleFollow(profile.id)}
+                   style={{ marginTop: 16, borderRadius: 12, padding: 13, textAlign: 'center',
+                            background: following ? 'transparent' : accent,
+                            border: following ? `1.5px solid ${C.border}` : 'none',
+                            font: font(700, 14, 1.2), color: following ? C.body : '#fff' }}>
+                {following ? 'Following' : 'Follow'}
+              </div>
+            )}
+
+            {self && profile.age_rating && (
+              <div style={{ marginTop: 14, borderRadius: 12, background: C.agePillBg, padding: '11px 14px',
+                            font: font(400, 12, 1.5), color: C.agePill, textAlign: 'left', textWrap: 'pretty' }}>
+                Your profile is tagged 18+ ({(profile.age_reason ?? 'adult content').toLowerCase()}), so only
+                adults can see it and your posts. Remove adult links or the adult setting to lift it.
+              </div>
+            )}
+
+            {/* ------------------------------------------------- links */}
+            {(links.length > 0 || website) && (
+              <div style={{ marginTop: 22, textAlign: 'left' }}>
+                <Eyebrow>Find me at</Eyebrow>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 9 }}>
+                  {[...(website ? [website] : []), ...links].map((l) => {
+                    const m = linkMeta(l)
+                    return (
+                      <a key={l} href={linkHref(l)} target="_blank" rel="noreferrer noopener"
+                         style={{ display: 'flex', alignItems: 'center', gap: 11, borderRadius: 12,
+                                  border: `1px solid ${C.border}`, padding: '11px 13px', textDecoration: 'none' }}>
+                        <div style={{ width: 34, height: 34, borderRadius: 9, background: m.color, flex: 'none',
+                                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                      font: font(800, 14, 1), color: '#fff' }}>
+                          {m.label[0]?.toUpperCase() ?? '?'}
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <div style={{ font: font(700, 13.5, 1.25), color: C.ink, overflow: 'hidden',
+                                          textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.label}</div>
+                            {m.adult && <AgePill label="18+" />}
+                          </div>
+                          {m.detail && (
+                            <div style={{ font: font(400, 11.5, 1.3), color: C.muted, marginTop: 2, overflow: 'hidden',
+                                          textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.detail}</div>
+                          )}
+                        </div>
+                        <OutIcon color="#C3BFB8" />
+                      </a>
+                    )
+                  })}
                 </div>
-                <div style={{ font: font(400, 11.5, 1.5), color: C.faint, marginTop: 14, textAlign: 'center',
-                              textWrap: 'pretty' }}>
-                  Follow people to see their posts in your feed. Connect with people wherever they link to.
+              </div>
+            )}
+
+            {/* ------------------------------------------ pages they run */}
+            {pages.length > 0 && (
+              <div style={{ marginTop: 22, textAlign: 'left', display: 'flex', flexDirection: 'column', gap: 9 }}>
+                <Eyebrow>{pages.length === 1 ? 'Runs' : 'Runs these pages'}</Eyebrow>
+                {pages.map((p) => <EntityCard key={`${p.kind}-${p.id}`} entity={p} />)}
+                <div style={{ font: font(400, 11.5, 1.5), color: C.faint, textWrap: 'pretty' }}>
+                  {pages.length === 1
+                    ? `Posts badged with the ${PAGE_KIND[pages[0].kind].label.toLowerCase()}'s name are official; everything here is ${name} speaking for themselves.`
+                    : `Posts badged with a page's name are official; everything here is ${name} speaking for themselves.`}
                 </div>
-              </>
+              </div>
             )}
           </>
         )}
       </div>
-    </div>
-  )
-}
 
-// ------------------------------------------------------------- EditProfile
-
-type Visibility = 'private' | 'visible' | 'discoverable'
-
-interface Draft {
-  display_name: string
-  public_handle: string
-  pronouns: string
-  county: string
-  bio: string
-  links: string
-  avatar_url: string
-  header_url: string
-  identity_labels: string
-  interests: string
-  website: string
-  visibility: Visibility
-  search_visible: boolean
-  recommendable: boolean
-  indexable: boolean
-}
-
-const EMPTY_DRAFT: Draft = {
-  display_name: '', public_handle: '', pronouns: '', county: '', bio: '',
-  links: '', avatar_url: '', header_url: '', identity_labels: '', interests: '',
-  website: '', visibility: 'private', search_visible: false, recommendable: false, indexable: false,
-}
-
-const labelStyle = {
-  font: font(600, 10.5, 1.2), letterSpacing: '.06em',
-  textTransform: 'uppercase' as const, color: '#9A968F',
-}
-
-const fieldStyle = {
-  width: '100%', marginTop: 7, border: `1px solid ${C.border}`, borderRadius: 11,
-  padding: '12px 13px', outline: 'none', font: font(500, 14.5, 1.3), color: '#1A1A18',
-  background: '#fff', boxSizing: 'border-box' as const,
-}
-
-const VISIBILITY_OPTIONS: Array<{ value: Visibility; label: string; sub: string }> = [
-  { value: 'private', label: 'Private', sub: 'No social profile exists. People cannot find you.' },
-  { value: 'visible', label: 'Visible', sub: 'People you interact with can view your profile, but it is not searchable.' },
-  { value: 'discoverable', label: 'Discoverable', sub: 'Your profile can appear in search, communities, and recommendations.' },
-]
-
-export function EditProfile() {
-  const { back } = useTrail()
-  const { accent, account, signedIn } = useStore()
-  const [draft, setDraft] = useState<Draft>({ ...EMPTY_DRAFT, display_name: account.displayName ?? '' })
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState('')
-
-  useEffect(() => {
-    const id = account.profileId
-    if (!id) return
-    let alive = true
-    void supabase.from('social_profiles').select('*').eq('id', id).maybeSingle()
-      .then(({ data }) => {
-        if (!alive || !data) return
-        setDraft({
-          display_name: data.display_name ?? '',
-          public_handle: data.public_handle ?? '',
-          pronouns: data.pronouns ?? '',
-          county: data.county ?? '',
-          bio: data.bio ?? '',
-          links: (data.social_links ?? []).join('\n'),
-          avatar_url: data.avatar_url ?? '',
-          header_url: data.header_url ?? '',
-          identity_labels: (data.identity_labels ?? []).join(', '),
-          interests: (data.interests ?? []).join(', '),
-          website: data.website ?? '',
-          visibility: (data.visibility as Visibility) ?? 'private',
-          search_visible: data.search_visible ?? false,
-          recommendable: data.recommendable ?? false,
-          indexable: data.indexable ?? false,
-        })
-      })
-    return () => { alive = false }
-  }, [account.profileId])
-
-  const set = <K extends keyof Draft>(key: K) => (value: Draft[K]) =>
-    setDraft((d) => ({ ...d, [key]: value }))
-
-  const save = async () => {
-    if (!draft.display_name.trim()) {
-      setError('A display name is required — it is what other people see.')
-      return
-    }
-    setBusy(true)
-    setError('')
-    try {
-      if (signedIn && account.profileId) {
-        const { error: upsertError } = await supabase.from('social_profiles').upsert({
-          id: account.profileId,
-          display_name: draft.display_name.trim(),
-          public_handle: draft.public_handle.trim() || null,
-          pronouns: draft.pronouns.trim() || null,
-          county: draft.county.trim() || null,
-          bio: draft.bio.trim() || null,
-          social_links: draft.links.split('\n').map((l) => l.trim()).filter(Boolean),
-          avatar_url: draft.avatar_url.trim() || null,
-          header_url: draft.header_url.trim() || null,
-          identity_labels: draft.identity_labels.split(',').map((l) => l.trim()).filter(Boolean),
-          interests: draft.interests.split(',').map((l) => l.trim()).filter(Boolean),
-          website: draft.website.trim() || null,
-          visibility: draft.visibility,
-          search_visible: draft.search_visible,
-          recommendable: draft.recommendable,
-          indexable: draft.indexable,
-          updated_at: new Date().toISOString(),
-        })
-        if (upsertError) {
-          setError('Could not save your profile. Try again.')
-          return
-        }
-      }
-      back()
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  return (
-    <div style={{ minHeight: '100%', background: '#fff' }}>
-      <div style={{ position: 'sticky', top: 0, zIndex: 5, background: '#fff', borderBottom: '1px solid #EFECE8',
-                    display: 'flex', alignItems: 'center', gap: 10, padding: '56px 14px 12px' }}>
-        <div className="tap" role="button" onClick={back}
-             style={{ font: font(600, 14, 1.2), color: '#7C7871' }}>Cancel</div>
-        <div style={{ flex: 1, textAlign: 'center', font: font(700, 16, 1.2), color: '#161615' }}>Edit social profile</div>
-        <div className="tap" role="button" onClick={() => { if (!busy) void save() }}
-             style={{ font: font(700, 14, 1.2), color: busy ? C.faint : accent }}>
-          {busy ? 'Saving…' : 'Save'}
-        </div>
-      </div>
-
-      <div style={{ padding: '20px 18px 32px' }}>
-        {!signedIn && (
-          <div style={{ borderRadius: 12, background: '#F7F5F1', border: '1px solid #EAE7E2', padding: '12px 14px',
-                        font: font(400, 12, 1.5), color: '#7C7871', marginBottom: 18, textWrap: 'pretty' }}>
-            You are not signed in, so nothing here will be saved to your account. Create an account first and this
-            page becomes your social profile.
+      {/* ---------------------------------------------------------- posts */}
+      {!blocked && (
+        <div style={{ borderTop: `1px solid ${C.hairline}` }}>
+          <div style={{ padding: '14px 18px 4px', display: 'flex', alignItems: 'baseline', gap: 8 }}>
+            <div style={{ font: font(800, 17, 1.2), color: C.ink, letterSpacing: '-.01em' }}>Posts</div>
+            {muted && <span style={{ font: font(500, 11.5, 1.3), color: C.muted }}>· muted</span>}
           </div>
-        )}
-
-        {/* Visibility — the most important control, shown first */}
-        <div style={{ font: font(700, 13, 1.2), color: '#2A2A28', marginBottom: 10 }}>Profile visibility</div>
-        <div style={{ border: `1px solid ${C.border}`, borderRadius: 14, overflow: 'hidden', marginBottom: 20 }}>
-          {VISIBILITY_OPTIONS.map((opt, i) => {
-            const on = draft.visibility === opt.value
-            return (
-              <div key={opt.value} className="tap" role="button"
-                   onClick={() => set('visibility')(opt.value)}
-                   style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '14px 15px',
-                            borderBottom: i === VISIBILITY_OPTIONS.length - 1 ? 'none' : `1px solid ${C.hairline}`,
-                            background: on ? '#FAF9F7' : '#fff' }}>
-                <div style={{ width: 22, height: 22, borderRadius: 999, border: `2px solid ${on ? accent : C.border}`,
-                              flex: 'none', marginTop: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  {on && <div style={{ width: 12, height: 12, borderRadius: 999, background: accent }} />}
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ font: font(700, 14, 1.25), color: '#1A1A18' }}>{opt.label}</div>
-                  <div style={{ font: font(400, 12, 1.45), color: C.muted, marginTop: 3, textWrap: 'pretty' }}>{opt.sub}</div>
-                </div>
+          {postsLoading ? (
+            <div style={{ padding: 24, textAlign: 'center', font: font(400, 13, 1.4), color: C.muted }}>Loading…</div>
+          ) : posts.length === 0 ? (
+            <div style={{ padding: '22px 24px 30px', textAlign: 'center' }}>
+              <div style={{ font: font(600, 14, 1.3), color: C.body }}>
+                {self ? 'You have not posted yet' : `${name} has not posted yet`}
               </div>
-            )
-          })}
-        </div>
-
-        {/* Discoverability toggles — only relevant when visible or discoverable */}
-        {draft.visibility !== 'private' && (
-          <div style={{ marginBottom: 20 }}>
-            <div style={{ font: font(700, 13, 1.2), color: '#2A2A28', marginBottom: 10 }}>Discoverability</div>
-            <div style={{ border: `1px solid ${C.border}`, borderRadius: 14, overflow: 'hidden' }}>
-              {[
-                { key: 'search_visible' as const, label: 'Appear in search', sub: 'People can find you by name or handle.' },
-                { key: 'recommendable' as const, label: 'Recommendations', sub: 'Allow us to suggest your profile to others.' },
-                { key: 'indexable' as const, label: 'Search engine indexing', sub: 'Allow public-web search engines to index your profile.' },
-              ].map((toggle, i) => (
-                <div key={toggle.key}
-                     style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 15px',
-                              borderBottom: i === 2 ? 'none' : `1px solid ${C.hairline}` }}>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ font: font(600, 13.5, 1.3), color: '#1A1A18' }}>{toggle.label}</div>
-                    <div style={{ font: font(400, 11.5, 1.4), color: C.muted, marginTop: 3, textWrap: 'pretty' }}>{toggle.sub}</div>
-                  </div>
-                  <div className="tap" role="button"
-                       onClick={() => set(toggle.key)(!draft[toggle.key])}
-                       style={{ width: 46, height: 27, borderRadius: 999, flex: 'none', cursor: 'pointer',
-                                background: draft[toggle.key] ? accent : C.border,
-                                transition: 'background .15s', position: 'relative' }}>
-                    <div style={{ position: 'absolute', top: 3, left: draft[toggle.key] ? 22 : 3,
-                                  width: 21, height: 21, borderRadius: 999, background: '#fff',
-                                  boxShadow: '0 1px 3px rgba(0,0,0,.15)', transition: 'left .15s' }} />
-                  </div>
-                </div>
-              ))}
+              <div style={{ font: font(400, 12.5, 1.5), color: C.muted, marginTop: 5, textWrap: 'pretty' }}>
+                {self ? 'Share something with the community from the Feed tab.' : 'Follow them to see it first when they do.'}
+              </div>
             </div>
+          ) : muted ? (
+            <div style={{ padding: '18px 24px 26px', textAlign: 'center', font: font(400, 12.5, 1.5), color: C.muted,
+                          textWrap: 'pretty' }}>
+              You muted {name}, so their posts are collapsed. Unmute below to read them.
+            </div>
+          ) : (
+            posts.map((p) => (
+              <PostCard key={p.id} post={p} showAuthor={false} onComment={setActivePost}
+                        onChange={(next) => setPosts((ps) => ps.map((x) => (x.id === next.id ? next : x)))} />
+            ))
+          )}
+        </div>
+      )}
+
+      {/* -------------------------------------------------- moderation */}
+      {!self && !blocked && (
+        <div style={{ padding: '18px 18px 8px' }}>
+          {muted && (
+            <div style={{ marginBottom: 12, borderRadius: 12, background: '#F7F5F1', border: '1px solid #EAE7E2',
+                          padding: '12px 14px', font: font(400, 11.5, 1.45), color: '#7C7871', textWrap: 'pretty' }}>
+              Muted. Their comments are collapsed behind a tap and their reviews are hidden. They can still see you.
+            </div>
+          )}
+          <div style={{ display: 'flex', gap: 9 }}>
+            <OutlineButton onClick={() => (muted ? unmute(name) : mute(name))} color={muted ? accent : '#2A2A28'}>
+              {muted ? 'Unmute' : 'Mute'}
+            </OutlineButton>
+            <OutlineButton onClick={() => block(name)}>Block</OutlineButton>
+            <OutlineButton onClick={report}>Report</OutlineButton>
           </div>
-        )}
-
-        {/* Basic profile */}
-        <div>
-          <div style={labelStyle}>Profile photo — image URL</div>
-          <input value={draft.avatar_url} placeholder="https://…/photo.jpg"
-                 onChange={(e) => set('avatar_url')(e.target.value)} style={fieldStyle} />
-          <div style={{ font: font(400, 11.5, 1.5), color: C.faint, marginTop: 6, textWrap: 'pretty' }}>
-            Paste a link to an image. Uploading from your phone comes later.
+          <div style={{ font: font(400, 11.5, 1.5), color: C.faint, marginTop: 14, textAlign: 'center',
+                        textWrap: 'pretty' }}>
+            {signedIn
+              ? 'Follow people to see their posts in your feed.'
+              : 'Follows are kept on this device until you sign in.'}
           </div>
         </div>
+      )}
 
-        <div style={{ marginTop: 16 }}>
-          <div style={labelStyle}>Background — image URL</div>
-          <input value={draft.header_url} placeholder="https://…/header.jpg"
-                 onChange={(e) => set('header_url')(e.target.value)} style={fieldStyle} />
-        </div>
-
-        <div style={{ marginTop: 16 }}>
-          <div style={labelStyle}>Display name</div>
-          <input value={draft.display_name} onChange={(e) => set('display_name')(e.target.value)}
-                 style={fieldStyle} />
-        </div>
-
-        <div style={{ marginTop: 16 }}>
-          <div style={labelStyle}>Public handle — optional</div>
-          <input value={draft.public_handle} placeholder="@alex"
-                 onChange={(e) => set('public_handle')(e.target.value)} style={fieldStyle} />
-          <div style={{ font: font(400, 11.5, 1.5), color: C.faint, marginTop: 6, textWrap: 'pretty' }}>
-            Separate from your login username. Changing this does not affect sign-in.
-          </div>
-        </div>
-
-        <div style={{ marginTop: 16 }}>
-          <div style={labelStyle}>Pronouns</div>
-          <input value={draft.pronouns} placeholder="they/them"
-                 onChange={(e) => set('pronouns')(e.target.value)} style={fieldStyle} />
-        </div>
-
-        <div style={{ marginTop: 16 }}>
-          <div style={labelStyle}>Area</div>
-          <input value={draft.county} placeholder="Weber County"
-                 onChange={(e) => set('county')(e.target.value)} style={fieldStyle} />
-        </div>
-
-        <div style={{ marginTop: 16 }}>
-          <div style={labelStyle}>Bio</div>
-          <textarea value={draft.bio} rows={4} onChange={(e) => set('bio')(e.target.value)}
-                    style={{ ...fieldStyle, font: font(400, 14, 1.55), resize: 'none' }} />
-        </div>
-
-        <div style={{ marginTop: 16 }}>
-          <div style={labelStyle}>Identity labels — comma separated</div>
-          <input value={draft.identity_labels} placeholder="queer, trans, nonbinary"
-                 onChange={(e) => set('identity_labels')(e.target.value)} style={fieldStyle} />
-        </div>
-
-        <div style={{ marginTop: 16 }}>
-          <div style={labelStyle}>Interests — comma separated</div>
-          <input value={draft.interests} placeholder="hiking, drag, book club"
-                 onChange={(e) => set('interests')(e.target.value)} style={fieldStyle} />
-        </div>
-
-        <div style={{ marginTop: 16 }}>
-          <div style={labelStyle}>Website</div>
-          <input value={draft.website} placeholder="yoursite.com"
-                 onChange={(e) => set('website')(e.target.value)} style={fieldStyle} />
-        </div>
-
-        <div style={{ marginTop: 16 }}>
-          <div style={labelStyle}>Social links — one per line</div>
-          <textarea value={draft.links} rows={3} placeholder={'instagram.com/you\ntiktok.com/@you'}
-                    onChange={(e) => set('links')(e.target.value)}
-                    style={{ ...fieldStyle, font: font(400, 14, 1.55), resize: 'none' }} />
-        </div>
-
-        {error && (
-          <div style={{ marginTop: 16, borderRadius: 12, background: C.dangerBg, border: '1px solid #F0E0E0',
-                        padding: '12px 14px', font: font(500, 12.5, 1.5), color: C.danger, textWrap: 'pretty' }}>
-            {error}
-          </div>
-        )}
-
-        <div style={{ font: font(400, 11.5, 1.5), color: C.faint, marginTop: 16, textWrap: 'pretty' }}>
-          Your social profile is separate from your account. Hiding or deleting it does not
-          affect your ability to sign in or participate.
-        </div>
-      </div>
+      {activePost && (
+        <CommentSheet post={activePost} data={data}
+                      onClose={() => { setActivePost(null); void loadPosts() }} />
+      )}
     </div>
   )
 }
