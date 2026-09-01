@@ -2,10 +2,12 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { C } from '../lib/theme'
 import { useStore } from '../lib/store'
 import { useData } from '../lib/useData'
-import { eventsFor } from '../lib/data'
+import { entityRef, eventsFor } from '../lib/data'
 import { Verified } from '../components/icons'
 import { SubscriptionPanel } from '../components/SubscriptionPanel'
 import { EditImageButton } from '../components/EditImageButton'
+import { AdminEditButton } from '../components/AdminEditButton'
+import { RichText } from '../components/RichText'
 import { ManageStrip } from '../components/ManageStrip'
 import { Empty, Img, StickyBar, font } from '../components/ui'
 import { EventCard } from './Events'
@@ -40,16 +42,19 @@ function HostProfile() {
       <StickyBar
         title={host.name}
         right={
-          <div
-            className="tap"
-            role="button"
-            onClick={() => toggleSave(host.id, 'host')}
-            aria-label={saved ? 'Unfollow host' : 'Follow host'}
-            style={{ height: 34, borderRadius: 999, background: saved ? tint : C.fill, display: 'flex',
-                     padding: '0 13px', alignItems: 'center', justifyContent: 'center', flex: 'none',
-                     font: font(700, 12.5, 1.2), color: saved ? accent : C.body }}
-          >
-            {saved ? 'Following' : 'Follow'}
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <AdminEditButton section="hosts" id={host.id} />
+            <div
+              className="tap"
+              role="button"
+              onClick={() => toggleSave(host.id, 'host')}
+              aria-label={saved ? 'Unfollow host' : 'Follow host'}
+              style={{ height: 34, borderRadius: 999, background: saved ? tint : C.fill, display: 'flex',
+                       padding: '0 13px', alignItems: 'center', justifyContent: 'center', flex: 'none',
+                       font: font(700, 12.5, 1.2), color: saved ? accent : C.body }}
+            >
+              {saved ? 'Following' : 'Follow'}
+            </div>
           </div>
         }
       />
@@ -85,10 +90,9 @@ function HostProfile() {
         <div style={{ font: font(400, 14, 1.4), color: '#87837C', marginTop: 6 }}>No reviews</div>
 
         {host.bio && (
-          <div style={{ font: font(400, 14, 1.6), color: C.body, marginTop: 12, maxWidth: 320,
-                        marginLeft: 'auto', marginRight: 'auto', textWrap: 'pretty' }}>
-            {host.bio}
-          </div>
+          <RichText text={host.bio}
+                    style={{ font: font(400, 14, 1.6), color: C.body, marginTop: 12, maxWidth: 320,
+                             marginLeft: 'auto', marginRight: 'auto', textAlign: 'left' }} />
         )}
 
         <div style={{ display: 'flex', gap: 9, justifyContent: 'center', marginTop: 14 }}>
@@ -135,7 +139,10 @@ function HostProfile() {
         </div>
         {events.length === 0
           ? <Empty>No events listed yet.</Empty>
-          : events.map((e) => <EventCard key={e.id} event={e} showOrganiser={false} />)}
+          : events.map((e) => (
+              <EventCard key={e.id} event={e} organiser={entityRef(data, 'host', host.id)}
+                         showOrganiser={false} />
+            ))}
       </div>
 
       <div className="tap" role="button" onClick={() => nav('/events')}

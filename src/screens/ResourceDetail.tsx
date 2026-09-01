@@ -1,6 +1,8 @@
 import { useParams } from 'react-router-dom'
 import { AgeGate } from '../components/AgeGate'
 import { EditImageButton } from '../components/EditImageButton'
+import { RichText } from '../components/RichText'
+import { AdminEditButton } from '../components/AdminEditButton'
 import { EntityEvents } from '../components/EntityEvents'
 import { ManageStrip } from '../components/ManageStrip'
 import { SubscriptionPanel } from '../components/SubscriptionPanel'
@@ -59,6 +61,7 @@ export default function ResourceDetail() {
         title={r.name}
         right={
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <AdminEditButton section="resources" id={r.id} />
             <Tap
               onClick={() => {
                 const url = window.location.href
@@ -112,8 +115,8 @@ export default function ResourceDetail() {
         )}
 
         {filled(r.description) && (
-          <div style={{ font: font(400, 15, 1.6), color: '#33322F', marginTop: 14,
-                        whiteSpace: 'pre-wrap', textWrap: 'pretty' }}>{r.description}</div>
+          <RichText text={r.description}
+                    style={{ font: font(400, 15, 1.6), color: '#33322F', marginTop: 14 }} />
         )}
 
         {rows.length > 0 && (

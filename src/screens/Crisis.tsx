@@ -1,3 +1,4 @@
+import { RichText } from '../components/RichText'
 import { StickyBar, font } from '../components/ui'
 import { telHref } from '../lib/data'
 import { useStore } from '../lib/store'
@@ -30,9 +31,8 @@ export default function Crisis() {
                      padding: '16px 17px', boxShadow: '0 3px 14px rgba(0,0,0,.06)' }}
           >
             <div style={{ font: font(700, 15, 1.25), color: C.ink }}>{line.name}</div>
-            <div style={{ font: font(400, 13, 1.5), color: '#6E6A64', marginTop: 5, textWrap: 'pretty' }}>
-              {line.desc}
-            </div>
+            <RichText text={line.desc}
+                      style={{ font: font(400, 13, 1.5), color: '#6E6A64', marginTop: 5 }} />
             <a
               href={telHref(line.tel)}
               style={{ display: 'block', marginTop: 13, borderRadius: 10, padding: '11px 14px',

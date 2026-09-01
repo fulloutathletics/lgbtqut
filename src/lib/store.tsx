@@ -66,6 +66,8 @@ interface Account {
   handle: string | null
   avatarUrl: string | null
   profileId: string | null
+  /** Super-admin flag from profiles.is_admin — set only via the service role. */
+  isAdmin: boolean
   /** Pages — resource, business, host — this account administers. */
   managed: ManagedPage[]
   /** Outstanding and recent requests to manage or add a page. */
@@ -74,7 +76,7 @@ interface Account {
 
 const ANON_ACCOUNT: Account = {
   tier: 'anonymous', dob: null, username: null, displayName: null, handle: null,
-  avatarUrl: null, profileId: null, managed: [], requests: [],
+  avatarUrl: null, profileId: null, isAdmin: false, managed: [], requests: [],
 }
 
 interface Store extends Persisted {
@@ -106,6 +108,8 @@ interface Store extends Persisted {
   age: number | null
   canSee: (ageRating: string | null) => boolean
   signedIn: boolean
+  /** Super-admin: full CRUD on directory content, enforced server-side by RLS. */
+  isAdmin: boolean
   /** Does this account administer the given page? Drives edit, post-as and host controls. */
   administers: (kind: EntityKind, id: string) => boolean
   /** Re-read the account after a write the session made (profile created, request filed). */
@@ -192,6 +196,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       ...state,
       account,
       signedIn,
+      isAdmin: account.isAdmin,
       age,
       administers: (kind, id) => account.managed.some((m) => m.kind === kind && m.id === id),
       refreshAccount,
@@ -276,7 +281,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 // page_requests holds what they have asked for and are still waiting on.
 async function loadAccount(userId: string): Promise<{ account: Account; follows: string[] } | null> {
   const [profile, social, followRows, adminRows, requestRows] = await Promise.all([
-    supabase.from('profiles').select('id, login_username, dob').eq('id', userId).maybeSingle(),
+    supabase.from('profiles').select('id, login_username, dob, is_admin').eq('id', userId).maybeSingle(),
     supabase.from('social_profiles').select('display_name, public_handle, avatar_url').eq('id', userId).maybeSingle(),
     supabase.from('follows').select('followee_id').eq('follower_id', userId),
     supabase.from('entity_admins').select('entity_kind, entity_id, role').eq('profile_id', userId),
@@ -300,6 +305,7 @@ async function loadAccount(userId: string): Promise<{ account: Account; follows:
       handle: social.data?.public_handle ?? null,
       avatarUrl: social.data?.avatar_url ?? null,
       profileId: profile.data.id,
+      isAdmin: profile.data.is_admin === true,
       managed,
       requests,
     },
