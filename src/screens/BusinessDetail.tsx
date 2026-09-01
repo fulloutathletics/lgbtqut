@@ -94,13 +94,13 @@ export function BusinessDetail({ variant = 'glide', showConfig = false }: {
       {variant === 'glide' ? (
         <>
           <div style={{ position: 'relative', height: 200, background: b.color, overflow: 'hidden' }}>
-            <Img src={b.background_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            <Img src={b.background_url} priority style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
             <EditImageButton table="businesses" id={b.id} column="background_url" />
           </div>
           <div style={{ padding: '0 16px', marginTop: -46, position: 'relative' }}>
             <div style={{ width: 96, height: 96, borderRadius: 14, overflow: 'hidden', background: b.color,
                           border: '3px solid #fff', boxShadow: '0 5px 18px rgba(0,0,0,.2)', position: 'relative' }}>
-              <Img src={b.image_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              <Img src={b.image_url} priority style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               <EditImageButton table="businesses" id={b.id} column="image_url"
                                style={{ width: 26, height: 26, bottom: 4, right: 4 }} />
             </div>
