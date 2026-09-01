@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { C } from '../lib/theme'
 import { useStore } from '../lib/store'
 import { supabase } from '../lib/supabase'
-import { ProfileHeader, font } from '../components/ui'
+import { font } from '../components/ui'
 import { Back } from '../components/icons'
 import { useData } from '../lib/useData'
 import { entityHref, entityRef } from '../lib/data'
@@ -557,13 +557,13 @@ export default function Feed() {
 
   return (
     <div>
-      {/* The banner every other main tab opens with. Feed had a bar of its own,
-          which made the one social tab look like a screen from another app. */}
-      <ProfileHeader title="Feed" tagline="Updates from the people and places you follow." />
-
-      <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '0 16px 12px' }}>
+      {/* Header */}
+      <div style={{ position: 'sticky', top: 0, zIndex: 20, background: 'rgba(255,255,255,.94)',
+                    backdropFilter: 'blur(12px)', borderBottom: `1px solid ${C.hairline}`,
+                    padding: '56px 16px 12px', display: 'flex', alignItems: 'center' }}>
+        <div style={{ font: font(800, 20, 1.15), color: C.ink, letterSpacing: '-.01em' }}>Feed</div>
         <div className="tap" role="button" onClick={reload}
-             style={{ display: 'flex', alignItems: 'center', gap: 5,
+             style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 5,
                       font: font(600, 12, 1.2), color: accent }}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={accent}
                strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
