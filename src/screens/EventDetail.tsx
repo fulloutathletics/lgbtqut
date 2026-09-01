@@ -300,7 +300,7 @@ function EventDetail() {
       {/* hero */}
       <div style={{ height: 246, background: '#F4F2EE', display: 'flex', alignItems: 'center',
                     justifyContent: 'center', overflow: 'hidden', position: 'relative' }}>
-        <Img src={event.image_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        <Img src={event.image_url} alt="" priority style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
         <EditImageButton table="events" id={event.id} column="image_url" />
       </div>
 

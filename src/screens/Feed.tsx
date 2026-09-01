@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { C } from '../lib/theme'
 import { useStore } from '../lib/store'
 import { supabase } from '../lib/supabase'
-import { font } from '../components/ui'
+import { Img, font } from '../components/ui'
 import { Back } from '../components/icons'
 import { useData } from '../lib/useData'
 import { entityHref, entityRef } from '../lib/data'
@@ -120,7 +120,7 @@ function Composer({ onPosted }: { onPosted: () => void }) {
                       display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
                       font: font(700, 13, 1), color: '#fff' }}>
           {speaking?.image_url
-            ? <img src={speaking.image_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            ? <Img src={speaking.image_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
             : initials(speaking?.name ?? myName)}
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>

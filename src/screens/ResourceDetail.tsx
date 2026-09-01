@@ -91,7 +91,7 @@ export default function ResourceDetail() {
       <ManageStrip kind="resource" id={r.id} />
 
       <div style={{ width: '100%', aspectRatio: '4/3', background: tint, overflow: 'hidden', position: 'relative' }}>
-        <Img src={r.image_url} alt={r.name}
+        <Img src={r.image_url} alt={r.name} priority
              style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
         <EditImageButton table="resources" id={r.id} column="image_url" />
       </div>

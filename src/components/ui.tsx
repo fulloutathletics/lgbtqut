@@ -10,13 +10,30 @@ import type { ImageTable } from '../lib/imageEdit'
 export const font = (weight: number, size: number | string, leading: number | string = 1.3) =>
   `${weight} ${typeof size === 'number' ? `${size}px` : size}/${leading} ${FONT}`
 
-/** Falls back to a hatched swatch when the source image 404s. */
-export function Img({ src, style, alt = '' }: { src?: string; style?: CSSProperties; alt?: string }) {
+/**
+ * Falls back to a hatched swatch when the source image 404s.
+ *
+ * Lazy by default, which is right for the hundred-odd thumbnails below the
+ * fold on a list screen and wrong for the one picture already on screen when
+ * the page paints. A lazy image doesn't start downloading until layout has run
+ * and then queues at low priority, so the artwork a reader is actually looking
+ * at arrives last. Pass `priority` for that image — the splash card at the top
+ * of the page, a profile's header — and it is fetched eagerly and ahead of the
+ * rest. Never pass it to more than the first screenful: marking everything
+ * urgent is the same as marking nothing urgent.
+ */
+export function Img({ src, style, alt = '', priority = false }: {
+  src?: string; style?: CSSProperties; alt?: string; priority?: boolean
+}) {
   return (
     <img
       src={imgSrc(src)}
       alt={alt}
-      loading="lazy"
+      loading={priority ? 'eager' : 'lazy'}
+      fetchPriority={priority ? 'high' : 'auto'}
+      // Decode off the main thread so a large picture landing mid-scroll
+      // doesn't stall the list it is scrolling in.
+      decoding="async"
       style={style}
       onError={(e) => {
         const el = e.currentTarget
@@ -42,13 +59,14 @@ export function ProfileHeader({ title, tagline }: { title: string; tagline: stri
   return (
     <div style={{ position: 'relative' }}>
       <div style={{ height: 158, background: themeBar, position: 'relative', overflow: 'hidden' }}>
-        {headerImg && <Img src={headerImg} style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0.92 }} />}
+        {headerImg && <Img src={headerImg} priority
+                             style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0.92 }} />}
       </div>
       <div style={{ display: 'flex', justifyContent: 'center', marginTop: -52, position: 'relative', zIndex: 2 }}>
         <div style={{ width: 104, height: 104, borderRadius: 999, background: '#111', border: '4px solid #fff',
                       boxShadow: '0 6px 20px rgba(0,0,0,.22)', overflow: 'hidden' }}>
           <Img src="https://storage.googleapis.com/glide-prod.appspot.com/uploads-v2/NSfaaNV0fRhAK9yZqEUi/pub/xJvzSXG0KhRgxQYQKBUO/lgbtqut%20(1).png"
-               style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+               priority style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
         </div>
       </div>
       <div style={{ padding: '12px 24px 18px', textAlign: 'center' }}>
@@ -99,14 +117,17 @@ export function SearchField({ value, onChange, placeholder }: {
 }
 
 /** Full-width 240px image card with scrim, title, subtitle and count pill. */
-export function RouterCard({ img, bg, title, sub, count, onClick, editImage }: {
+export function RouterCard({ img, bg, title, sub, count, onClick, editImage, priority }: {
   img?: string; bg?: string; title: string; sub?: string; count?: string; onClick?: () => void
   editImage?: { table: ImageTable; id: string; column: string }
+  /** Set on the cards above the fold — see `Img`. */
+  priority?: boolean
 }) {
   return (
     <Tap onClick={onClick} style={{ position: 'relative', borderRadius: 14, overflow: 'hidden', height: 240,
                                     background: bg || '#D6D2CC', boxShadow: '0 3px 12px rgba(0,0,0,.09)' }}>
-      {img && <Img src={img} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />}
+      {img && <Img src={img} priority={priority}
+                   style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />}
       {editImage && (
         <EditImageButton table={editImage.table} id={editImage.id} column={editImage.column}
                          style={{ top: 14, bottom: 'auto', right: 14 }} />
