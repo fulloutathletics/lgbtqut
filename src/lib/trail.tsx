@@ -1,6 +1,6 @@
-import { createContext, useCallback, useContext, useMemo, useRef } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef } from 'react'
 import type { ReactNode } from 'react'
-import { useLocation, useNavigate, useNavigationType } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 
 /**
  * Where "back" goes.
@@ -21,6 +21,10 @@ import { useLocation, useNavigate, useNavigationType } from 'react-router-dom'
  * restores its scroll position and its search box. It falls back to the parent
  * whenever the entry behind sits *below* the current page — the up-navigation
  * case above — or when there is no entry behind at all.
+ *
+ * The stack is indexed by, and survives alongside, the browser's own position
+ * in history. Both halves matter, and getting either wrong shows up as a back
+ * button that does nothing — see `depth` and `restore` below.
  */
 
 const HOME = '/'
@@ -120,50 +124,104 @@ const Ctx = createContext<Trail | null>(null)
 
 interface Entry { key: string; path: string }
 
+/**
+ * How deep this tab sits in the history the app itself created. React Router
+ * keeps the number in `history.state`, which makes it the one honest answer to
+ * "is there anything behind us?" — it counts our own entries only, so 0 means
+ * the reader arrived here cold and `nav(-1)` would take them out of the app.
+ */
+function depth(): number {
+  const idx = (window.history.state as { idx?: number } | null)?.idx
+  return typeof idx === 'number' && idx > 0 ? idx : 0
+}
+
+const SAVED = 'trail'
+
+/**
+ * The trail, reloaded.
+ *
+ * A refresh, a PWA relaunch, or the browser evicting the tab drops the stack
+ * while leaving the browser's history untouched, and an amnesiac trail falls
+ * through to the parent — which it reaches with `replace`, laying a copy of the
+ * entry behind on top of it. The reader then presses the system back button and
+ * lands on the page they are already looking at: a back button that plainly
+ * does not work. `history.state` survives a reload intact, keys and all, so the
+ * trail can too.
+ */
+function restore(key: string, at: number): Entry[] {
+  try {
+    const saved: unknown = JSON.parse(sessionStorage.getItem(SAVED) ?? 'null')
+    if (!Array.isArray(saved)) return []
+    // Browsers seed a new tab with a copy of its opener's sessionStorage, so a
+    // stack that does not agree with where we actually are is somebody else's.
+    const here = saved[at] as Entry | undefined
+    return here && here.key !== key ? [] : (saved as Entry[])
+  } catch {
+    return []
+  }
+}
+
 export function TrailProvider({ children }: { children: ReactNode }) {
   const loc = useLocation()
-  const type = useNavigationType()
   const nav = useNavigate()
-  const stack = useRef<Entry[]>([])
+  const stack = useRef<Entry[] | null>(null)
+
+  const at = depth()
+  if (stack.current === null) stack.current = restore(loc.key, at)
 
   // Kept in step during render rather than in an effect: a back button tapped
   // in the same commit as the navigation that revealed it must already see the
-  // entry it is standing on. The updates are idempotent per history key, which
-  // is what makes that safe under StrictMode's double render.
+  // entry it is standing on. Writing at the browser's own index is what makes
+  // that safe to repeat under StrictMode's double render, and it needs no guess
+  // about how we got here: a push lands one slot deeper, a replace overwrites
+  // the slot it is standing on, and a step back trims the slots ahead.
   const s = stack.current
-  const top = s[s.length - 1]
-  if (top?.key === loc.key) {
-    top.path = loc.pathname
-  } else {
-    const seen = s.findIndex((e) => e.key === loc.key)
-    if (seen >= 0) s.length = seen + 1                                     // stepped back
-    else if (type === 'REPLACE' && s.length) s[s.length - 1] = { key: loc.key, path: loc.pathname }
-    else s.push({ key: loc.key, path: loc.pathname })                      // pushed, or stepped forward
-  }
+  if (s.length > at + 1) s.length = at + 1
+  s[at] = { key: loc.key, path: loc.pathname }
 
-  /** The entry behind this one, when it is a sane way out. */
-  const previous = useCallback(() => {
-    const st = stack.current
-    if (st.length < 2) return null
-    const here = st[st.length - 1].path
-    const prev = st[st.length - 2].path
+  useEffect(() => {
+    try { sessionStorage.setItem(SAVED, JSON.stringify(stack.current)) } catch { /* private browsing */ }
+  }, [loc.key, loc.pathname])
+
+  /**
+   * Where back goes: `step` to walk the browser's history, otherwise the path
+   * to climb to. Shared by `back()` and its label so the two cannot disagree.
+   */
+  const route = useCallback((): { step: boolean; path: string | null } => {
+    const here = loc.pathname
+    const parent = parentOf(here) ?? HOME
+    const i = depth()
+    // A hole rather than an entry means the trail was lost and history was not
+    // — the tab was reloaded with no session storage to read back.
+    const prev: Entry | undefined = i > 0 ? stack.current?.[i - 1] : undefined
+
+    // Nothing of ours behind: a shared link, opened cold. Climb, with `replace`,
+    // so the page we leave cannot become the thing behind the one we land on.
+    if (i === 0) return { step: false, path: parent }
+
     // Below us is the up-navigation we pushed on the way here; stepping back
     // into it would take the reader deeper. Identical means a redirect loop.
-    if (prev === here || isBelow(prev, here)) return null
-    return prev
-  }, [])
+    if (prev && prev.path !== here && !isBelow(prev.path, here)) return { step: true, path: prev.path }
+
+    // There is a real entry behind, so `replace` would bury a copy of it on top
+    // of it and cost the reader a back press. Step back instead whenever that
+    // is where we were headed anyway, or whenever we cannot see what is there.
+    if (!prev) return { step: true, path: null }
+    if (prev.path === parent) return { step: true, path: parent }
+
+    return { step: false, path: parent }
+  }, [loc.pathname])
 
   const back = useCallback(() => {
-    if (previous()) { nav(-1); return }
-    // `replace`, so the page we are leaving does not become the thing behind
-    // the page we land on — that is the loop this whole module exists to break.
-    nav(parentOf(loc.pathname) ?? HOME, { replace: true })
-  }, [nav, previous, loc.pathname])
+    const r = route()
+    if (r.step) nav(-1)
+    else nav(r.path ?? HOME, { replace: true })
+  }, [nav, route])
 
-  const value = useMemo<Trail>(
-    () => ({ back, backLabel: labelFor(previous() ?? parentOf(loc.pathname) ?? HOME) }),
-    [back, previous, loc.pathname],
-  )
+  const value = useMemo<Trail>(() => {
+    const to = route().path
+    return { back, backLabel: to ? labelFor(to) : null }
+  }, [back, route])
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }

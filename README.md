@@ -176,6 +176,25 @@ goes ("Back to Location Search").
 Pass `onBack` only for a screen that steps through its own stages before it is
 ready to leave, like sign-in.
 
+Two things keep the trail honest, and getting either wrong reads as a back
+button that does nothing:
+
+- **It is indexed by the browser's own position**, `history.state.idx`, rather
+  than inferred from the kind of navigation. A push lands one slot deeper, a
+  replace overwrites the slot it stands on, a step back trims the slots ahead —
+  and `idx === 0` is the one trustworthy answer to "is anything of ours behind
+  us?", so `back()` never steps out of the app.
+- **It survives a reload**, in `sessionStorage`. A refresh, a PWA relaunch, or
+  an evicted tab drops the stack while leaving history untouched, and an
+  amnesiac trail climbs to the parent with `replace` — laying a copy of the
+  entry behind on top of it. The next press of the system back button then
+  lands the reader on the page they are already looking at. `history.state`
+  comes back from a reload intact, keys and all, so the trail comes with it.
+
+When the trail cannot see what is behind — storage refused, or a stack from
+another tab — `back()` steps rather than replaces. A step is never wrong by more
+than a page; a replace over a real entry costs a press.
+
 ## What is built
 
 Screens are complete against the handoff: home/router, resource chooser and
