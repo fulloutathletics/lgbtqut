@@ -1,4 +1,5 @@
 import { supabase } from './supabase'
+import { OPTIMIZED } from './optimizedImages'
 import type { AppData, AppEvent, EntityKind, EntityRef } from './types'
 
 // The content tables are static enough to cache aggressively, so the whole
@@ -166,7 +167,50 @@ export const webHref = (url: string) => (/^https?:\/\//i.test(url) ? url : `http
 export const PLACEHOLDER =
   "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40'%3E%3Crect width='40' height='40' fill='%23E9E5DF'/%3E%3Cpath d='M-10 10 L10 -10 M0 40 L40 0 M30 50 L50 30' stroke='%23E2DDD6' stroke-width='7'/%3E%3C/svg%3E"
 
-export const imgSrc = (url?: string) => url || PLACEHOLDER
+/**
+ * A 32-bit FNV-1a hash as 8 hex characters — the same function, character for
+ * character, as the one in scripts/optimize-images.mjs. It has to be
+ * synchronous (SubtleCrypto is not) because this runs during render.
+ */
+function fnv1a(str: string): string {
+  let h = 0x811c9dc5
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i)
+    h = Math.imul(h, 0x01000193) >>> 0
+  }
+  return h.toString(16).padStart(8, '0')
+}
+
+// Called once per image per render, and a list screen paints 150 of them on
+// every keystroke in the search field. Hashing the same handful of URLs over
+// and over is wasted work, so each answer is kept.
+const resolved = new Map<string, string>()
+
+/**
+ * The URL to actually load an image from.
+ *
+ * Most of the directory's artwork is a full-size original on a host we don't
+ * control, sized for nothing in particular — several splash cards were over a
+ * megabyte for a 240px slot. `npm run optimize:images` re-encodes what it can
+ * reach into public/images/opt/ and records which URLs it covered; anything in
+ * that manifest is served from our own origin instead, which skips a
+ * third-party DNS lookup and TLS handshake as well as the bytes.
+ *
+ * A URL with no local copy — a picture an admin swapped since the last run, or
+ * one on a host the optimizer couldn't reach — is returned untouched and loads
+ * exactly as it does today. The manifest is a cache, not a source of truth, so
+ * it can go stale without breaking anything.
+ */
+export function imgSrc(url?: string): string {
+  if (!url) return PLACEHOLDER
+  const hit = resolved.get(url)
+  if (hit) return hit
+
+  const local = OPTIMIZED[fnv1a(url)]
+  const src = local ? `/images/opt/${local}.webp` : url
+  resolved.set(url, src)
+  return src
+}
 
 /**
  * Build a public URL for an image stored in the Supabase "app-images" bucket.
