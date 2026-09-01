@@ -1,8 +1,8 @@
 import type { CSSProperties, ReactNode } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { C, FONT } from '../lib/theme'
 import { useStore } from '../lib/store'
 import { imgSrc } from '../lib/data'
+import { useTrail } from '../lib/trail'
 import { Back, Chevron, Search, Verified } from './icons'
 import { EditImageButton } from './EditImageButton'
 import type { ImageTable } from '../lib/imageEdit'
@@ -45,9 +45,13 @@ export function Img({ src, style, alt = '', priority = false }: {
   )
 }
 
-export function Tap({ onClick, children, style }: { onClick?: () => void; children: ReactNode; style?: CSSProperties }) {
+export function Tap({ onClick, children, style, label }: {
+  onClick?: () => void; children: ReactNode; style?: CSSProperties
+  /** Accessible name, for a tap target whose only content is an icon. */
+  label?: string
+}) {
   return (
-    <div className="tap" onClick={onClick} style={style} role={onClick ? 'button' : undefined}>
+    <div className="tap" onClick={onClick} style={style} role={onClick ? 'button' : undefined} aria-label={label}>
       {children}
     </div>
   )
@@ -77,14 +81,21 @@ export function ProfileHeader({ title, tagline }: { title: string; tagline: stri
   )
 }
 
-/** Sticky bar with a 34px circular back button. `right` takes an action slot. */
+/**
+ * Sticky bar with a 34px circular back button. `right` takes an action slot.
+ *
+ * Back follows the trail rather than raw history — see `lib/trail`. Pass
+ * `onBack` only for a screen that steps through its own stages before it is
+ * ready to leave, like the sign-in flow.
+ */
 export function StickyBar({ title, onBack, right }: { title: string; onBack?: () => void; right?: ReactNode }) {
-  const nav = useNavigate()
+  const { back, backLabel } = useTrail()
   return (
     <div style={{ position: 'sticky', top: 0, zIndex: 20, background: 'rgba(255,255,255,.94)',
                   backdropFilter: 'blur(12px)', borderBottom: `1px solid ${C.hairline}`,
                   padding: '56px 14px 11px', display: 'flex', alignItems: 'center', gap: 11 }}>
-      <Tap onClick={onBack ?? (() => nav(-1))}
+      <Tap onClick={onBack ?? back}
+           label={onBack || !backLabel ? 'Back' : `Back to ${backLabel}`}
            style={{ width: 34, height: 34, borderRadius: 999, background: C.fill, display: 'flex',
                     alignItems: 'center', justifyContent: 'center', flex: 'none' }}>
         <Back />

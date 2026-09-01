@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { useTrail } from '../lib/trail'
 import { C } from '../lib/theme'
 import { useStore } from '../lib/store'
 import { useData } from '../lib/useData'
@@ -132,6 +133,7 @@ function OutlineButton({ children, onClick, color = '#2A2A28' }: {
 
 export default function UserProfile({ style = 'social' }: { style?: ProfileStyle }) {
   const nav = useNavigate()
+  const { back } = useTrail()
   const params = useParams<{ name: string }>()
   const data = useData()
   const { accent, tint, account, isBlocked, isMuted, isFollowing, toggleFollow, block, unblock, mute, unmute } = useStore()
@@ -207,7 +209,7 @@ export default function UserProfile({ style = 'social' }: { style?: ProfileStyle
   return (
     <div style={{ minHeight: '100%', background: '#fff' }}>
       <div style={{ position: 'relative', height: 132, background: color, overflow: 'hidden' }}>
-        <div className="tap" role="button" onClick={() => nav(-1)}
+        <div className="tap" role="button" onClick={back} aria-label="Back"
              style={{ position: 'absolute', top: 58, left: 14, width: 34, height: 34, borderRadius: 999,
                       background: 'rgba(255,255,255,.75)', backdropFilter: 'blur(8px)', display: 'flex',
                       alignItems: 'center', justifyContent: 'center', zIndex: 3 }}>
@@ -474,7 +476,7 @@ const VISIBILITY_OPTIONS: Array<{ value: Visibility; label: string; sub: string 
 ]
 
 export function EditProfile() {
-  const nav = useNavigate()
+  const { back } = useTrail()
   const { accent, account, signedIn } = useStore()
   const [draft, setDraft] = useState<Draft>({ ...EMPTY_DRAFT, display_name: account.displayName ?? '' })
   const [busy, setBusy] = useState(false)
@@ -544,7 +546,7 @@ export function EditProfile() {
           return
         }
       }
-      nav(-1)
+      back()
     } finally {
       setBusy(false)
     }
@@ -554,7 +556,7 @@ export function EditProfile() {
     <div style={{ minHeight: '100%', background: '#fff' }}>
       <div style={{ position: 'sticky', top: 0, zIndex: 5, background: '#fff', borderBottom: '1px solid #EFECE8',
                     display: 'flex', alignItems: 'center', gap: 10, padding: '56px 14px 12px' }}>
-        <div className="tap" role="button" onClick={() => nav(-1)}
+        <div className="tap" role="button" onClick={back}
              style={{ font: font(600, 14, 1.2), color: '#7C7871' }}>Cancel</div>
         <div style={{ flex: 1, textAlign: 'center', font: font(700, 16, 1.2), color: '#161615' }}>Edit social profile</div>
         <div className="tap" role="button" onClick={() => { if (!busy) void save() }}

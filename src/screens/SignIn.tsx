@@ -4,6 +4,7 @@ import { C } from '../lib/theme'
 import { useStore } from '../lib/store'
 import { supabase } from '../lib/supabase'
 import { StickyBar, font } from '../components/ui'
+import { useTrail } from '../lib/trail'
 
 // SignIn — route `/signin`.
 //
@@ -34,6 +35,7 @@ interface SessionTokens {
 
 export default function SignIn() {
   const nav = useNavigate()
+  const { back } = useTrail()
   const { accent, tint } = useStore()
 
   const [mode, setMode] = useState<Mode>('signin')
@@ -185,7 +187,7 @@ export default function SignIn() {
                  onBack={() => {
                    if (step === 'forgot' || step === 'forgot-sent') { setStep('credentials'); setError(''); setInfo('') }
                    else if (step !== 'credentials') { setStep('credentials'); setError('') }
-                   else nav(-1)
+                   else back()
                  }} />
 
       <div style={{ padding: '20px 18px 32px' }}>

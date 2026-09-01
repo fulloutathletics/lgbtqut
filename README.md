@@ -118,7 +118,7 @@ change it on itself.
 
 ```
 src/
-  lib/        supabase client, data layer, theme tokens, app store, push
+  lib/        supabase client, data layer, theme tokens, app store, push, back-trail
   components/ shared kit — header, sticky bar, cards, rows, toggles, age gate
   screens/    one file per screen (Welcome, BecomeHost and ManagePage are the account flows)
   sw.ts       service worker: push + notificationclick
@@ -129,6 +129,31 @@ supabase/
 design-reference/  the original handoff bundle — the source of truth for specs
 scripts/generate-data.mjs   design-reference → seed.json + seed.sql
 ```
+
+## Going back
+
+`src/lib/trail.tsx` decides where every back button lands, and nothing draws it —
+the breadcrumb exists so the app knows where a reader came from, not so they have
+to read it.
+
+It keeps two things. A **trail**, the stack of entries actually visited, held in
+step with the browser's own history; and **`parentOf`**, the directory's shape,
+for a reader who arrived from a shared link with no history at all. `back()`
+prefers the trail, because returning to the page you came from brings its scroll
+position and its search box with you, and falls through to the parent whenever
+the entry behind sits *below* the current page.
+
+That last rule is the whole point. A screen that "goes up" by navigating to its
+parent pushes a new entry, so the page it just left ends up sitting *behind* the
+one it lands on. The resource chooser did exactly that: Location Search → a
+county → back put `/list/county` on top of `/list/county/Cache County`, and the
+next back walked the reader into the county again instead of out to Resources —
+a loop with no way home. Screens no longer pass their own `onBack` for this;
+`StickyBar` uses the trail, and the back button's accessible name says where it
+goes ("Back to Location Search").
+
+Pass `onBack` only for a screen that steps through its own stages before it is
+ready to leave, like sign-in.
 
 ## What is built
 

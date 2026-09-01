@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { useTrail } from '../lib/trail'
 import { C } from '../lib/theme'
 import { useStore } from '../lib/store'
 import { useData } from '../lib/useData'
@@ -60,6 +61,7 @@ export default function ManagePage() {
   const { kind: kindParam = '', id = '' } = useParams<{ kind: string; id: string }>()
   const kind = (['resource', 'business', 'host'].includes(kindParam) ? kindParam : null) as EntityKind | null
   const nav = useNavigate()
+  const { back } = useTrail()
   const data = useData()
   const { administers, signedIn, accent, tint } = useStore()
 
@@ -88,7 +90,7 @@ export default function ManagePage() {
   if (!ref || !allowed) {
     return (
       <div style={{ minHeight: '100%', background: '#fff' }}>
-        <FlowHeader title="Manage" onBack={() => nav(-1)} />
+        <FlowHeader title="Manage" onBack={back} />
         <div style={{ padding: '22px 16px' }}>
           <Title>{!ref ? 'That page is no longer listed.' : 'You do not manage this page.'}</Title>
           {ref && (
@@ -117,7 +119,7 @@ export default function ManagePage() {
 
   return (
     <div style={{ minHeight: '100%', background: '#fff' }}>
-      <FlowHeader title={ref.name} sub={`${PAGE_KIND[kind].label} page · you manage this`} onBack={() => nav(-1)} />
+      <FlowHeader title={ref.name} sub={`${PAGE_KIND[kind].label} page · you manage this`} onBack={back} />
 
       <div style={{ padding: '18px 16px 32px' }}>
         <div className="tap" role="button" onClick={() => nav(entityHref(ref))}
