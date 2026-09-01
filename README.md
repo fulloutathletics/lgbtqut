@@ -108,6 +108,27 @@ The journey:
 4. **Manage** (`/manage/:kind/:id`) — edit a page's details and run its events.
    Reached from the hub or from the "You manage this page" strip on the public page.
 
+### The personal profile
+
+`/u/:handle` is a person's public face: picture, background, pronouns,
+identity tags, interests, links, the pages they run, and every post they made
+in their own voice, with likes and replies. `/profile/edit` edits all of it
+with a live preview.
+
+- **Pictures** upload to the `profile-media` bucket, under a folder named
+  after the account's id — the only folder that session may write to. They are
+  re-encoded client-side (bounded size, metadata stripped). A trigger refuses
+  any `avatar_url`/`header_url` that is not from that folder, so a profile can
+  never hotlink an outside host. Backgrounds can also be one of the built-in
+  presets in `src/lib/profile.ts`, stored as `preset:<id>`.
+- **18+ is computed, not chosen.** `social_profiles.age_rating` is set by a
+  trigger: `'18+'` when the owner turns on *My profile is for adults*, or when
+  any link points at an adult-only platform (`public.is_adult_link`, mirrored
+  as `ADULT_LINK_PATTERN` on the client so the editor warns before Save). A
+  rated profile and its own-voice posts are readable only by signed-in adults
+  and by the owner, enforced in the select policies; posts made *as a page*
+  stay public. Minors are never told a row was withheld.
+
 **Listings are never self-claimed.** A request goes to a reviewer, who approves
 it from the SQL editor: `select public.approve_page_request(<id>);` (pass the
 new listing's id as a second argument for a new resource or business page). The
@@ -163,10 +184,9 @@ discussion, block/mute), host profile, Shop Queer map + finder, business detail
 with the dynamic section system, profile (Saved · Themes · Contribute · Alerts ·
 Account), sign-in, become-a-host, and user profiles. All 13 themes work app-wide.
 
-Social features render against **deterministic local stand-ins** for participation
-data — RSVPs, comments, polls, reviews and user profiles — because those tables
-ship empty. The tables and policies exist in `0001_init.sql`; wiring the screens
-to them is the remaining step. Each stand-in is commented with the table it
+User profiles, posts, likes and replies read and write the real tables. Event
+RSVPs, polls and reviews still render against **deterministic local stand-ins**
+because those tables ship empty; each stand-in is commented with the table it
 represents.
 
 ## Known gaps
