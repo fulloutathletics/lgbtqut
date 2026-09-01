@@ -115,10 +115,10 @@ export default function ResourceList() {
 
   return (
     <>
-      <StickyBar
-        title={title}
-        onBack={selection ? () => nav(`/list/${mode}`) : undefined}
-      />
+      {/* Back is the trail's, not this screen's: pushing `/list/${mode}` here
+          is what used to strand a reader on the chooser with the county they
+          had just left sitting behind them. See `lib/trail`. */}
+      <StickyBar title={title} />
 
       {/* Every splash tab keeps its banner at the top level, including Books
           and All, which skip the chooser and go straight to results. Drilling
