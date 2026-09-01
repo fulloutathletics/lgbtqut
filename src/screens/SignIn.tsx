@@ -160,7 +160,9 @@ export default function SignIn() {
           return
         }
 
-        nav('/profile')
+        // A new account goes through the welcome flow once: personal profile,
+        // and any pages the person wants to run. Returning sign-ins skip it.
+        nav('/welcome', { replace: true })
       }
     } catch {
       setError('Something went wrong. Try again.')
