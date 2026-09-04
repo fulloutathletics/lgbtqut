@@ -172,7 +172,7 @@ const tabs = TABS.map((t, i) => ({
   id: t.id, name: t.name, subtitle: t.sub || '', image_url: t.img || '', position: i,
 }))
 
-const seed = { tabs, resources, businesses, hosts, events, crisis: CRISIS, countyImages: COUNTY_IMG }
+const seed = { tabs, resources, businesses, hosts, events, crisis: CRISIS, countyImages: COUNTY_IMG, communityImages: {}, categoryImages: {} }
 
 mkdirSync(resolve(root, 'public/data'), { recursive: true })
 writeFileSync(resolve(root, 'public/data/seed.json'), JSON.stringify(seed))

@@ -7,8 +7,11 @@ import { useData } from '../lib/useData'
 import { alpha, isHotline, mapHref, telHref, webHref } from '../lib/data'
 import type { Business, BusinessSection, SectionItem } from '../lib/types'
 import { AgeGate } from '../components/AgeGate'
+import { EditImageButton } from '../components/EditImageButton'
+import { EntityEvents } from '../components/EntityEvents'
+import { ManageStrip } from '../components/ManageStrip'
 import { SubscriptionPanel } from '../components/SubscriptionPanel'
-import { Heart, Verified } from '../components/icons'
+import { Verified } from '../components/icons'
 import { ActionRow, AgePill, Empty, Img, StickyBar, Tap, font } from '../components/ui'
 
 /** Glide match = 200px banner + overlapping logo tile. Editorial = 330px full bleed. */
@@ -23,7 +26,7 @@ export function BusinessDetail({ variant = 'glide', showConfig = false }: {
 }) {
   const { id = '' } = useParams<{ id: string }>()
   const data = useData()
-  const { accent, canSee, isSaved, toggleSave } = useStore()
+  const { accent, tint, canSee, isSaved, toggleSave } = useStore()
   const [photoIdx, setPhotoIdx] = useState(0)
 
   const b = data?.businesses.find((x) => x.id === id)
@@ -60,29 +63,53 @@ export function BusinessDetail({ variant = 'glide', showConfig = false }: {
       <StickyBar
         title={b.name}
         right={
-          <Tap onClick={() => toggleSave(b.id, 'business')}
-               style={{ width: 34, height: 34, borderRadius: 999, background: C.fill, display: 'flex',
-                        alignItems: 'center', justifyContent: 'center', flex: 'none' }}>
-            <Heart size={18} filled={saved} color={saved ? accent : '#8A8680'} />
-          </Tap>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <Tap onClick={() => {
+              const url = window.location.href
+              if (navigator.share) {
+                void navigator.share({ title: b.name, text: `${b.name} on LGBTQ UT`, url })
+              } else {
+                void navigator.clipboard.writeText(url)
+              }
+            }}
+                 aria-label="Share business"
+                 style={{ height: 34, borderRadius: 999, background: C.fill, display: 'flex', padding: '0 13px',
+                          alignItems: 'center', justifyContent: 'center', flex: 'none',
+                          font: font(700, 12.5, 1.2), color: C.body }}>
+              Share
+            </Tap>
+            <Tap onClick={() => toggleSave(b.id, 'business')}
+                 aria-label={saved ? 'Unfollow business' : 'Follow business'}
+                 style={{ height: 34, borderRadius: 999, background: saved ? tint : C.fill, display: 'flex',
+                          padding: '0 13px', alignItems: 'center', justifyContent: 'center', flex: 'none',
+                          font: font(700, 12.5, 1.2), color: saved ? accent : C.body }}>
+              {saved ? 'Following' : 'Follow'}
+            </Tap>
+          </div>
         }
       />
+
+      <ManageStrip kind="business" id={b.id} />
 
       {variant === 'glide' ? (
         <>
           <div style={{ position: 'relative', height: 200, background: b.color, overflow: 'hidden' }}>
-            <Img src={b.background_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            <Img src={b.background_url} priority style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            <EditImageButton table="businesses" id={b.id} column="background_url" />
           </div>
           <div style={{ padding: '0 16px', marginTop: -46, position: 'relative' }}>
             <div style={{ width: 96, height: 96, borderRadius: 14, overflow: 'hidden', background: b.color,
-                          border: '3px solid #fff', boxShadow: '0 5px 18px rgba(0,0,0,.2)' }}>
-              <Img src={b.image_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          border: '3px solid #fff', boxShadow: '0 5px 18px rgba(0,0,0,.2)', position: 'relative' }}>
+              <Img src={b.image_url} priority style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              <EditImageButton table="businesses" id={b.id} column="image_url"
+                               style={{ width: 26, height: 26, bottom: 4, right: 4 }} />
             </div>
           </div>
         </>
       ) : (
         <div style={{ position: 'relative', height: 330, overflow: 'hidden', background: b.color }}>
           <Img src={b.background_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          <EditImageButton table="businesses" id={b.id} column="background_url" style={{ top: 14, bottom: 'auto', right: 14 }} />
           <div style={{ position: 'absolute', inset: 0,
                         background: 'linear-gradient(180deg,rgba(0,0,0,.25) 0%,rgba(0,0,0,.05) 42%,rgba(0,0,0,.82) 100%)' }} />
           <div style={{ position: 'absolute', left: 18, right: 18, bottom: 20 }}>
@@ -168,6 +195,8 @@ export function BusinessDetail({ variant = 'glide', showConfig = false }: {
       {sections.map((s, i) => (
         <Section key={`${s.title}-${i}`} section={s} color={b.color} showConfig={showConfig} />
       ))}
+
+      <EntityEvents kind="business" id={b.id} />
 
       <VisitRows b={b} />
     </div>

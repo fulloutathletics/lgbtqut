@@ -7,6 +7,7 @@ import { font } from './ui'
 
 const TABS = [
   { to: '/', label: 'Resources', key: 'resources', match: (p: string) => p === '/' || p.startsWith('/resource') || p.startsWith('/list') || p.startsWith('/crisis') },
+  { to: '/feed', label: 'Feed', key: 'feed', match: (p: string) => p.startsWith('/feed') },
   { to: '/events', label: 'Events', key: 'events', match: (p: string) => p.startsWith('/event') || p.startsWith('/host') },
   { to: '/shop', label: 'Shop Queer', key: 'shop', match: (p: string) => p.startsWith('/shop') || p.startsWith('/business') },
   { to: '/profile', label: 'Profile', key: 'profile', match: (p: string) => p.startsWith('/profile') || p.startsWith('/u/') || p.startsWith('/apply') },

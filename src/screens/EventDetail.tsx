@@ -5,6 +5,8 @@ import { useStore } from '../lib/store'
 import { useData } from '../lib/useData'
 import type { AppEvent } from '../lib/types'
 import { AgeGate } from '../components/AgeGate'
+import { entityHref, entityRef } from '../lib/data'
+import { EditImageButton } from '../components/EditImageButton'
 import { Chevron, Heart, Star, Verified } from '../components/icons'
 import { AgePill, Empty, Img, StickyBar, font } from '../components/ui'
 
@@ -56,6 +58,12 @@ const REVIEW_BODIES = [
   'Met two people I now work with. Worth the drive.',
   'Warm room, easy to talk to strangers. Ran a little long.',
 ]
+
+const ORGANISER_LABEL: Record<'resource' | 'business' | 'host', string> = {
+  host: 'Event Host',
+  business: 'Hosted by',
+  resource: 'Hosted by',
+}
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
@@ -188,10 +196,7 @@ function EventDetail() {
   const store = useStore()
   const { accent, tint, canSee, isBlocked, isMuted } = store
 
-  // No host assignment exists yet, so host mode stays a code path rather than
-  // a control. Flip this to true to see the Host Controls panel and the poll
-  // results a host always sees.
-  const viewAsHost = false
+  const { administers } = store
 
   const [draft, setDraft] = useState('')
   const [posted, setPosted] = useState<MockComment[]>([])
@@ -199,7 +204,13 @@ function EventDetail() {
   const [myStars, setMyStars] = useState(0)
 
   const event = data?.events.find((e) => e.id === id)
-  const host = data?.hosts.find((h) => h.id === event?.host_id)
+  // The organiser may be a host, a business or a resource — an event names its
+  // entity, and this page shows whichever face that entity has.
+  const organiser = entityRef(data, event?.entity_kind ?? null, event?.entity_id ?? null)
+  const host = data?.hosts.find((h) => h.id === (event?.entity_kind === 'host' ? event.entity_id : event?.host_id))
+  // Host mode belongs to whoever administers the organising page — a person
+  // who runs the resource, business or host this event hangs off.
+  const viewAsHost = !!organiser && administers(organiser.kind, organiser.id)
 
   const today = new Date().toISOString().slice(0, 10)
   const past = !!event && event.starts_on < today
@@ -288,8 +299,9 @@ function EventDetail() {
 
       {/* hero */}
       <div style={{ height: 246, background: '#F4F2EE', display: 'flex', alignItems: 'center',
-                    justifyContent: 'center', overflow: 'hidden' }}>
-        <Img src={event.image_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    justifyContent: 'center', overflow: 'hidden', position: 'relative' }}>
+        <Img src={event.image_url} alt="" priority style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        <EditImageButton table="events" id={event.id} column="image_url" />
       </div>
 
       <div style={{ padding: '16px 18px 18px' }}>
@@ -410,47 +422,48 @@ function EventDetail() {
         )}
       </div>
 
-      {/* host card */}
-      {host && (
+      {/* organiser card — a host, business or resource, whichever runs this */}
+      {organiser && (
         <div style={{ position: 'relative', overflow: 'hidden', background: tint }}>
-          <Img src={host.header_url} alt=""
+          <Img src={host?.header_url || organiser.image_url} alt=""
                style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
           <div style={{ position: 'absolute', inset: 0,
                         background: 'linear-gradient(180deg,rgba(0,0,0,.42),rgba(0,0,0,.22))' }} />
           <div style={{ position: 'relative', padding: '14px 16px 20px' }}>
             <div style={{ font: font(700, 14, 1.2), color: '#fff', textShadow: '0 1px 5px rgba(0,0,0,.5)',
                           marginBottom: 11 }}>
-              Event Host
+              {ORGANISER_LABEL[organiser.kind]}
             </div>
             <div
               className="tap"
               role="button"
-              onClick={() => nav(`/host/${host.id}`)}
+              onClick={() => nav(entityHref(organiser))}
               style={{ background: '#fff', borderRadius: 12, padding: '12px 14px', display: 'flex',
                        alignItems: 'center', gap: 12, boxShadow: '0 4px 14px rgba(0,0,0,.18)' }}
             >
               <div style={{ width: 40, height: 40, borderRadius: 999, overflow: 'hidden', background: '#EFEDE9',
                             flex: 'none' }}>
-                <Img src={host.image_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                <Img src={organiser.image_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <div style={{ font: font(700, 14.5, 1.25), color: '#1A1A18', minWidth: 0,
-                                textWrap: 'pretty' }}>{host.name}</div>
-                  {host.verified && <Verified color={accent} />}
+                                textWrap: 'pretty' }}>{organiser.name}</div>
+                  {organiser.verified && <Verified color={accent} />}
                 </div>
                 <div style={{ font: font(400, 11.5, 1.3), color: C.muted, marginTop: 3 }}>
-                  {store.isSaved(host.id) ? 'Following' : 'Follow'} for event alerts
+                  {store.isSaved(organiser.id) ? 'Following' : 'Follow'} for event alerts
                 </div>
               </div>
               <div
                 className="tap"
                 role="button"
-                onClick={(e) => { e.stopPropagation(); store.toggleSave(host.id, 'host') }}
+                onClick={(e) => { e.stopPropagation(); store.toggleSave(organiser.id, organiser.kind) }}
                 style={{ width: 36, height: 36, borderRadius: 999, background: '#F4F2EE', display: 'flex',
                          alignItems: 'center', justifyContent: 'center', flex: 'none' }}
               >
-                <Heart size={18} filled={store.isSaved(host.id)} color={store.isSaved(host.id) ? accent : '#8A867F'} />
+                <Heart size={18} filled={store.isSaved(organiser.id)}
+                       color={store.isSaved(organiser.id) ? accent : '#8A867F'} />
               </div>
             </div>
           </div>

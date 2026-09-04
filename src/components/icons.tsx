@@ -50,6 +50,22 @@ export const Star = ({ size = 20, filled = false, color = '#D19A00' }: IconProps
   </svg>
 )
 
+export const Share = ({ size = 17, color = '#2A2A28' }: IconProps) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color}
+       strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
+    <path d="M16 6l-4-4-4 4" /><path d="M12 2v13" />
+  </svg>
+)
+
+export const Camera = ({ size = 15, color = '#fff' }: IconProps) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color}
+       strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    <path d="M4 8h3l1.6-2.4A2 2 0 0 1 10.3 4.6h3.4a2 2 0 0 1 1.7 1L17 8h3a1.5 1.5 0 0 1 1.5 1.5v9A1.5 1.5 0 0 1 20 20H4a1.5 1.5 0 0 1-1.5-1.5v-9A1.5 1.5 0 0 1 4 8z" />
+    <circle cx="12" cy="13.6" r="3.4" />
+  </svg>
+)
+
 export const Nav = {
   resources: (c: string) => (
     <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -70,6 +86,11 @@ export const Nav = {
   profile: (c: string) => (
     <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <circle cx="12" cy="8.5" r="4" /><path d="M4.5 20.5a7.5 7.5 0 0 1 15 0" />
+    </svg>
+  ),
+  feed: (c: string) => (
+    <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 6h16M4 12h16M4 18h10" />
     </svg>
   ),
 }

@@ -1,5 +1,5 @@
 import { supabase } from './supabase'
-import type { AppData } from './types'
+import type { AppData, AppEvent, EntityKind, EntityRef } from './types'
 
 // The content tables are static enough to cache aggressively, so the whole
 // directory is fetched once. If the tables are missing or empty — which they
@@ -10,16 +10,19 @@ import type { AppData } from './types'
 let cache: Promise<AppData> | null = null
 
 async function fromSupabase(): Promise<AppData | null> {
-  const [tabs, resources, businesses, hosts, events, crisis] = await Promise.all([
+  const [tabs, resources, businesses, hosts, events, crisis, counties, communities, categories] = await Promise.all([
     supabase.from('splash_tabs').select('*').order('position'),
     supabase.from('resources').select('*'),
     supabase.from('businesses').select('*'),
     supabase.from('hosts').select('*'),
     supabase.from('events').select('*').order('starts_on'),
     supabase.from('crisis_lines').select('*').order('position'),
+    supabase.from('county_images').select('*').order('position'),
+    supabase.from('community_images').select('*').order('position'),
+    supabase.from('category_images').select('*').order('position'),
   ])
 
-  const failed = [tabs, resources, businesses, hosts, events, crisis].some((r) => r.error)
+  const failed = [tabs, resources, businesses, hosts, events, crisis, counties, communities, categories].some((r) => r.error)
   if (failed || !resources.data?.length) return null
 
   return {
@@ -31,15 +34,19 @@ async function fromSupabase(): Promise<AppData | null> {
     crisis: (crisis.data ?? []).map((c: Record<string, string>) => ({
       name: c.name, desc: c.description, action: c.action_label, tel: c.telephone,
     })),
-    countyImages: await countyImages(),
+    countyImages: imageMap(counties.data ?? []),
+    communityImages: imageMap(communities.data ?? []),
+    categoryImages: imageMap(categories.data ?? []),
   } as AppData
 }
 
-// County artwork lives with the seed rather than the DB — it is presentation,
-// not content, and the six images are client-supplied fixtures.
-async function countyImages(): Promise<Record<string, string>> {
-  const seed = await fromBundle()
-  return seed.countyImages
+// Builds a name→url map from a table of { id, image_url } rows. Rows with
+// empty URLs are included so the editor can patch them; the UI falls back
+// to a color swatch when the URL is falsy.
+function imageMap(rows: Array<{ id: string; image_url: string }>): Record<string, string> {
+  const map: Record<string, string> = {}
+  for (const row of rows) map[row.id] = row.image_url
+  return map
 }
 
 let bundle: Promise<AppData> | null = null
@@ -84,6 +91,50 @@ export function subscribeData(fn: () => void): () => void {
   return () => { listeners.delete(fn) }
 }
 
+const TABLE_KEY: Record<string, keyof AppData> = {
+  splash_tabs: 'tabs', resources: 'resources', businesses: 'businesses', hosts: 'hosts', events: 'events',
+}
+
+/**
+ * Reflects a direct table write (the inline image editor) into the live
+ * cache immediately, so every screen re-renders with the new URL without
+ * waiting on a refetch.
+ */
+export function patchItemField(table: string, id: string, column: string, value: string) {
+  if (!current) return
+
+  // county/community/category images are maps keyed by name, not arrays — patch directly.
+  if (table === 'county_images') {
+    publish({ ...current, countyImages: { ...current.countyImages, [id]: value } } as AppData, true)
+    return
+  }
+  if (table === 'community_images') {
+    publish({ ...current, communityImages: { ...current.communityImages, [id]: value } } as AppData, true)
+    return
+  }
+  if (table === 'category_images') {
+    publish({ ...current, categoryImages: { ...current.categoryImages, [id]: value } } as AppData, true)
+    return
+  }
+
+  const key = TABLE_KEY[table]
+  if (!key) return
+  const list = current[key] as unknown as Array<Record<string, unknown>>
+  publish({ ...current, [key]: list.map((item) => (item.id === id ? { ...item, [column]: value } : item)) } as AppData, true)
+}
+
+/**
+ * Re-reads the directory after a write the session made itself (a page
+ * edited, an event added). Cheap enough to call per save: the tables are
+ * small, and the alternative is a page that shows stale copy until reload.
+ */
+export async function refreshData(): Promise<void> {
+  try {
+    const d = await fromSupabase()
+    if (d) publish(d, true)
+  } catch { /* offline: the cache keeps whatever it had */ }
+}
+
 /** Promise form, for callers outside React. */
 export function loadData(): Promise<AppData> {
   cache ??= new Promise<AppData>((resolve) => {
@@ -116,6 +167,50 @@ export const PLACEHOLDER =
   "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40'%3E%3Crect width='40' height='40' fill='%23E9E5DF'/%3E%3Cpath d='M-10 10 L10 -10 M0 40 L40 0 M30 50 L50 30' stroke='%23E2DDD6' stroke-width='7'/%3E%3C/svg%3E"
 
 export const imgSrc = (url?: string) => url || PLACEHOLDER
+
+/**
+ * Build a public URL for an image stored in the Supabase "app-images" bucket.
+ * Pass the folder path within the bucket, e.g. storageUrl('splash/crisis.png').
+ */
+export function storageUrl(path: string): string {
+  const base = import.meta.env.VITE_SUPABASE_URL
+  return `${base}/storage/v1/object/public/app-images/${path}`
+}
+
+// ------------------------------------------------------- entity resolution
+//
+// A resource, business and host are three faces of one organisation. Content
+// (events, posts) names its owner as (kind, id); which face a reader sees is
+// decided by where they entered from, not by which table the row lives in.
+
+/** The shared profile behind whichever face was addressed, or null if unknown. */
+export function entityRef(data: AppData | null, kind: EntityKind | null, id: string | null): EntityRef | null {
+  if (!data || !kind || !id) return null
+  if (kind === 'resource') {
+    const r = data.resources.find((x) => x.id === id)
+    return r ? { kind, id, name: r.name, image_url: r.image_url, verified: r.verified } : null
+  }
+  if (kind === 'business') {
+    const b = data.businesses.find((x) => x.id === id)
+    return b ? { kind, id, name: b.name, image_url: b.image_url, verified: b.verified } : null
+  }
+  const h = data.hosts.find((x) => x.id === id)
+  return h ? { kind, id, name: h.name, image_url: h.image_url, verified: h.verified } : null
+}
+
+/** Route for an entity's own page, per face. */
+export const entityHref = (ref: EntityRef) =>
+  ref.kind === 'resource' ? `/resource/${ref.id}`
+  : ref.kind === 'business' ? `/business/${ref.id}`
+  : `/host/${ref.id}`
+
+/** Upcoming-first events this entity organises, whichever face you came in by. */
+export function eventsFor(data: AppData | null, kind: EntityKind, id: string): AppEvent[] {
+  if (!data) return []
+  return data.events
+    .filter((e) => (e.entity_kind ? e.entity_kind === kind && e.entity_id === id : e.host_id === id))
+    .sort((a, b) => a.starts_on.localeCompare(b.starts_on))
+}
 
 /** Mix a hex color with white at the given alpha, for tints and dashed borders. */
 export function alpha(hex: string, a: number) {

@@ -2,8 +2,11 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { C } from '../lib/theme'
 import { useStore } from '../lib/store'
 import { useData } from '../lib/useData'
-import { Heart, Verified } from '../components/icons'
+import { eventsFor } from '../lib/data'
+import { Verified } from '../components/icons'
 import { SubscriptionPanel } from '../components/SubscriptionPanel'
+import { EditImageButton } from '../components/EditImageButton'
+import { ManageStrip } from '../components/ManageStrip'
 import { Empty, Img, StickyBar, font } from '../components/ui'
 import { EventCard } from './Events'
 
@@ -30,10 +33,7 @@ function HostProfile() {
   // Only hosts tied to a real listing can send a newsletter.
   const allowNewsletter = !!(host.linked_business_id || host.linked_resource_id)
 
-  const events = data.events
-    .filter((e) => e.host_id === host.id)
-    .filter((e) => canSee(e.age_rating))
-    .sort((a, b) => a.starts_on.localeCompare(b.starts_on))
+  const events = eventsFor(data, 'host', host.id).filter((e) => canSee(e.age_rating))
 
   return (
     <>
@@ -45,25 +45,31 @@ function HostProfile() {
             role="button"
             onClick={() => toggleSave(host.id, 'host')}
             aria-label={saved ? 'Unfollow host' : 'Follow host'}
-            style={{ width: 34, height: 34, borderRadius: 999, background: C.fill, display: 'flex',
-                     alignItems: 'center', justifyContent: 'center', flex: 'none' }}
+            style={{ height: 34, borderRadius: 999, background: saved ? tint : C.fill, display: 'flex',
+                     padding: '0 13px', alignItems: 'center', justifyContent: 'center', flex: 'none',
+                     font: font(700, 12.5, 1.2), color: saved ? accent : C.body }}
           >
-            <Heart size={18} filled={saved} color={saved ? accent : '#8A867F'} />
+            {saved ? 'Following' : 'Follow'}
           </div>
         }
       />
 
+      <ManageStrip kind="host" id={host.id} />
+
       {/* header image with the avatar overlapping its lower edge */}
       <div style={{ position: 'relative' }}>
         <div style={{ height: 132, background: tint, position: 'relative', overflow: 'hidden' }}>
-          <Img src={host.header_url} alt=""
+          <Img src={host.header_url} alt="" priority
                style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
           <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,.18)' }} />
+          <EditImageButton table="hosts" id={host.id} column="header_url" />
         </div>
         <div style={{ display: 'flex', justifyContent: 'center', marginTop: -56, position: 'relative', zIndex: 2 }}>
           <div style={{ width: 112, height: 112, borderRadius: 999, overflow: 'hidden', background: '#fff',
-                        border: '4px solid #fff', boxShadow: '0 6px 20px rgba(0,0,0,.25)' }}>
-            <Img src={host.image_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        border: '4px solid #fff', boxShadow: '0 6px 20px rgba(0,0,0,.25)', position: 'relative' }}>
+            <Img src={host.image_url} alt="" priority style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            <EditImageButton table="hosts" id={host.id} column="image_url"
+                             style={{ width: 28, height: 28, bottom: 4, right: 4 }} />
           </div>
         </div>
       </div>
@@ -129,7 +135,7 @@ function HostProfile() {
         </div>
         {events.length === 0
           ? <Empty>No events listed yet.</Empty>
-          : events.map((e) => <EventCard key={e.id} event={e} showHost={false} />)}
+          : events.map((e) => <EventCard key={e.id} event={e} showOrganiser={false} />)}
       </div>
 
       <div className="tap" role="button" onClick={() => nav('/events')}

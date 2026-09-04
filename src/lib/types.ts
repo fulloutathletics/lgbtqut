@@ -91,7 +91,11 @@ export interface Host {
 
 export interface AppEvent {
   id: string
-  host_id: string
+  /** Legacy organiser link, kept until every read moves to entity_kind/entity_id. */
+  host_id: string | null
+  /** The organiser, addressed the same way posts and saves address entities. */
+  entity_kind: EntityKind
+  entity_id: string
   name: string
   date_label: string
   starts_on: string
@@ -99,6 +103,15 @@ export interface AppEvent {
   image_url: string
   age_rating: AgeRating
   age_reason: string | null
+}
+
+/** Shared shape behind a resource, business or host — the parts every face has. */
+export interface EntityRef {
+  kind: EntityKind
+  id: string
+  name: string
+  image_url: string
+  verified: boolean
 }
 
 export interface CrisisLine {
@@ -116,6 +129,8 @@ export interface AppData {
   events: AppEvent[]
   crisis: CrisisLine[]
   countyImages: Record<string, string>
+  communityImages: Record<string, string>
+  categoryImages: Record<string, string>
 }
 
 export type EntityKind = 'resource' | 'business' | 'host'
@@ -133,3 +148,54 @@ export interface SavedEntry extends Channels {
 
 /** Anonymous users are cached on-device only and fail every age gate. */
 export type AccountTier = 'anonymous' | 'account' | 'public'
+
+/**
+ * A page this account administers — a resource, business or host face it
+ * can edit, post as, and run events for. One row of `entity_admins`.
+ */
+export interface ManagedPage {
+  kind: EntityKind
+  id: string
+  role: 'admin' | 'editor'
+}
+
+export type PageRequestStatus = 'pending' | 'approved' | 'declined'
+
+/** A request to manage a listing, or to add one. One row of `page_requests`. */
+export interface PageRequest {
+  id: number
+  entity_kind: EntityKind
+  /** Null while the request proposes a page that is not listed yet. */
+  entity_id: string | null
+  proposed_name: string
+  status: PageRequestStatus
+  created_at: string
+}
+
+/** Three privacy states for social profiles. */
+export type ProfileVisibility = 'private' | 'visible' | 'discoverable'
+
+/** The social/profile layer — completely separate from auth. */
+export interface SocialProfile {
+  id: string
+  display_name: string
+  public_handle: string | null
+  avatar_url: string | null
+  header_url: string | null
+  bio: string | null
+  pronouns: string | null
+  identity_labels: string[]
+  interests: string[]
+  social_links: string[]
+  website: string | null
+  county: string | null
+  visibility: ProfileVisibility
+  search_visible: boolean
+  recommendable: boolean
+  indexable: boolean
+  /** Owner's own say-so that the profile is for adults. */
+  adult_content: boolean
+  /** Computed by the database: '18+' when adult_content is set or a link points at an adult platform. */
+  age_rating: AgeRating
+  age_reason: string | null
+}

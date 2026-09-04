@@ -7,7 +7,9 @@ import { useData } from '../lib/useData'
 import { subscribeToPush } from '../lib/push'
 import { supabase } from '../lib/supabase'
 import type { AppData, EntityKind, SavedEntry } from '../lib/types'
-import { Chevron } from '../components/icons'
+import { PAGE_KIND, describeRequest, resolveManaged, withdrawPageRequest } from '../lib/pages'
+import { isOnboarded } from '../lib/onboarding'
+import { Chevron, Verified } from '../components/icons'
 import { DeviceOnlyNotice, Img, ProfileHeader, Toggle, font } from '../components/ui'
 import { SubscriptionPanel, channelSummary } from '../components/SubscriptionPanel'
 
@@ -250,8 +252,8 @@ function ContributePane() {
         title="Contribute"
         note="Everything in this app was submitted by someone in the community. Volunteers review every entry." />
       <Card>
-        <LinkRow title="Become a host"
-                 sub="Post events, offers and newsletters as a public profile"
+        <LinkRow title="Manage a page"
+                 sub="Run an organization, business or event host page from this account"
                  onClick={() => nav('/apply')} />
         <LinkRow title="Submit a resource"
                  sub="Add an organization, group or service"
@@ -396,30 +398,52 @@ function AlertsPane({ items }: { items: SavedItem[] }) {
 }
 
 // ------------------------------------------------------------- Account pane
+//
+// One account, many faces. The card at the top says what this account is;
+// below it, each face the person has — a personal profile, and every page
+// they run — gets its own row, so nobody has to remember which sign-in
+// belongs to which identity. There is only ever one.
 
 const TIERS = {
   anonymous: {
-    title: 'Anonymous',
-    note: 'Search, save and alerts work without an account, but they live on this device only. Commenting, RSVPs, reviews and age-restricted listings need an account.',
+    title: 'Browsing as a guest',
+    note: 'Search, save and alerts work without an account, but they live on this device only. Commenting, RSVPs, reviews, running a page and age-restricted listings need one.',
   },
   account: {
     title: 'Account',
-    note: 'A username, a date of birth and a hashed email. Full participation — comments, RSVPs and reviews. Nothing about you is public.',
+    note: 'A private login and date of birth. Full participation — comments, RSVPs and reviews. Nothing about you is public until you add a profile.',
   },
   public: {
-    title: 'Public profile',
-    note: 'Everything an account can do, plus a public page carrying your name, images, pronouns, bio and links.',
+    title: 'Account',
+    note: 'A private login and date of birth. What people see is chosen below.',
   },
+}
+
+function Avatar({ src, name, size = 44, color }: { src?: string | null; name: string; size?: number; color: string }) {
+  const initials = name.split(/\s+/).filter(Boolean).map((w) => w[0]).join('').slice(0, 2).toUpperCase() || '?'
+  return (
+    <div style={{ width: size, height: size, borderRadius: 999, overflow: 'hidden', flex: 'none',
+                  background: color, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  font: font(700, size * 0.34, 1), color: '#fff' }}>
+      {src ? <Img src={src} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : initials}
+    </div>
+  )
 }
 
 function AccountPane() {
   const nav = useNavigate()
+  const data = useData()
   const {
     account, signedIn, age, hideAdult, setHideAdult,
-    blocked, muted, unblock, unmute, accent,
+    blocked, muted, unblock, unmute, accent, tint, refreshAccount,
   } = useStore()
 
   const tier = TIERS[account.tier]
+  const pages = useMemo(() => resolveManaged(data, account.managed), [data, account.managed])
+  const pending = account.requests.filter((r) => r.status === 'pending')
+  const answered = account.requests.filter((r) => r.status !== 'pending').slice(0, 3)
+  const showFinishSetup = signedIn && account.profileId && !isOnboarded(account.profileId)
+    && !account.displayName && pages.length === 0 && account.requests.length === 0
 
   // The whole Age settings block is for signed-in adults only. A minor never
   // sees it, never sees it named, and is never told anything was filtered.
@@ -428,6 +452,8 @@ function AccountPane() {
   const see21 = age !== null && age >= 21 && !hideAdult
 
   const signOut = () => { void supabase.auth.signOut() }
+  const myProfilePath = account.handle ? `/u/${encodeURIComponent(account.handle)}`
+    : `/u/${encodeURIComponent(account.displayName ?? '')}`
 
   return (
     <div>
@@ -439,47 +465,171 @@ function AccountPane() {
         {account.username && (
           <div style={{ font: font(500, 12.5, 1.4), color: C.body, marginTop: 10, paddingTop: 10,
                         borderTop: `1px solid ${C.hairline}` }}>
-            Signed in as {account.username}
+            Signed in as {account.username} · private
           </div>
         )}
         {!signedIn && (
-          <div className="tap" role="button" onClick={() => nav('/signin')}
-               style={{ display: 'inline-block', marginTop: 13, borderRadius: 999, padding: '9px 20px',
-                        background: accent, font: font(700, 13, 1.2), color: '#fff' }}>
-            Create an account
+          <div style={{ display: 'flex', gap: 8, marginTop: 13 }}>
+            <div className="tap" role="button" onClick={() => nav('/signin')}
+                 style={{ borderRadius: 999, padding: '9px 20px', background: accent,
+                          font: font(700, 13, 1.2), color: '#fff' }}>
+              Create an account
+            </div>
+            <div className="tap" role="button" onClick={() => nav('/signin')}
+                 style={{ borderRadius: 999, padding: '9px 20px', border: `1.5px solid ${C.border}`,
+                          font: font(700, 13, 1.2), color: C.body }}>
+              Sign in
+            </div>
           </div>
         )}
       </div>
 
-      <div style={{ marginTop: 22 }}>
-        <Eyebrow>Sign-in</Eyebrow>
-        <Card>
-          {!signedIn ? (
-            <>
-              <LinkRow title="Sign in"
-                       sub="Enter your email and we send you a six-digit code. No password."
-                       onClick={() => nav('/signin')} />
-              <LinkRow title="Create an account"
-                       sub="Adds a username and a date of birth. Your address is never stored here."
-                       onClick={() => nav('/signin')} last />
-            </>
+      {showFinishSetup && (
+        <div className="tap" role="button" onClick={() => nav('/welcome')}
+             style={{ marginTop: 14, background: tint, borderRadius: 14, padding: '13px 15px', display: 'flex',
+                      alignItems: 'center', gap: 12 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ font: font(700, 14, 1.25), color: accent }}>Finish setting up</div>
+            <div style={{ font: font(400, 12, 1.45), color: '#6E6A64', marginTop: 3, textWrap: 'pretty' }}>
+              Add a profile, or ask to run a page for an organization, business or event series.
+            </div>
+          </div>
+          <Chevron size={15} color={accent} />
+        </div>
+      )}
+
+      {signedIn && (
+        <div style={{ marginTop: 22 }}>
+          <Eyebrow>You</Eyebrow>
+          <Card>
+            {account.displayName ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '13px 14px',
+                            borderBottom: `1px solid ${C.hairline}` }}>
+                <Avatar src={account.avatarUrl} name={account.displayName} color={accent} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ font: font(700, 14.5, 1.25), color: '#1A1A18' }}>{account.displayName}</div>
+                  <div style={{ font: font(400, 11.5, 1.35), color: C.muted, marginTop: 3 }}>
+                    Personal profile{account.handle ? ` · @${account.handle}` : ''}
+                  </div>
+                </div>
+                <div className="tap" role="button" onClick={() => nav(myProfilePath)}
+                     style={{ font: font(600, 12.5, 1.2), color: accent, flex: 'none' }}>View</div>
+              </div>
+            ) : (
+              <div style={{ padding: '13px 14px', borderBottom: `1px solid ${C.hairline}` }}>
+                <div style={{ font: font(600, 14, 1.25), color: '#1A1A18' }}>No personal profile yet</div>
+                <div style={{ font: font(400, 11.5, 1.4), color: C.muted, marginTop: 3, textWrap: 'pretty' }}>
+                  You can comment and RSVP without one; you appear as your login username. A profile gives
+                  you a name, pronouns and a page people can follow.
+                </div>
+              </div>
+            )}
+            <LinkRow title={account.displayName ? 'Edit your personal profile' : 'Create a personal profile'}
+                     sub="Photo, background, pronouns, interests, links — and who can find it."
+                     onClick={() => nav('/profile/edit')} last />
+          </Card>
+        </div>
+      )}
+
+      {signedIn && (
+        <div style={{ marginTop: 22 }}>
+          <Eyebrow>Pages you run</Eyebrow>
+          {pages.length > 0 ? (
+            <Card>
+              {pages.map((p, i) => (
+                <div key={`${p.kind}-${p.id}`}
+                     style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px',
+                              borderBottom: i === pages.length - 1 ? 'none' : `1px solid ${C.hairline}` }}>
+                  <div style={{ width: 44, height: 44, borderRadius: 10, overflow: 'hidden', background: '#F0EDE8', flex: 'none' }}>
+                    <Img src={p.image_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                      <div style={{ font: font(600, 14, 1.25), color: '#1A1A18', minWidth: 0, overflow: 'hidden',
+                                    textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</div>
+                      {p.verified && <Verified color={accent} />}
+                    </div>
+                    <div style={{ font: font(400, 11.5, 1.3), color: C.muted, marginTop: 2 }}>
+                      {PAGE_KIND[p.kind].label} page · {p.role}
+                    </div>
+                  </div>
+                  <div className="tap" role="button" onClick={() => nav(`/manage/${p.kind}/${p.id}`)}
+                       style={{ borderRadius: 999, background: accent, color: '#fff', padding: '7px 14px',
+                                font: font(700, 12, 1.2), flex: 'none' }}>Manage</div>
+                </div>
+              ))}
+            </Card>
           ) : (
-            <>
-              <LinkRow title="Edit your public profile"
-                       sub="Name, pronouns, area, bio and links. Everything here is public."
-                       onClick={() => nav('/profile/edit')} />
-              {account.displayName && (
-                <LinkRow title="View my profile"
-                         sub="See what other people see."
-                         onClick={() => nav(`/u/${encodeURIComponent(account.displayName ?? '')}`)} />
-              )}
-              <LinkRow title="Sign out"
-                       sub="Saved listings stay on this device."
-                       onClick={signOut} last />
-            </>
+            <div style={{ font: font(400, 12.5, 1.5), color: C.muted, textWrap: 'pretty' }}>
+              None yet. A page is an organization, business or event host you run — it has its own name and
+              followers, and you post as it from this account.
+            </div>
           )}
-        </Card>
-      </div>
+
+          {pending.length > 0 && (
+            <div style={{ marginTop: 12 }}>
+              <Card>
+                {pending.map((r, i) => {
+                  const d = describeRequest(data, r)
+                  return (
+                    <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px',
+                                             borderBottom: i === pending.length - 1 ? 'none' : `1px solid ${C.hairline}` }}>
+                      <div style={{ width: 10, height: 10, borderRadius: 999, background: '#D19A00', flex: 'none' }} />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ font: font(600, 13.5, 1.25), color: '#1A1A18' }}>{d.title}</div>
+                        <div style={{ font: font(400, 11.5, 1.35), color: C.muted, marginTop: 2, textWrap: 'pretty' }}>{d.sub}</div>
+                      </div>
+                      <div className="tap" role="button"
+                           onClick={() => { void withdrawPageRequest(r.id).then(refreshAccount) }}
+                           style={{ font: font(600, 12, 1.2), color: C.faint, flex: 'none' }}>Withdraw</div>
+                    </div>
+                  )
+                })}
+              </Card>
+            </div>
+          )}
+
+          {answered.length > 0 && (
+            <div style={{ marginTop: 12 }}>
+              <Card>
+                {answered.map((r, i) => {
+                  const d = describeRequest(data, r)
+                  return (
+                    <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px',
+                                             borderBottom: i === answered.length - 1 ? 'none' : `1px solid ${C.hairline}` }}>
+                      <div style={{ width: 10, height: 10, borderRadius: 999, flex: 'none',
+                                    background: r.status === 'approved' ? C.success : C.danger }} />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ font: font(600, 13.5, 1.25), color: '#1A1A18' }}>{d.title}</div>
+                        <div style={{ font: font(400, 11.5, 1.35), color: C.muted, marginTop: 2, textWrap: 'pretty' }}>{d.sub}</div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </Card>
+            </div>
+          )}
+
+          <div style={{ marginTop: 12 }}>
+            <Card>
+              <LinkRow title="Manage a page"
+                       sub="Ask to run a listed organization or business, or add a new page."
+                       onClick={() => nav('/apply')} last />
+            </Card>
+          </div>
+        </div>
+      )}
+
+      {signedIn && (
+        <div style={{ marginTop: 22 }}>
+          <Eyebrow>Sign-in</Eyebrow>
+          <Card>
+            <LinkRow title="Sign out"
+                     sub="Saved listings stay on this device."
+                     onClick={signOut} last />
+          </Card>
+        </div>
+      )}
 
       <div style={{ marginTop: 22 }}>
         <Eyebrow>Blocked and muted</Eyebrow>
@@ -574,7 +724,7 @@ function AccountPane() {
 
 export default function Profile() {
   const [pane, setPane] = useState<Pane>('saved')
-  const { saved, accent } = useStore()
+  const { saved, accent, account, signedIn } = useStore()
   const data = useData()
 
   const items = useMemo(() => (data ? resolveSaved(data, saved) : []), [data, saved])
@@ -583,7 +733,12 @@ export default function Profile() {
 
   return (
     <div>
-      <ProfileHeader title="Your Profile" tagline="Saved places, themes and settings." />
+      <ProfileHeader
+        title={account.displayName ? account.displayName : 'Your Profile'}
+        tagline={!signedIn ? 'Saved places, themes and settings.'
+          : account.managed.length > 0
+            ? `You and the ${account.managed.length === 1 ? 'page' : `${account.managed.length} pages`} you run, from one account.`
+            : 'Saved places, your profile and settings.'} />
 
       <div style={{ padding: '0 16px 28px' }}>
         <div className="hs" style={{ display: 'flex', gap: 7, overflowX: 'auto', padding: '2px 0 16px' }}>

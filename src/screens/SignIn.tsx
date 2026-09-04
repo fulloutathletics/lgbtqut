@@ -4,41 +4,18 @@ import { C } from '../lib/theme'
 import { useStore } from '../lib/store'
 import { supabase } from '../lib/supabase'
 import { StickyBar, font } from '../components/ui'
+import { useTrail } from '../lib/trail'
 
 // SignIn — route `/signin`.
 //
-// Per the Auth Handoff Spec the client never touches supabase.auth.signInWithOtp.
-// It calls two Edge Functions instead:
-//
-//   auth-start  { email, username?, dob? }  -> { status: 'code_sent' }
-//   auth-verify { email, code }             -> { session }
-//
-// auth-start returns an identical response whether or not the account already
-// exists. A distinguishable response would turn this screen into an oracle for
-// whether a given person has an account in a queer directory, so the UI shows
-// exactly one success message for every outcome and never branches on it.
+// Auth answers "who owns this account?" — not "what do people see?"
+// The login username is a private credential. The email is used by Supabase
+// Auth for password recovery but is never shown socially. The social profile
+// (display name, handle, pronouns, etc.) is a separate system the user can
+// create, hide, or delete independently.
 
-type Step = 'email' | 'code'
+type Step = 'credentials' | 'dob' | 'review' | 'forgot' | 'forgot-sent'
 type Mode = 'signin' | 'signup'
-
-/** Shown after auth-start, always, for both new and existing accounts. */
-const SENT_MESSAGE = 'If that address can receive mail, a six-digit code is on its way. Enter it below.'
-
-interface SessionTokens {
-  access_token: string
-  refresh_token: string
-}
-
-interface VerifyPayload {
-  session?: SessionTokens | null
-  data?: { session?: SessionTokens | null } | null
-  error?: { message?: string } | null
-}
-
-function readSession(payload: VerifyPayload | null): SessionTokens | null {
-  if (!payload) return null
-  return payload.session ?? payload.data?.session ?? null
-}
 
 const labelStyle = {
   font: font(600, 10.5, 1.2), letterSpacing: '.06em',
@@ -51,124 +28,177 @@ const inputStyle = {
   color: '#1A1A18', background: '#fff', boxSizing: 'border-box' as const,
 }
 
+interface SessionTokens {
+  access_token: string
+  refresh_token: string
+}
+
 export default function SignIn() {
   const nav = useNavigate()
+  const { back } = useTrail()
   const { accent, tint } = useStore()
 
   const [mode, setMode] = useState<Mode>('signin')
-  const [step, setStep] = useState<Step>('email')
+  const [step, setStep] = useState<Step>('credentials')
 
+  const [loginUsername, setLoginUsername] = useState('')
+  const [password, setPassword] = useState('')
   const [email, setEmail] = useState('')
-  const [username, setUsername] = useState('')
   const [dob, setDob] = useState('')
-  const [code, setCode] = useState('')
 
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
-  const [notice, setNotice] = useState('')
+  const [info, setInfo] = useState('')
 
-  const start = async () => {
-    const address = email.trim()
-    if (!address || !address.includes('@')) {
-      setError('Enter the email address you want the code sent to.')
+  const validate = (): string | null => {
+    const username = loginUsername.trim()
+    if (!username) return 'Pick a login username. You use it to sign in — nobody else sees it.'
+    if (username.length < 3) return 'Username must be at least 3 characters.'
+    if (password.length < 8) return 'Password must be at least 8 characters.'
+    if (mode === 'signup' && !email.includes('@')) {
+      return 'Enter an email address — it is used for password recovery only.'
+    }
+    return null
+  }
+
+  const submit = async () => {
+    if (step === 'forgot') {
+      const username = loginUsername.trim()
+      if (!username) {
+        setError('Enter your login username and we will send a reset link to your recovery email.')
+        return
+      }
+      setBusy(true)
+      setError('')
+      try {
+        await supabase.functions.invoke('auth-reset', {
+          body: { login_username: username, redirect_to: `${window.location.origin}/reset` },
+        })
+        setStep('forgot-sent')
+      } catch {
+        setError('Something went wrong. Try again.')
+      } finally {
+        setBusy(false)
+      }
       return
     }
-    if (mode === 'signup' && !username.trim()) {
-      setError('Pick a username. It stays private unless you add a public profile.')
+
+    const validationError = validate()
+    if (validationError) {
+      setError(validationError)
       return
     }
-    if (mode === 'signup' && !dob) {
-      setError('A date of birth is required. It is what the 18+ and 21+ checks read.')
+
+    if (mode === 'signup' && step === 'credentials') {
+      setError('')
+      setStep('dob')
+      return
+    }
+    if (mode === 'signup' && step === 'dob') {
+      if (!dob) {
+        setError('A date of birth is required. It is what the 18+ and 21+ checks read.')
+        return
+      }
+      setError('')
+      setStep('review')
       return
     }
 
     setBusy(true)
     setError('')
+
     try {
-      // The body carries username and dob only on the create path; auth-start
-      // uses them when it mints a new account and ignores them otherwise.
-      const body = mode === 'signup'
-        ? { email: address, username: username.trim(), dob }
-        : { email: address }
+      if (mode === 'signin') {
+        // Sign in via the edge function that resolves username -> auth email
+        const { data, error: fnError } = await supabase.functions.invoke<{
+          session?: SessionTokens | null
+          error?: string
+        }>('auth-signin', {
+          body: { login_username: loginUsername.trim(), password },
+        })
 
-      const { error: fnError } = await supabase.functions.invoke('auth-start', { body })
+        if (fnError || !data?.session) {
+          setError('Wrong username or password. Check both and try again.')
+          return
+        }
 
-      if (fnError) {
-        // Deliberately generic: this reports that the call failed, never
-        // whether an account for this address exists.
-        setError('We could not send a code right now. Please try again in a moment.')
-        return
+        const { error: sessionError } = await supabase.auth.setSession(data.session)
+        if (sessionError) {
+          setError('Signed in, but this device could not store the session. Try again.')
+          return
+        }
+        nav('/profile')
+      } else {
+        // Sign up: create the auth account, then insert the profile row
+        const { data: authData, error: signUpError } = await supabase.auth.signUp({
+          email: email.trim(),
+          password,
+        })
+
+        if (signUpError) {
+          setError(signUpError.message)
+          return
+        }
+        if (!authData.user) {
+          setError('Could not create your account. Try again.')
+          return
+        }
+
+        const { error: profileError } = await supabase.from('profiles').insert({
+          id: authData.user.id,
+          login_username: loginUsername.trim().toLowerCase(),
+          username: null,
+          dob,
+          recovery_email: email.trim(),
+        })
+
+        if (profileError) {
+          // The auth user exists but has no profile, so the account is stuck:
+          // username sign-in resolves through profiles. Surface the real
+          // reason to the console — the friendly text alone made a schema
+          // fault look like a transient glitch.
+          console.error('Profile insert failed after sign-up:', profileError)
+          setError('Account created, but we could not save your profile. Try signing in.')
+          return
+        }
+
+        // A new account goes through the welcome flow once: personal profile,
+        // and any pages the person wants to run. Returning sign-ins skip it.
+        nav('/welcome', { replace: true })
       }
-
-      // Same message for a brand new account and an existing one.
-      setNotice(SENT_MESSAGE)
-      setStep('code')
     } catch {
-      setError('We could not send a code right now. Please try again in a moment.')
+      setError('Something went wrong. Try again.')
     } finally {
       setBusy(false)
     }
   }
 
-  const verify = async () => {
-    const digits = code.trim()
-    if (digits.length !== 6) {
-      setError('The code is six digits.')
-      return
-    }
-
-    setBusy(true)
-    setError('')
-    try {
-      const { data, error: fnError } = await supabase.functions
-        .invoke<VerifyPayload>('auth-verify', { body: { email: email.trim(), code: digits } })
-
-      if (fnError) {
-        setError('That code did not work. Check it, or ask for a new one.')
-        return
-      }
-
-      const session = readSession(data ?? null)
-      if (!session) {
-        setError(data?.error?.message || 'That code did not work. Check it, or ask for a new one.')
-        return
-      }
-
-      const { error: sessionError } = await supabase.auth.setSession(session)
-      if (sessionError) {
-        setError('Signed in, but this device could not store the session. Try again.')
-        return
-      }
-
-      nav('/profile')
-    } catch {
-      setError('That code did not work. Check it, or ask for a new one.')
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  const submit = () => { void (step === 'email' ? start() : verify()) }
-
-  const cta = busy ? 'Working…' : step === 'email'
-    ? (mode === 'signup' ? 'Create my account' : 'Send me a code')
-    : 'Verify and sign in'
+  const cta = busy ? 'Working…'
+    : step === 'forgot' ? 'Send reset link'
+    : step === 'forgot-sent' ? 'Back to sign in'
+    : mode === 'signin' ? 'Sign in'
+    : step === 'credentials' ? 'Continue'
+    : step === 'dob' ? 'Continue'
+    : 'Create my account'
 
   return (
     <div style={{ minHeight: '100%', background: '#fff' }}>
-      <StickyBar title={step === 'email' ? (mode === 'signup' ? 'Create an account' : 'Sign in') : 'Enter your code'}
-                 onBack={() => { if (step === 'code') { setStep('email'); setNotice(''); setError('') } else nav(-1) }} />
+      <StickyBar title={step === 'forgot' || step === 'forgot-sent' ? 'Reset password' : mode === 'signup' ? 'Create an account' : 'Sign in'}
+                 onBack={() => {
+                   if (step === 'forgot' || step === 'forgot-sent') { setStep('credentials'); setError(''); setInfo('') }
+                   else if (step !== 'credentials') { setStep('credentials'); setError('') }
+                   else back()
+                 }} />
 
       <div style={{ padding: '20px 18px 32px' }}>
-        {/* Two sentences, no jargon — this is the whole reason the flow exists. */}
         <div style={{ background: tint, borderRadius: 12, padding: '14px 15px' }}>
           <div style={{ font: font(400, 13, 1.6), color: C.body, textWrap: 'pretty' }}>
-            We never keep your email address. You get a code to sign in, and anything we send you afterwards travels
-            through a stand-in address that forwards to your inbox.
+            Your login username and email stay private. They are for account access only —
+            nothing here shows up on a public profile unless you create one.
           </div>
         </div>
 
-        {step === 'email' && (
+        {step === 'credentials' && (
           <>
             <div style={{ display: 'flex', gap: 7, background: C.fill, borderRadius: 999, padding: 4, marginTop: 20 }}>
               {([['signin', 'I have an account'], ['signup', 'Create an account']] as const).map(([key, label]) => {
@@ -187,70 +217,113 @@ export default function SignIn() {
             </div>
 
             <div style={{ marginTop: 22 }}>
-              <div style={labelStyle}>Email</div>
+              <div style={labelStyle}>Login username</div>
               <input
-                value={email}
-                type="email"
-                inputMode="email"
-                autoComplete="email"
-                placeholder="you@example.com"
-                onChange={(e) => setEmail(e.target.value)}
+                value={loginUsername}
+                autoComplete="username"
+                placeholder="winterfox482"
+                onChange={(e) => setLoginUsername(e.target.value)}
+                style={inputStyle} />
+              <div style={{ font: font(400, 11.5, 1.5), color: C.faint, marginTop: 6, textWrap: 'pretty' }}>
+                Private. You use it to sign in. Nobody else sees it.
+              </div>
+            </div>
+
+            <div style={{ marginTop: 16 }}>
+              <div style={labelStyle}>Password</div>
+              <input
+                value={password}
+                type="password"
+                autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
+                placeholder={mode === 'signin' ? 'Your password' : 'At least 8 characters'}
+                onChange={(e) => setPassword(e.target.value)}
                 style={inputStyle} />
             </div>
 
             {mode === 'signup' && (
-              <>
-                <div style={{ marginTop: 16 }}>
-                  <div style={labelStyle}>Username</div>
-                  <input
-                    value={username}
-                    autoComplete="username"
-                    placeholder="sagebrush_kid"
-                    onChange={(e) => setUsername(e.target.value)}
-                    style={inputStyle} />
-                  <div style={{ font: font(400, 11.5, 1.5), color: C.faint, marginTop: 6, textWrap: 'pretty' }}>
-                    Private. Nobody sees it unless you add a public profile.
-                  </div>
+              <div style={{ marginTop: 16 }}>
+                <div style={labelStyle}>Email — for recovery only</div>
+                <input
+                  value={email}
+                  type="email"
+                  inputMode="email"
+                  autoComplete="email"
+                  placeholder="you@example.com"
+                  onChange={(e) => setEmail(e.target.value)}
+                  style={inputStyle} />
+                <div style={{ font: font(400, 11.5, 1.5), color: C.faint, marginTop: 6, textWrap: 'pretty' }}>
+                  Used only to recover your account if you forget your password. Never shown publicly.
                 </div>
+              </div>
+            )}
 
-                <div style={{ marginTop: 16 }}>
-                  <div style={labelStyle}>Date of birth</div>
-                  <input
-                    value={dob}
-                    type="date"
-                    onChange={(e) => setDob(e.target.value)}
-                    style={inputStyle} />
-                  <div style={{ font: font(400, 11.5, 1.5), color: C.faint, marginTop: 6, textWrap: 'pretty' }}>
-                    Required. Stored as a date, never as an age, and used only to decide what the app can show you.
-                  </div>
-                </div>
-              </>
+            {mode === 'signin' && (
+              <div className="tap" role="button"
+                   onClick={() => { setStep('forgot'); setError(''); setInfo('') }}
+                   style={{ font: font(600, 12.5, 1.3), color: accent, marginTop: 14, display: 'inline-block' }}>
+                Forgot your password?
+              </div>
             )}
           </>
         )}
 
-        {step === 'code' && (
+        {step === 'forgot' && (
           <>
             <div style={{ font: font(400, 13, 1.55), color: C.body, marginTop: 20, textWrap: 'pretty' }}>
-              {notice || SENT_MESSAGE}
+              Enter your login username and we will send a password reset link to the recovery email
+              on file. The link expires in one hour.
             </div>
-
             <div style={{ marginTop: 18 }}>
-              <div style={labelStyle}>Six-digit code</div>
+              <div style={labelStyle}>Login username</div>
               <input
-                value={code}
-                inputMode="numeric"
-                autoComplete="one-time-code"
-                maxLength={6}
-                placeholder="000000"
-                onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                style={{ ...inputStyle, font: font(600, 20, 1.2), letterSpacing: '.3em', textAlign: 'center' }} />
+                value={loginUsername}
+                autoComplete="username"
+                placeholder="winterfox482"
+                onChange={(e) => setLoginUsername(e.target.value)}
+                style={inputStyle} />
             </div>
+          </>
+        )}
 
-            <div className="tap" role="button"
-                 onClick={() => { if (!busy) { setCode(''); setStep('email'); setError('') } }}
-                 style={{ font: font(600, 12.5, 1.3), color: accent, marginTop: 14, display: 'inline-block' }}>
-              Use a different address
+        {step === 'forgot-sent' && (
+          <div style={{ marginTop: 24, textAlign: 'center' }}>
+            <div style={{ font: font(700, 18, 1.3), color: C.ink, letterSpacing: '-.01em' }}>
+              Check your email
+            </div>
+            <div style={{ font: font(400, 14, 1.55), color: C.muted, marginTop: 10, textWrap: 'pretty',
+                          maxWidth: 280, marginLeft: 'auto', marginRight: 'auto' }}>
+              If an account exists for that username, we sent a password reset link to the recovery
+              email on file. Open the link on this device to set a new password.
+            </div>
+          </div>
+        )}
+
+        {step === 'dob' && (
+          <>
+            <div style={{ font: font(400, 13, 1.55), color: C.body, marginTop: 20, textWrap: 'pretty' }}>
+              Your date of birth stays private. It is stored as a date, never as an age, and used
+              only to decide what the app can show you.
+            </div>
+            <div style={{ marginTop: 18 }}>
+              <div style={labelStyle}>Date of birth</div>
+              <input
+                value={dob}
+                type="date"
+                onChange={(e) => setDob(e.target.value)}
+                style={inputStyle} />
+            </div>
+          </>
+        )}
+
+        {step === 'review' && (
+          <>
+            <div style={{ font: font(400, 13, 1.55), color: C.body, marginTop: 20, textWrap: 'pretty' }}>
+              Review your details. You can change your password and email later.
+            </div>
+            <div style={{ marginTop: 16, borderRadius: 12, border: `1px solid ${C.border}`, padding: 14 }}>
+              <div style={{ font: font(600, 13, 1.4), color: C.ink }}>{loginUsername}</div>
+              <div style={{ font: font(400, 12, 1.4), color: C.muted, marginTop: 4 }}>{email}</div>
+              <div style={{ font: font(400, 12, 1.4), color: C.muted, marginTop: 2 }}>DOB: {dob}</div>
             </div>
           </>
         )}
@@ -263,19 +336,40 @@ export default function SignIn() {
           </div>
         )}
 
-        <div className="tap" role="button"
-             onClick={() => { if (!busy) submit() }}
-             aria-disabled={busy}
-             style={{ marginTop: 22, borderRadius: 12, padding: 14, textAlign: 'center',
-                      background: busy ? C.border : accent,
-                      font: font(700, 14.5, 1.2), color: busy ? C.faint : '#fff',
-                      cursor: busy ? 'not-allowed' : 'pointer' }}>
-          {cta}
-        </div>
+        {info && (
+          <div style={{ marginTop: 18, borderRadius: 12, background: '#F0F7F4',
+                        border: `1px solid #D5E8E0`, padding: '12px 14px',
+                        font: font(500, 12.5, 1.5), color: '#2E7D5B', textWrap: 'pretty' }}>
+            {info}
+          </div>
+        )}
+
+        {step !== 'forgot-sent' && (
+          <div className="tap" role="button"
+               onClick={() => { if (!busy) void submit() }}
+               aria-disabled={busy}
+               style={{ marginTop: 22, borderRadius: 12, padding: 14, textAlign: 'center',
+                        background: busy ? C.border : accent,
+                        font: font(700, 14.5, 1.2), color: busy ? C.faint : '#fff',
+                        cursor: busy ? 'not-allowed' : 'pointer' }}>
+            {cta}
+          </div>
+        )}
+
+        {step === 'forgot-sent' && (
+          <div className="tap" role="button"
+               onClick={() => { setStep('credentials'); setInfo('') }}
+               style={{ marginTop: 22, borderRadius: 12, padding: 14, textAlign: 'center',
+                        background: accent,
+                        font: font(700, 14.5, 1.2), color: '#fff' }}>
+            {cta}
+          </div>
+        )}
 
         <div style={{ font: font(400, 11.5, 1.55), color: C.faint, marginTop: 16, textWrap: 'pretty',
                       textAlign: 'center' }}>
-          There is no password to forget and no address on file to leak.
+          Authentication and social identity are separate systems. Your account lets you
+          participate. A public profile is optional and created separately.
         </div>
       </div>
     </div>

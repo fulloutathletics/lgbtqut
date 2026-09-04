@@ -1,7 +1,10 @@
 import { useParams } from 'react-router-dom'
 import { AgeGate } from '../components/AgeGate'
+import { EditImageButton } from '../components/EditImageButton'
+import { EntityEvents } from '../components/EntityEvents'
+import { ManageStrip } from '../components/ManageStrip'
 import { SubscriptionPanel } from '../components/SubscriptionPanel'
-import { Heart, Verified } from '../components/icons'
+import { Verified } from '../components/icons'
 import { ActionRow, Empty, Img, StickyBar, Tap, font } from '../components/ui'
 import { isHotline, mapHref, telHref, webHref } from '../lib/data'
 import { useStore } from '../lib/store'
@@ -55,19 +58,42 @@ export default function ResourceDetail() {
       <StickyBar
         title={r.name}
         right={
-          <Tap
-            onClick={() => toggleSave(r.id, 'resource')}
-            style={{ width: 34, height: 34, borderRadius: 999, background: C.fill, display: 'flex',
-                     alignItems: 'center', justifyContent: 'center', flex: 'none' }}
-          >
-            <Heart size={17} filled={saved} color={saved ? accent : '#2A2A28'} />
-          </Tap>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <Tap
+              onClick={() => {
+                const url = window.location.href
+                if (navigator.share) {
+                  void navigator.share({ title: r.name, text: `${r.name} on LGBTQ UT`, url })
+                } else {
+                  void navigator.clipboard.writeText(url)
+                }
+              }}
+              aria-label="Share resource"
+              style={{ height: 34, borderRadius: 999, background: C.fill, display: 'flex', padding: '0 13px',
+                       alignItems: 'center', justifyContent: 'center', flex: 'none',
+                       font: font(700, 12.5, 1.2), color: C.body }}
+            >
+              Share
+            </Tap>
+            <Tap
+              onClick={() => toggleSave(r.id, 'resource')}
+              aria-label={saved ? 'Unfollow resource' : 'Follow resource'}
+              style={{ height: 34, borderRadius: 999, background: saved ? tint : C.fill, display: 'flex',
+                       padding: '0 13px', alignItems: 'center', justifyContent: 'center', flex: 'none',
+                       font: font(700, 12.5, 1.2), color: saved ? accent : C.body }}
+            >
+              {saved ? 'Following' : 'Follow'}
+            </Tap>
+          </div>
         }
       />
 
-      <div style={{ width: '100%', aspectRatio: '4/3', background: tint, overflow: 'hidden' }}>
-        <Img src={r.image_url} alt={r.name}
+      <ManageStrip kind="resource" id={r.id} />
+
+      <div style={{ width: '100%', aspectRatio: '4/3', background: tint, overflow: 'hidden', position: 'relative' }}>
+        <Img src={r.image_url} alt={r.name} priority
              style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        <EditImageButton table="resources" id={r.id} column="image_url" />
       </div>
 
       <div style={{ padding: '20px 18px 28px' }}>
@@ -97,6 +123,10 @@ export default function ResourceDetail() {
             ))}
           </div>
         )}
+      </div>
+
+      <div style={{ marginTop: -12, paddingBottom: 20 }}>
+        <EntityEvents kind="resource" id={r.id} />
       </div>
     </>
   )
