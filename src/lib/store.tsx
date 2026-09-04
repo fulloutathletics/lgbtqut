@@ -2,7 +2,10 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import type { ReactNode } from 'react'
 import { supabase } from './supabase'
 import { DEFAULT_THEME, THEMES } from './theme'
-import type { AccountTier, Channels, EntityKind, ManagedPage, PageRequest, SavedEntry } from './types'
+import type {
+  AccountTier, Channels, EntityKind, ManagedPage, PageRequest, SavedEntry, SavedGroupKey,
+} from './types'
+import { SAVED_GROUP_KEYS } from './types'
 
 // Anonymous state is device-only by design — the Saved and Alerts panes say so.
 // Once signed in the same shape is mirrored to `public.saves`, so the local copy
@@ -41,16 +44,38 @@ interface Persisted {
   follows: string[]
   /** Shows the inline "change image" button on every content image. Local-only, off by default. */
   editMode: boolean
+  /** Order the Saved pane lists its groups in, newest keys appended on read. */
+  savedGroupOrder: SavedGroupKey[]
+  /** Saved groups the reader has folded away. */
+  savedGroupsCollapsed: SavedGroupKey[]
 }
 
 const EMPTY: Persisted = {
   theme: DEFAULT_THEME, saved: {}, pauseAll: false,
   blocked: [], muted: [], rsvp: {}, votes: {}, hideAdult: false, follows: [], editMode: false,
+  savedGroupOrder: [...SAVED_GROUP_KEYS], savedGroupsCollapsed: [],
+}
+
+/**
+ * Keeps a stored order usable when the app's group list changes: unknown keys
+ * are dropped and any group added since the order was written is appended.
+ */
+function normaliseGroupOrder(order: unknown): SavedGroupKey[] {
+  const kept = Array.isArray(order)
+    ? (order.filter((k): k is SavedGroupKey => SAVED_GROUP_KEYS.includes(k as SavedGroupKey)))
+    : []
+  const seen = new Set(kept)
+  return [...kept, ...SAVED_GROUP_KEYS.filter((k) => !seen.has(k))]
 }
 
 function read(): Persisted {
   try {
-    return { ...EMPTY, ...JSON.parse(localStorage.getItem(KEY) || '{}') }
+    const stored = { ...EMPTY, ...JSON.parse(localStorage.getItem(KEY) || '{}') } as Persisted
+    return {
+      ...stored,
+      savedGroupOrder: normaliseGroupOrder(stored.savedGroupOrder),
+      savedGroupsCollapsed: Array.isArray(stored.savedGroupsCollapsed) ? stored.savedGroupsCollapsed : [],
+    }
   } catch {
     return EMPTY
   }
@@ -93,6 +118,11 @@ interface Store extends Persisted {
   setHideAdult: (v: boolean) => void
   setEditMode: (v: boolean) => void
   setRsvp: (eventId: string, status: 'going' | 'interested' | 'cant_go') => void
+  /** Move a Saved group one place up or down the pane. */
+  moveSavedGroup: (key: SavedGroupKey, dir: -1 | 1) => void
+  /** Fold a Saved group away, or open it again. */
+  toggleSavedGroup: (key: SavedGroupKey) => void
+  isSavedGroupCollapsed: (key: SavedGroupKey) => boolean
   vote: (pollId: string, option: number) => void
   block: (name: string) => void
   unblock: (name: string) => void
@@ -234,6 +264,28 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
       setRsvp: (eventId, status) =>
         patch((s) => ({ ...s, rsvp: { ...s.rsvp, [eventId]: status } })),
+
+      moveSavedGroup: (key, dir) =>
+        patch((s) => {
+          const order = normaliseGroupOrder(s.savedGroupOrder)
+          const at = order.indexOf(key)
+          const to = at + dir
+          if (at < 0 || to < 0 || to >= order.length) return s
+          const next = [...order]
+          next[at] = next[to]
+          next[to] = key
+          return { ...s, savedGroupOrder: next }
+        }),
+
+      toggleSavedGroup: (key) =>
+        patch((s) => ({
+          ...s,
+          savedGroupsCollapsed: s.savedGroupsCollapsed.includes(key)
+            ? s.savedGroupsCollapsed.filter((k) => k !== key)
+            : [...s.savedGroupsCollapsed, key],
+        })),
+
+      isSavedGroupCollapsed: (key) => state.savedGroupsCollapsed.includes(key),
 
       vote: (pollId, option) =>
         patch((s) => ({ ...s, votes: { ...s.votes, [pollId]: option } })),
