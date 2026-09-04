@@ -293,7 +293,7 @@ export default function Upload() {
 const stickyBarStyle: CSSProperties = {
   position: 'sticky', top: 0, zIndex: 20, background: 'rgba(255,255,255,.94)',
   backdropFilter: 'blur(12px)', borderBottom: `1px solid ${C.hairline}`,
-  padding: '56px 14px 11px', display: 'flex', alignItems: 'center', gap: 11,
+  padding: 'calc(env(safe-area-inset-top, 0px) + 14px) 14px 11px', display: 'flex', alignItems: 'center', gap: 11,
 }
 
 const backBtnStyle: CSSProperties = {
