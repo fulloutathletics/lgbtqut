@@ -301,7 +301,8 @@ export default function EditProfile() {
     <div style={{ minHeight: '100%', background: '#fff' }}>
       <div style={{ position: 'sticky', top: 0, zIndex: 5, background: 'rgba(255,255,255,.94)',
                     backdropFilter: 'blur(12px)', borderBottom: '1px solid #EFECE8',
-                    display: 'flex', alignItems: 'center', gap: 10, padding: '56px 14px 12px' }}>
+                    display: 'flex', alignItems: 'center', gap: 10,
+                    padding: 'calc(env(safe-area-inset-top, 0px) + 14px) 14px 12px' }}>
         <div className="tap" role="button" onClick={back}
              style={{ font: font(600, 14, 1.2), color: '#7C7871' }}>Cancel</div>
         <div style={{ flex: 1, textAlign: 'center', font: font(700, 16, 1.2), color: '#161615' }}>
