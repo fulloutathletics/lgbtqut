@@ -7,6 +7,7 @@ import type { AppEvent } from '../lib/types'
 import { AgeGate } from '../components/AgeGate'
 import { entityHref, entityRef } from '../lib/data'
 import { EditImageButton } from '../components/EditImageButton'
+import { AdminEditButton } from '../components/AdminEditButton'
 import { RichText } from '../components/RichText'
 import { Chevron, Heart, Star, Verified } from '../components/icons'
 import { AgePill, Empty, Img, StickyBar, font } from '../components/ui'
@@ -296,7 +297,7 @@ function EventDetail() {
 
   return (
     <>
-      <StickyBar title={event.name} />
+      <StickyBar title={event.name} right={<AdminEditButton section="events" id={event.id} />} />
 
       {/* hero */}
       <div style={{ height: 246, background: '#F4F2EE', display: 'flex', alignItems: 'center',

@@ -72,6 +72,14 @@ export const Camera = ({ size = 15, color = '#fff' }: IconProps) => (
   </svg>
 )
 
+export const Pencil = ({ size = 15, color = '#2A2A28' }: IconProps) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color}
+       strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    <path d="M4 20h4l10.5-10.5a2.83 2.83 0 0 0-4-4L4 16v4z" />
+    <path d="M13.5 6.5l4 4" />
+  </svg>
+)
+
 export const Nav = {
   resources: (c: string) => (
     <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
