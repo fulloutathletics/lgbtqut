@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { CSSProperties, ReactNode, UIEvent } from 'react'
 import { useParams } from 'react-router-dom'
 import { C, SIZES } from '../lib/theme'
@@ -8,11 +8,12 @@ import { alpha, isHotline, mapHref, telHref, webHref } from '../lib/data'
 import type { Business, BusinessSection, SectionItem } from '../lib/types'
 import { AgeGate } from '../components/AgeGate'
 import { EditImageButton } from '../components/EditImageButton'
+import { AdminEditButton } from '../components/AdminEditButton'
 import { EntityEvents } from '../components/EntityEvents'
 import { ManageStrip } from '../components/ManageStrip'
 import { SubscriptionPanel } from '../components/SubscriptionPanel'
 import { Verified } from '../components/icons'
-import { ActionRow, AgePill, Empty, Img, StickyBar, Tap, font } from '../components/ui'
+import { ActionRow, AgePill, Empty, Img, StickyBar, Tap, font, preloadImages } from '../components/ui'
 
 /** Glide match = 200px banner + overlapping logo tile. Editorial = 330px full bleed. */
 export type BizHero = 'glide' | 'editorial'
@@ -37,6 +38,11 @@ export function BusinessDetail({ variant = 'glide', showConfig = false }: {
     const srcs = [b.background_url, b.image_url, ...b.sections.flatMap((s) => s.items.map((i) => i.img ?? ''))]
     return [...new Set(srcs.filter(Boolean))]
   }, [b])
+
+  // Warm the photo strip: it scrolls sideways, so its pictures sit outside the
+  // viewport and a lazy <img> won't start fetching until the reader swipes —
+  // which is exactly when a blank tile is most visible.
+  useEffect(() => { preloadImages(gallery) }, [gallery])
 
   if (!data) return <div />
   if (!b) {
@@ -64,6 +70,7 @@ export function BusinessDetail({ variant = 'glide', showConfig = false }: {
         title={b.name}
         right={
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <AdminEditButton section="businesses" id={b.id} />
             <Tap onClick={() => {
               const url = window.location.href
               if (navigator.share) {

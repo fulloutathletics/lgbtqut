@@ -1,4 +1,5 @@
 import { Link, useLocation } from 'react-router-dom'
+import { useEffect, useRef } from 'react'
 import type { ReactNode } from 'react'
 import { C } from '../lib/theme'
 import { useStore } from '../lib/store'
@@ -16,17 +17,25 @@ const TABS = [
 export function Shell({ children }: { children: ReactNode }) {
   const { pathname } = useLocation()
   const { accent } = useStore()
+  const scrollRef = useRef<HTMLDivElement>(null)
+
+  // The content pane scrolls independently of the window, so a route change
+  // doesn't reset it on its own — without this, a detail page opens wherever
+  // the previous screen happened to be scrolled to instead of at the top.
+  useEffect(() => {
+    scrollRef.current?.scrollTo(0, 0)
+  }, [pathname])
 
   return (
-    <div style={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column', background: '#fff',
-                  maxWidth: 480, margin: '0 auto', boxShadow: '0 0 60px rgba(0,0,0,.06)' }}>
-      <div className="hs" style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' }}>
+    <div style={{ height: '100dvh', display: 'flex', flexDirection: 'column', background: '#fff',
+                  maxWidth: 480, margin: '0 auto', boxShadow: '0 0 60px rgba(0,0,0,.06)', overflow: 'hidden' }}>
+      <div ref={scrollRef} className="hs" style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' }}>
         {children}
         <div style={{ height: 28 }} />
       </div>
 
       <nav style={{ display: 'flex', borderTop: `1px solid ${C.border}`, background: 'rgba(255,255,255,.96)',
-                    backdropFilter: 'blur(12px)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
+                    backdropFilter: 'blur(12px)', paddingBottom: 'env(safe-area-inset-bottom)', flexShrink: 0 }}>
         {TABS.map((t) => {
           const active = t.match(pathname)
           const color = active ? accent : '#9A968F'

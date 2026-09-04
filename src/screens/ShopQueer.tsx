@@ -7,7 +7,7 @@ import { useStore } from '../lib/store'
 import { useData } from '../lib/useData'
 import { alphabetical } from '../lib/data'
 import type { Business } from '../lib/types'
-import { Chevron, Verified } from '../components/icons'
+import { Chevron, Locate, Verified } from '../components/icons'
 import { AgePill, Img, ProfileHeader, SearchField, Tap, font } from '../components/ui'
 
 /** Split keeps the map at 244px; the other two trade map height for list. */
@@ -26,22 +26,63 @@ const UTAH: L.LatLngTuple = [39.32, -111.09]
 const matches = (b: Business, q: string) =>
   `${b.name} ${b.county} ${b.tags.join(' ')}`.toLowerCase().includes(q)
 
+/** Great-circle distance in miles. */
+const milesBetween = (a: L.LatLngTuple, b: L.LatLngTuple) => {
+  const R = 3958.8
+  const dLat = ((b[0] - a[0]) * Math.PI) / 180
+  const dLon = ((b[1] - a[1]) * Math.PI) / 180
+  const lat1 = (a[0] * Math.PI) / 180
+  const lat2 = (b[0] * Math.PI) / 180
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2
+  return R * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h))
+}
+
 export function ShopQueer({ layout = 'split' }: { layout?: ShopLayout }) {
   const data = useData()
   const nav = useNavigate()
   const { accent, canSee, signedIn, age, hideAdult } = useStore()
   const [q, setQ] = useState('')
+  const [userLoc, setUserLoc] = useState<L.LatLngTuple | null>(null)
+  const [locating, setLocating] = useState(false)
+  const [locateError, setLocateError] = useState('')
 
   const mapH = MAP_HEIGHT[layout]
+
+  const locate = () => {
+    if (!('geolocation' in navigator)) {
+      setLocateError("This browser can't share your location.")
+      return
+    }
+    setLocating(true)
+    setLocateError('')
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setUserLoc([pos.coords.latitude, pos.coords.longitude])
+        setLocating(false)
+      },
+      () => {
+        setLocateError("Couldn't get your location — check your browser's location permission.")
+        setLocating(false)
+      },
+      { enableHighAccuracy: true, timeout: 10_000, maximumAge: 60_000 },
+    )
+  }
 
   const all = data?.businesses
   const { items, hiddenCount } = useMemo(() => {
     const needle = q.trim().toLowerCase()
     const found = (all ?? []).filter((b) => !needle || matches(b, needle))
     const visible = found.filter((b) => canSee(b.age_rating))
-    return { items: alphabetical(visible), hiddenCount: found.length - visible.length }
+    const sorted = userLoc
+      ? [...visible].sort((a, b) => {
+          const da = a.latitude !== null && a.longitude !== null ? milesBetween(userLoc, [a.latitude, a.longitude]) : Infinity
+          const db = b.latitude !== null && b.longitude !== null ? milesBetween(userLoc, [b.latitude, b.longitude]) : Infinity
+          return da - db
+        })
+      : alphabetical(visible)
+    return { items: sorted, hiddenCount: found.length - visible.length }
     // `canSee` is recreated with the store value on every change that matters to it.
-  }, [all, q, canSee])
+  }, [all, q, canSee, userLoc])
 
   // Only an adult who deliberately opted out is told anything was filtered.
   const optedOut = signedIn && age !== null && age >= 18 && hideAdult
@@ -81,7 +122,7 @@ export function ShopQueer({ layout = 'split' }: { layout?: ShopLayout }) {
     return () => window.clearTimeout(t)
   }, [mapH])
 
-  // Markers are redrawn — and the view refitted — whenever the visible list changes.
+  // Markers are redrawn — and the view refitted — whenever the visible list or the user's location changes.
   useEffect(() => {
     const map = mapRef.current
     const group = layerRef.current
@@ -97,9 +138,15 @@ export function ShopQueer({ layout = 'split' }: { layout?: ShopLayout }) {
         .on('click', () => nav(`/business/${b.id}`))
         .addTo(group)
     }
+    if (userLoc) {
+      pts.push(userLoc)
+      L.circleMarker(userLoc, { radius: 7, color: '#fff', weight: 2, fillColor: '#2563EB', fillOpacity: 1 })
+        .bindTooltip('You are here', { direction: 'top', offset: [0, -6] })
+        .addTo(group)
+    }
     if (pts.length) map.fitBounds(L.latLngBounds(pts), { padding: [26, 26], maxZoom: 9 })
     else map.setView(UTAH, 6)
-  }, [items, accent, nav])
+  }, [items, accent, nav, userLoc])
 
   if (!data) return <div />
 
@@ -112,7 +159,18 @@ export function ShopQueer({ layout = 'split' }: { layout?: ShopLayout }) {
         <div style={{ position: 'relative', height: mapH, borderRadius: 14, overflow: 'hidden',
                       background: '#E7E9E4', border: '1px solid #E0DDD7' }}>
           <div ref={holder} style={{ position: 'absolute', inset: 0 }} />
+          <Tap onClick={locate} style={{ position: 'absolute', top: 10, right: 10, zIndex: 5, display: 'flex',
+                                          alignItems: 'center', gap: 6, background: '#fff', borderRadius: 999,
+                                          padding: '7px 12px', boxShadow: '0 2px 8px rgba(0,0,0,.18)' }}>
+            <Locate size={14} color={userLoc ? accent : '#8A8680'} />
+            <span style={{ font: font(600, 12, 1.2), color: userLoc ? accent : '#5C584F' }}>
+              {locating ? 'Locating…' : userLoc ? 'Near me' : 'Use my location'}
+            </span>
+          </Tap>
         </div>
+        {locateError && (
+          <div style={{ marginTop: 8, font: font(400, 11.5, 1.4), color: '#B4453A' }}>{locateError}</div>
+        )}
       </div>
 
       <div style={{ marginTop: -10, position: 'relative', zIndex: 4, background: '#fff',
@@ -125,7 +183,7 @@ export function ShopQueer({ layout = 'split' }: { layout?: ShopLayout }) {
                         font: font(400, 11.5, 1.4), color: '#8C887F' }}>{hiddenNote}</div>
         )}
         {items.map((b) => (
-          <Row key={b.id} b={b} accent={accent} onClick={() => nav(`/business/${b.id}`)} />
+          <Row key={b.id} b={b} accent={accent} userLoc={userLoc} onClick={() => nav(`/business/${b.id}`)} />
         ))}
         {!items.length && (
           <div style={{ padding: '34px 24px', textAlign: 'center', font: font(400, 14, 1.5), color: C.muted }}>
@@ -139,8 +197,11 @@ export function ShopQueer({ layout = 'split' }: { layout?: ShopLayout }) {
 }
 
 /** Like ResultRow, but with the 56px brand-colored thumbnail this screen calls for. */
-function Row({ b, accent, onClick }: { b: Business; accent: string; onClick: () => void }) {
-  const meta = [b.county || 'Online only', b.tags[0]].filter(Boolean).join(' · ')
+function Row({ b, accent, userLoc, onClick }: { b: Business; accent: string; userLoc: L.LatLngTuple | null; onClick: () => void }) {
+  const distance = userLoc && b.latitude !== null && b.longitude !== null
+    ? `${milesBetween(userLoc, [b.latitude, b.longitude]).toFixed(1)} mi`
+    : ''
+  const meta = [distance || b.county || 'Online only', b.tags[0]].filter(Boolean).join(' · ')
   return (
     <Tap onClick={onClick} style={{ display: 'flex', alignItems: 'center', gap: 13, padding: '11px 16px',
                                     borderBottom: `1px solid ${C.hairline}`, background: '#fff' }}>

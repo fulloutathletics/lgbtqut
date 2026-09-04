@@ -15,6 +15,12 @@ export const Back = ({ size = 17, color = '#2A2A28' }: IconProps) => (
        strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
 )
 
+export const Locate = ({ size = 16, color = '#8A8680', width = 2.2 }: IconProps) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={width} strokeLinecap="round">
+    <circle cx="12" cy="12" r="3" /><path d="M12 2v3" /><path d="M12 19v3" /><path d="M2 12h3" /><path d="M19 12h3" />
+  </svg>
+)
+
 export const Alert = ({ size = 20, color = '#fff' }: IconProps) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color}
        strokeWidth={2.2} strokeLinecap="round"><path d="M12 8v5" /><path d="M12 17h.01" /></svg>
@@ -63,6 +69,14 @@ export const Camera = ({ size = 15, color = '#fff' }: IconProps) => (
        strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
     <path d="M4 8h3l1.6-2.4A2 2 0 0 1 10.3 4.6h3.4a2 2 0 0 1 1.7 1L17 8h3a1.5 1.5 0 0 1 1.5 1.5v9A1.5 1.5 0 0 1 20 20H4a1.5 1.5 0 0 1-1.5-1.5v-9A1.5 1.5 0 0 1 4 8z" />
     <circle cx="12" cy="13.6" r="3.4" />
+  </svg>
+)
+
+export const Pencil = ({ size = 15, color = '#2A2A28' }: IconProps) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color}
+       strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    <path d="M4 20h4l10.5-10.5a2.83 2.83 0 0 0-4-4L4 16v4z" />
+    <path d="M13.5 6.5l4 4" />
   </svg>
 )
 

@@ -131,7 +131,8 @@ export function FlowHeader({ title, sub, progress, onBack }: {
   const { accent } = useStore()
   return (
     <div style={{ position: 'sticky', top: 0, zIndex: 5, background: 'rgba(255,255,255,.96)',
-                  backdropFilter: 'blur(12px)', borderBottom: `1px solid #EFECE8`, padding: '56px 14px 12px' }}>
+                  backdropFilter: 'blur(12px)', borderBottom: `1px solid #EFECE8`,
+                  padding: 'calc(env(safe-area-inset-top, 0px) + 14px) 14px 12px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         <div className="tap" role="button" onClick={onBack}
              style={{ width: 34, height: 34, borderRadius: 999, background: '#F1EFEB', display: 'flex',
