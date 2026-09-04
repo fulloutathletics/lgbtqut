@@ -15,6 +15,12 @@ export const Back = ({ size = 17, color = '#2A2A28' }: IconProps) => (
        strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
 )
 
+export const Locate = ({ size = 16, color = '#8A8680', width = 2.2 }: IconProps) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={width} strokeLinecap="round">
+    <circle cx="12" cy="12" r="3" /><path d="M12 2v3" /><path d="M12 19v3" /><path d="M2 12h3" /><path d="M19 12h3" />
+  </svg>
+)
+
 export const Alert = ({ size = 20, color = '#fff' }: IconProps) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color}
        strokeWidth={2.2} strokeLinecap="round"><path d="M12 8v5" /><path d="M12 17h.01" /></svg>
