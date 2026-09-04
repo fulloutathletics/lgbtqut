@@ -4,6 +4,7 @@ import { EditImageButton } from '../components/EditImageButton'
 import { AdminEditButton } from '../components/AdminEditButton'
 import { EntityEvents } from '../components/EntityEvents'
 import { ManageStrip } from '../components/ManageStrip'
+import { RichText } from '../components/RichText'
 import { SubscriptionPanel } from '../components/SubscriptionPanel'
 import { Verified } from '../components/icons'
 import { ActionRow, Empty, Img, StickyBar, Tap, font } from '../components/ui'
@@ -115,7 +116,7 @@ export default function ResourceDetail() {
 
         {filled(r.description) && (
           <div style={{ font: font(400, 15, 1.6), color: '#33322F', marginTop: 14,
-                        whiteSpace: 'pre-wrap', textWrap: 'pretty' }}>{r.description}</div>
+                        whiteSpace: 'pre-wrap', textWrap: 'pretty' }}><RichText text={r.description} /></div>
         )}
 
         {rows.length > 0 && (
