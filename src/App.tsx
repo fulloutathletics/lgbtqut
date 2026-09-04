@@ -15,6 +15,7 @@ import Crisis from './screens/Crisis'
 const ResourceList = lazy(() => import('./screens/ResourceList'))
 const ResourceDetail = lazy(() => import('./screens/ResourceDetail'))
 const Events = lazy(() => import('./screens/Events'))
+const PastEvents = lazy(() => import('./screens/PastEvents'))
 const EventDetail = lazy(() => import('./screens/EventDetail'))
 const HostProfile = lazy(() => import('./screens/HostProfile'))
 const ShopQueer = lazy(() => import('./screens/ShopQueer'))
@@ -51,6 +52,7 @@ export default function App() {
                 <Route path="/resource/:id" element={<ResourceDetail />} />
 
                 <Route path="/events" element={<Events />} />
+                <Route path="/events/past" element={<PastEvents />} />
                 <Route path="/event/:id" element={<EventDetail />} />
                 <Route path="/host/:id" element={<HostProfile />} />
 

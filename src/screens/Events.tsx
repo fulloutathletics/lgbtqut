@@ -1,11 +1,18 @@
 import { useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { C } from '../lib/theme'
 import { useStore } from '../lib/store'
 import { useData } from '../lib/useData'
-import type { AppEvent, EntityRef } from '../lib/types'
+import type { AppData, AppEvent, EntityRef } from '../lib/types'
 import { entityHref, entityRef } from '../lib/data'
 import { AgePill, Empty, Eyebrow, Img, ProfileHeader, SearchField, font } from '../components/ui'
+import { ChevronDown } from '../components/icons'
+
+/** Today as an ISO date, comparable directly against `starts_on`. */
+export const todayISO = () => new Date().toISOString().slice(0, 10)
+
+/** How many past events the in-page dropdown shows before sending you to "view all". */
+export const PAST_PREVIEW_COUNT = 5
 
 /**
  * 16px radius, 1px border, soft card shadow, 190px cover.
@@ -87,6 +94,47 @@ function BecomeHostCard() {
   )
 }
 
+/**
+ * Collapsible "Past events" row nested under the main list. Closed by
+ * default so a first-time visitor sees only what's coming up; opening it
+ * reveals the 5 most recent past events with a link through to the full
+ * history, which lives on its own page rather than growing this one forever.
+ */
+function PastEventsDropdown({ events, data }: { events: AppEvent[]; data: AppData }) {
+  const [open, setOpen] = useState(false)
+  if (events.length === 0) return null
+
+  const preview = events.slice(0, PAST_PREVIEW_COUNT)
+
+  return (
+    <div style={{ borderRadius: 16, border: `1px solid ${C.border}`, background: '#fff', overflow: 'hidden' }}>
+      <div
+        className="tap"
+        role="button"
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+        style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px' }}
+      >
+        <div style={{ font: font(700, 15, 1.2), color: C.ink }}>Past events</div>
+        <div style={{ transform: open ? 'rotate(180deg)' : 'none', transition: 'transform .15s ease' }}>
+          <ChevronDown />
+        </div>
+      </div>
+      {open && (
+        <div style={{ padding: '0 16px 16px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {preview.map((e) => (
+            <EventCard key={e.id} event={e} organiser={entityRef(data, e.entity_kind, e.entity_id)} />
+          ))}
+          <Link to="/events/past" style={{ textAlign: 'center', font: font(700, 13.5, 1.2), color: C.ink,
+                                            textDecoration: 'none', padding: '6px 0' }}>
+            View all past events
+          </Link>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function Events() {
   const data = useData()
   const { canSee } = useStore()
@@ -95,7 +143,7 @@ function Events() {
   // Chronological by start date — the one gallery in the app that is not
   // alphabetized. Age-restricted events the viewer cannot see are dropped with
   // no hidden-count note, so a minor is never told anything was filtered.
-  const events = useMemo(() => {
+  const matching = useMemo(() => {
     if (!data) return []
     const needle = q.trim().toLowerCase()
     return data.events
@@ -106,8 +154,17 @@ function Events() {
         return `${e.name} ${e.date_label} ${e.description} ${org?.name ?? ''}`
           .toLowerCase().includes(needle)
       })
-      .sort((a, b) => a.starts_on.localeCompare(b.starts_on))
   }, [data, q, canSee])
+
+  const today = todayISO()
+  const events = useMemo(
+    () => matching.filter((e) => e.starts_on >= today).sort((a, b) => a.starts_on.localeCompare(b.starts_on)),
+    [matching, today],
+  )
+  const pastEvents = useMemo(
+    () => matching.filter((e) => e.starts_on < today).sort((a, b) => b.starts_on.localeCompare(a.starts_on)),
+    [matching, today],
+  )
 
   if (!data) return <div />
 
@@ -117,10 +174,11 @@ function Events() {
       <SearchField value={q} onChange={setQ} placeholder="Search events" />
 
       <div style={{ padding: '12px 16px 28px', display: 'flex', flexDirection: 'column', gap: 16 }}>
-        {events.length === 0 && <Empty>Nothing matches that search yet.</Empty>}
+        {events.length === 0 && pastEvents.length === 0 && <Empty>Nothing matches that search yet.</Empty>}
         {events.map((e) => (
           <EventCard key={e.id} event={e} organiser={entityRef(data, e.entity_kind, e.entity_id)} />
         ))}
+        <PastEventsDropdown events={pastEvents} data={data} />
         <BecomeHostCard />
       </div>
     </>
