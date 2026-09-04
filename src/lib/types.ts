@@ -135,6 +135,15 @@ export interface AppData {
 
 export type EntityKind = 'resource' | 'business' | 'host'
 
+/**
+ * The groups the Saved pane lists. Entity kinds are saved outright; `event`
+ * collects the events the reader marked Going or Interested.
+ */
+export type SavedGroupKey = EntityKind | 'event'
+
+/** Default group order, and the source of truth for which keys are valid. */
+export const SAVED_GROUP_KEYS: SavedGroupKey[] = ['event', 'resource', 'business', 'host']
+
 export interface Channels {
   events: boolean
   offers: boolean

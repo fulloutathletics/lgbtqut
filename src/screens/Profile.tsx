@@ -6,7 +6,7 @@ import { useStore } from '../lib/store'
 import { useData } from '../lib/useData'
 import { subscribeToPush } from '../lib/push'
 import { supabase } from '../lib/supabase'
-import type { AppData, EntityKind, SavedEntry } from '../lib/types'
+import type { AppData, EntityKind, SavedEntry, SavedGroupKey } from '../lib/types'
 import { PAGE_KIND, describeRequest, resolveManaged, withdrawPageRequest } from '../lib/pages'
 import { isOnboarded } from '../lib/onboarding'
 import { Chevron, Verified } from '../components/icons'
@@ -32,7 +32,7 @@ type Pane = (typeof PANES)[number]['key']
 
 interface SavedItem {
   id: string
-  kind: EntityKind
+  group: SavedGroupKey
   name: string
   img: string
   sub: string
@@ -47,20 +47,27 @@ const KIND_LABEL: Record<EntityKind, string> = {
   host: 'Event host',
 }
 
-const GROUPS: Array<{ kind: EntityKind; heading: string }> = [
-  { kind: 'resource', heading: 'Resources' },
-  { kind: 'business', heading: 'Businesses' },
-  { kind: 'host', heading: 'Event hosts' },
-]
+const GROUP_HEADING: Record<SavedGroupKey, string> = {
+  event: 'Events',
+  resource: 'Resources',
+  business: 'Businesses',
+  host: 'Event hosts',
+}
 
-function resolveSaved(data: AppData, saved: Record<string, SavedEntry>): SavedItem[] {
+const RSVP_LABEL: Record<string, string> = { going: 'Going', interested: 'Interested' }
+
+function resolveSaved(
+  data: AppData,
+  saved: Record<string, SavedEntry>,
+  rsvp: Record<string, 'going' | 'interested' | 'cant_go'>,
+): SavedItem[] {
   const out: SavedItem[] = []
   for (const entry of Object.values(saved)) {
     if (entry.kind === 'resource') {
       const r = data.resources.find((x) => x.id === entry.id)
       if (r) {
         out.push({
-          id: r.id, kind: 'resource', name: r.name, img: r.image_url,
+          id: r.id, group: 'resource', name: r.name, img: r.image_url,
           sub: r.category, to: `/resource/${r.id}`, allowNewsletter: true,
         })
       }
@@ -68,7 +75,7 @@ function resolveSaved(data: AppData, saved: Record<string, SavedEntry>): SavedIt
       const b = data.businesses.find((x) => x.id === entry.id)
       if (b) {
         out.push({
-          id: b.id, kind: 'business', name: b.name, img: b.image_url,
+          id: b.id, group: 'business', name: b.name, img: b.image_url,
           sub: b.county || 'Online only', to: `/business/${b.id}`, allowNewsletter: true,
         })
       }
@@ -76,12 +83,25 @@ function resolveSaved(data: AppData, saved: Record<string, SavedEntry>): SavedIt
       const h = data.hosts.find((x) => x.id === entry.id)
       if (h) {
         out.push({
-          id: h.id, kind: 'host', name: h.name, img: h.image_url, sub: 'Event host',
+          id: h.id, group: 'host', name: h.name, img: h.image_url, sub: 'Event host',
           to: `/host/${h.id}`,
           allowNewsletter: !!(h.linked_business_id || h.linked_resource_id),
         })
       }
     }
+  }
+
+  // Marking an event Going or Interested keeps it here too. "Can't go" is an
+  // answer rather than an interest, so it never lands in Saved.
+  const rsvped = data.events
+    .filter((e) => rsvp[e.id] === 'going' || rsvp[e.id] === 'interested')
+    .sort((a, b) => a.starts_on.localeCompare(b.starts_on))
+  for (const e of rsvped) {
+    out.push({
+      id: e.id, group: 'event', name: e.name, img: e.image_url,
+      sub: `${RSVP_LABEL[rsvp[e.id]]} · ${e.date_label}`,
+      to: `/event/${e.id}`, allowNewsletter: false,
+    })
   }
   return out
 }
@@ -144,7 +164,11 @@ const Check = ({ size = 20, color = '#fff' }: { size?: number; color?: string })
 
 function SavedPane({ items }: { items: SavedItem[] }) {
   const nav = useNavigate()
-  const { signedIn } = useStore()
+  const { signedIn, savedGroupOrder, moveSavedGroup, toggleSavedGroup, isSavedGroupCollapsed } = useStore()
+
+  // Only groups holding something are listed, but a move shifts the group
+  // within the full stored order, so an empty group keeps its place for later.
+  const filled = savedGroupOrder.filter((key) => items.some((i) => i.group === key))
 
   return (
     <div>
@@ -154,37 +178,83 @@ function SavedPane({ items }: { items: SavedItem[] }) {
         <div style={{ border: '1.5px dashed #DFDBD5', borderRadius: 14, padding: '24px 18px', textAlign: 'center' }}>
           <div style={{ font: font(600, 14, 1.3), color: C.body }}>Nothing saved yet</div>
           <div style={{ font: font(400, 12.5, 1.5), color: '#8C887F', marginTop: 5 }}>
-            Tap the heart on any resource, business or host to keep it here.
+            Tap the heart on any resource, business or host to keep it here, or mark an event Going or Interested.
           </div>
         </div>
       ) : (
-        GROUPS.map(({ kind, heading }) => {
-          const rows = items.filter((i) => i.kind === kind)
-          if (!rows.length) return null
+        filled.map((key, groupIndex) => {
+          const rows = items.filter((i) => i.group === key)
+          const collapsed = isSavedGroupCollapsed(key)
+          const headingId = `saved-group-${key}`
           return (
-            <div key={kind} style={{ marginBottom: 22 }}>
-              <Eyebrow>{heading}</Eyebrow>
-              <Card>
-                {rows.map((s, i) => (
-                  <div key={s.id} className="tap" role="button" onClick={() => nav(s.to)}
-                       style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 13px',
-                                borderBottom: i === rows.length - 1 ? 'none' : `1px solid ${C.hairline}` }}>
-                    <div style={{ width: 44, height: 44, borderRadius: 10, overflow: 'hidden',
-                                  background: '#F0EDE8', flex: 'none' }}>
-                      <Img src={s.img} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ font: font(600, 14, 1.25), color: '#1A1A18' }}>{s.name}</div>
-                      <div style={{ font: font(400, 11.5, 1.3), color: C.muted, marginTop: 2 }}>{s.sub}</div>
-                    </div>
-                    <Chevron size={15} color="#C3BFB8" />
-                  </div>
-                ))}
-              </Card>
+            <div key={key} style={{ marginBottom: 22 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
+                <div className="tap" role="button" id={headingId} aria-expanded={!collapsed}
+                     aria-controls={`${headingId}-list`}
+                     onClick={() => toggleSavedGroup(key)}
+                     style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1, minWidth: 0 }}>
+                  <Caret open={!collapsed} />
+                  <Eyebrow style={{ marginBottom: 0 }}>{GROUP_HEADING[key]} · {rows.length}</Eyebrow>
+                </div>
+                <MoveButton label={`Move ${GROUP_HEADING[key]} up`} dir={-1}
+                            disabled={groupIndex === 0}
+                            onClick={() => moveSavedGroup(key, -1)} />
+                <MoveButton label={`Move ${GROUP_HEADING[key]} down`} dir={1}
+                            disabled={groupIndex === filled.length - 1}
+                            onClick={() => moveSavedGroup(key, 1)} />
+              </div>
+              {!collapsed && (
+                <div id={`${headingId}-list`} role="group" aria-labelledby={headingId}>
+                  <Card>
+                    {rows.map((s, i) => (
+                      <div key={s.id} className="tap" role="button" onClick={() => nav(s.to)}
+                           style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 13px',
+                                    borderBottom: i === rows.length - 1 ? 'none' : `1px solid ${C.hairline}` }}>
+                        <div style={{ width: 44, height: 44, borderRadius: 10, overflow: 'hidden',
+                                      background: '#F0EDE8', flex: 'none' }}>
+                          <Img src={s.img} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ font: font(600, 14, 1.25), color: '#1A1A18' }}>{s.name}</div>
+                          <div style={{ font: font(400, 11.5, 1.3), color: C.muted, marginTop: 2 }}>{s.sub}</div>
+                        </div>
+                        <Chevron size={15} color="#C3BFB8" />
+                      </div>
+                    ))}
+                  </Card>
+                </div>
+              )}
             </div>
           )
         })
       )}
+    </div>
+  )
+}
+
+/** Disclosure triangle for a saved group — turns down once the group is open. */
+const Caret = ({ open }: { open: boolean }) => (
+  <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="#9A968F" strokeWidth={3}
+       strokeLinecap="round" strokeLinejoin="round" aria-hidden
+       style={{ flex: 'none', transform: `rotate(${open ? 90 : 0}deg)`, transition: 'transform .15s' }}>
+    <path d="M9 5l7 7-7 7" />
+  </svg>
+)
+
+function MoveButton({ label, dir, disabled, onClick }: {
+  label: string; dir: -1 | 1; disabled: boolean; onClick: () => void
+}) {
+  return (
+    <div className={disabled ? undefined : 'tap'} role="button" aria-label={label} aria-disabled={disabled}
+         onClick={() => { if (!disabled) onClick() }}
+         style={{ flex: 'none', width: 28, height: 28, borderRadius: 8, border: `1px solid ${C.border}`,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  opacity: disabled ? 0.3 : 1 }}>
+      <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="#6E6A63" strokeWidth={2.6}
+           strokeLinecap="round" strokeLinejoin="round" aria-hidden
+           style={{ transform: `rotate(${dir === -1 ? 0 : 180}deg)` }}>
+        <path d="M12 19V5M5 12l7-7 7 7" />
+      </svg>
     </div>
   )
 }
@@ -367,7 +437,7 @@ function AlertsPane({ items }: { items: SavedItem[] }) {
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ font: font(600, 13.5, 1.25), color: '#1A1A18', textWrap: 'pretty' }}>{s.name}</div>
-                  <div style={{ font: font(400, 11, 1.3), color: C.muted, marginTop: 2 }}>{KIND_LABEL[s.kind]}</div>
+                  <div style={{ font: font(400, 11, 1.3), color: C.muted, marginTop: 2 }}>{KIND_LABEL[s.group as EntityKind]}</div>
                 </div>
               </div>
               <SubscriptionPanel entityId={s.id} allowNewsletter={s.allowNewsletter} />
@@ -738,10 +808,12 @@ function AccountPane() {
 
 export default function Profile() {
   const [pane, setPane] = useState<Pane>('saved')
-  const { saved, accent, account, signedIn } = useStore()
+  const { saved, rsvp, accent, account, signedIn } = useStore()
   const data = useData()
 
-  const items = useMemo(() => (data ? resolveSaved(data, saved) : []), [data, saved])
+  const items = useMemo(() => (data ? resolveSaved(data, saved, rsvp) : []), [data, saved, rsvp])
+  // Events carry no subscription channels, so Alerts lists saved pages only.
+  const subscribable = useMemo(() => items.filter((i) => i.group !== 'event'), [items])
 
   if (!data) return <div />
 
@@ -778,7 +850,7 @@ export default function Profile() {
         {pane === 'saved' && <SavedPane items={items} />}
         {pane === 'themes' && <ThemesPane />}
         {pane === 'contribute' && <ContributePane />}
-        {pane === 'alerts' && <AlertsPane items={items} />}
+        {pane === 'alerts' && <AlertsPane items={subscribable} />}
         {pane === 'account' && <AccountPane />}
       </div>
     </div>
