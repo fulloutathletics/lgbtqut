@@ -93,7 +93,8 @@ export function StickyBar({ title, onBack, right }: { title: string; onBack?: ()
   return (
     <div style={{ position: 'sticky', top: 0, zIndex: 20, background: 'rgba(255,255,255,.94)',
                   backdropFilter: 'blur(12px)', borderBottom: `1px solid ${C.hairline}`,
-                  padding: '56px 14px 11px', display: 'flex', alignItems: 'center', gap: 11 }}>
+                  padding: 'calc(env(safe-area-inset-top, 0px) + 14px) 14px 11px',
+                  display: 'flex', alignItems: 'center', gap: 11 }}>
       <Tap onClick={onBack ?? back}
            label={onBack || !backLabel ? 'Back' : `Back to ${backLabel}`}
            style={{ width: 34, height: 34, borderRadius: 999, background: C.fill, display: 'flex',

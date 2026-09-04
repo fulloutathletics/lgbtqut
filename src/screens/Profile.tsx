@@ -505,7 +505,7 @@ function AccountPane() {
   const data = useData()
   const {
     account, signedIn, age, hideAdult, setHideAdult,
-    blocked, muted, unblock, unmute, accent, tint, refreshAccount,
+    blocked, muted, unblock, unmute, accent, tint, refreshAccount, isAdmin,
   } = useStore()
 
   const tier = TIERS[account.tier]
@@ -697,6 +697,20 @@ function AccountPane() {
             <LinkRow title="Sign out"
                      sub="Saved listings stay on this device."
                      onClick={signOut} last />
+          </Card>
+        </div>
+      )}
+
+      {isAdmin && (
+        <div style={{ marginTop: 22 }}>
+          <Eyebrow>Admin</Eyebrow>
+          <Card>
+            <LinkRow title="Admin console"
+                     sub="Manage events, hosts, businesses, resources, splash cards and crisis lines."
+                     onClick={() => nav('/admin')} />
+            <LinkRow title="Image manager"
+                     sub="Upload and organize files in the app-images bucket."
+                     onClick={() => nav('/upload')} last />
           </Card>
         </div>
       )}

@@ -20,17 +20,17 @@ const defaultStyle: CSSProperties = {
 
 /**
  * Small camera button that swaps one row's image in place. Only rendered
- * while the viewer has edit mode on (toggled in the Image Manager) — it
- * writes straight to Supabase with no sign-in, so it should never render
- * unconditionally on a live, publicly-linked page. Must sit inside a
- * `position: relative` ancestor sized to the image it edits.
+ * for a signed-in admin with edit mode on (toggled in the Image Manager) —
+ * RLS enforces the same server-side, so for anyone else the button would
+ * only render a broken control. Must sit inside a `position: relative`
+ * ancestor sized to the image it edits.
  */
 export function EditImageButton({ table, id, column, style }: Props) {
-  const { editMode } = useStore()
+  const { editMode, isAdmin } = useStore()
   const [busy, setBusy] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
 
-  if (!editMode) return null
+  if (!editMode || !isAdmin) return null
 
   const onFile = async (file: File) => {
     setBusy(true)
