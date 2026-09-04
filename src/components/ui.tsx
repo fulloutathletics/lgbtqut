@@ -21,20 +21,65 @@ export const font = (weight: number, size: number | string, leading: number | st
  * of the page, a profile's header — and it is fetched eagerly and ahead of the
  * rest. Never pass it to more than the first screenful: marking everything
  * urgent is the same as marking nothing urgent.
+ *
+ * Second time round is the case that matters for the flashing. Navigating back
+ * to a list unmounts every <img> and mounts fresh ones, and a fresh element is
+ * blank until its bytes are decoded again — even when the bytes are sitting in
+ * the HTTP or service-worker cache, because `loading="lazy"` waits for layout
+ * and `decoding="async"` hands the decode to another frame. That is the blink.
+ * So we keep a session-lived note of every URL that has finished loading and
+ * render those synchronously and eagerly: the browser decodes from cache
+ * before the paint, and the picture is simply there. Anything genuinely new
+ * still fades in from transparent rather than popping.
  */
+const decoded = new Set<string>()
+
+/**
+ * Warm the cache for pictures a reader is about to open — the hero of a card
+ * they are looking at, the next screen's artwork. Decoding here also registers
+ * the URL above, so the real <img> paints without a blink.
+ */
+export function preloadImages(urls: (string | undefined)[]) {
+  for (const url of urls) {
+    if (!url || decoded.has(url)) continue
+    const probe = new Image()
+    probe.decoding = 'async'
+    probe.onload = () => decoded.add(url)
+    probe.src = url
+  }
+}
+
 export function Img({ src, style, alt = '', priority = false }: {
   src?: string; style?: CSSProperties; alt?: string; priority?: boolean
 }) {
+  const url = imgSrc(src)
+  const cached = decoded.has(url)
+  const eager = cached || priority
   return (
     <img
-      src={imgSrc(src)}
+      key={url}
+      src={url}
       alt={alt}
-      loading={priority ? 'eager' : 'lazy'}
+      loading={eager ? 'eager' : 'lazy'}
       fetchPriority={priority ? 'high' : 'auto'}
       // Decode off the main thread so a large picture landing mid-scroll
-      // doesn't stall the list it is scrolling in.
-      decoding="async"
-      style={style}
+      // doesn't stall the list it is scrolling in — except for one we have
+      // already decoded this session, where a synchronous decode off the
+      // cache is what removes the one blank frame on the way back.
+      decoding={cached ? 'sync' : 'async'}
+      style={{ ...style, opacity: cached ? 1 : 0, transition: 'opacity .18s ease-out' }}
+      // A cached image can finish loading before React attaches onLoad, which
+      // would leave it stuck at zero opacity. Catch that at mount.
+      ref={(el) => {
+        if (el?.complete && el.naturalWidth > 0) {
+          decoded.add(url)
+          el.style.opacity = '1'
+        }
+      }}
+      onLoad={(e) => {
+        decoded.add(url)
+        e.currentTarget.style.opacity = '1'
+      }}
       onError={(e) => {
         const el = e.currentTarget
         el.style.visibility = 'hidden'
