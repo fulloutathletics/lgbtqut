@@ -42,6 +42,31 @@ anything in `design-reference/`, never hand-edit it.
 Once `resources` returns rows, `src/lib/data.ts` switches to Supabase on its own.
 No code change, no flag.
 
+### Images
+
+The directory's artwork lives on hosts we don't control — the old Glide bucket,
+Photobucket, Webflow — as full-size originals sized for nothing in particular.
+Several splash cards were over a megabyte for a 240px-tall slot.
+
+```bash
+npm run optimize:images     # add --force to re-encode what is already done
+```
+
+This pulls each picture down, caps it at 1024px, re-encodes it as WebP, and
+writes it to `public/images/opt/` named by a hash of its contents.
+`src/lib/optimizedImages.ts` records which source URLs are covered, and
+`imgSrc` serves the local copy for those — same origin, no third-party
+handshake, and a fraction of the bytes. A URL with no local copy loads from its
+own host exactly as before, so the manifest can go stale without breaking
+anything: swapping a picture through the in-app editor mints a new URL, which
+simply misses the manifest until the script runs again.
+
+Re-run it after `npm run generate:data`, or whenever new artwork lands. It only
+downloads what it hasn't already encoded. Some hosts refuse requests from
+certain networks — anything it can't reach is listed at the end of the run and
+left pointing at its source, so a partial run is safe and re-running from
+somewhere else picks up the rest.
+
 ## Authentication
 
 Read `design-reference/Auth Handoff Spec.html` before touching sign-in. The short
@@ -142,13 +167,15 @@ src/
   lib/        supabase client, data layer, theme tokens, app store, push, back-trail
   components/ shared kit — header, sticky bar, cards, rows, toggles, age gate
   screens/    one file per screen (Welcome, BecomeHost and ManagePage are the account flows)
-  sw.ts       service worker: push + notificationclick
+  sw.ts       service worker: push, notificationclick, runtime image cache
 supabase/
   migrations/ schema, RLS policies, column grants
   functions/  auth-start, auth-verify
   seed.sql    generated content rows
 design-reference/  the original handoff bundle — the source of truth for specs
+public/images/opt/  re-encoded artwork, named by content hash (generated)
 scripts/generate-data.mjs   design-reference → seed.json + seed.sql
+scripts/optimize-images.mjs remote artwork → public/images/opt + the manifest
 ```
 
 ## Going back

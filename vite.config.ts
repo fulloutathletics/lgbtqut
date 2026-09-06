@@ -31,6 +31,12 @@ export default defineConfig({
       injectManifest: {
         // seed.json is ~200KB and is the offline directory fallback.
         globPatterns: ['**/*.{js,css,html,ico,png,svg,webp,json}'],
+        // The re-encoded directory artwork (see scripts/optimize-images.mjs)
+        // is another ~1.2MB, and most readers never scroll far enough to want
+        // all of it. It is deliberately left out of the install and picked up
+        // by the runtime image cache in src/sw.ts instead — first view fetches
+        // it from our own origin, every view after that is off disk.
+        globIgnores: ['**/images/opt/**'],
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
       },
       devOptions: { enabled: false, type: 'module' },
