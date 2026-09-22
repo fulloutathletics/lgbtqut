@@ -170,6 +170,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     localStorage.setItem(KEY, JSON.stringify(state))
   }, [state])
 
+  // Sync the browser theme-color meta tag to the active theme's accent so the
+  // notification shade / status bar matches the in-app theme on mobile.
+  useEffect(() => {
+    const theme = THEMES[state.theme] ?? THEMES[DEFAULT_THEME]
+    const meta = document.querySelector('meta[name="theme-color"]')
+    if (meta) meta.setAttribute('content', theme.accent)
+  }, [state.theme])
+
   // Stamped once per app open, so the TTL measures time away from the app
   // rather than time since the last tap.
   useEffect(() => { markSeen() }, [])
