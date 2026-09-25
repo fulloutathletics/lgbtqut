@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import type { MouseEvent, ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { C } from '../lib/theme'
 import { useStore } from '../lib/store'
@@ -26,6 +27,7 @@ export interface Post extends RawPost {
   author_name: string | null
   author_handle: string | null
   author_avatar: string | null
+  author_pronouns: string | null
   /** Where tapping the author goes. Null when the author cannot be shown. */
   author_href: string | null
   /** Set when the post was published as a page rather than a person. */
@@ -63,6 +65,20 @@ export function timeAgo(iso: string): string {
   return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
+/** Every person keeps one colour wherever their initials stand in for a picture. */
+const PERSON_COLORS = ['#7A2FA6', '#2C86B5', '#B0523E', '#2E8B45', '#9B4F96', '#4B3FBF', '#DD6317', '#2A7F70']
+
+/** FNV-1a over the id, so the colour is stable across sessions and devices. */
+export function personColor(id: string | null | undefined): string {
+  if (!id) return PERSON_COLORS[0]
+  let h = 2166136261
+  for (let i = 0; i < id.length; i++) {
+    h ^= id.charCodeAt(i)
+    h = Math.imul(h, 16777619)
+  }
+  return PERSON_COLORS[(h >>> 0) % PERSON_COLORS.length]
+}
+
 export function initials(name: string): string {
   return name.split(/\s+/).filter(Boolean).map((w) => w[0]).join('').slice(0, 2).toUpperCase() || '?'
 }
@@ -86,8 +102,10 @@ export async function hydratePosts(
 
   const [profiles, counts, likes] = await Promise.all([
     ids.length
-      ? supabase.from('social_profiles').select('id, display_name, public_handle, avatar_url').in('id', ids)
-      : Promise.resolve({ data: [] as Array<{ id: string; display_name: string; public_handle: string | null; avatar_url: string | null }> }),
+      ? supabase.from('social_profiles').select('id, display_name, public_handle, avatar_url, pronouns').in('id', ids)
+      : Promise.resolve({ data: [] as Array<{
+          id: string; display_name: string; public_handle: string | null; avatar_url: string | null; pronouns: string | null
+        }> }),
     supabase.from('comments').select('post_id').in('post_id', postIds),
     supabase.from('post_likes').select('post_id, profile_id').in('post_id', postIds),
   ])
@@ -110,6 +128,7 @@ export async function hydratePosts(
       author_name: entity?.name ?? prof?.display_name ?? null,
       author_handle: entity ? null : prof?.public_handle ?? null,
       author_avatar: entity?.image_url ?? prof?.avatar_url ?? null,
+      author_pronouns: entity ? null : prof?.pronouns ?? null,
       author_href: entity ? entityHref(entity) : profileHref(prof?.public_handle, prof?.display_name),
       official_kind: entity?.kind ?? null,
       comment_count: replyCount.get(p.id) ?? 0,
@@ -148,6 +167,28 @@ function Badge({ kind }: { kind: EntityKind }) {
 
 // --------------------------------------------------------------- post card
 
+const ReplyIcon = ({ color, size = 17 }: { color: string; size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color}
+       strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 11.5a8.4 8.4 0 0 1-9 8.4L3 21l1.1-9A8.4 8.4 0 1 1 21 11.5z" />
+  </svg>
+)
+
+/** An icon with its count beside it, in the action row under a post. */
+function Action({ label, pressed, color, onClick, children, count }: {
+  label: string; pressed?: boolean; color: string; onClick: () => void; children: ReactNode; count: number
+}) {
+  return (
+    <div className="tap" role="button" aria-label={label} aria-pressed={pressed}
+         onClick={(e) => { e.stopPropagation(); onClick() }}
+         style={{ display: 'inline-flex', alignItems: 'center', gap: 6, minWidth: 54, padding: '4px 0',
+                  font: font(600, 12.5, 1), color, fontVariantNumeric: 'tabular-nums' }}>
+      {children}
+      <span style={{ minWidth: 8 }}>{count > 0 ? count : ''}</span>
+    </div>
+  )
+}
+
 export function PostCard({ post, onComment, onChange, showAuthor = true }: {
   post: Post
   onComment: (post: Post) => void
@@ -178,58 +219,64 @@ export function PostCard({ post, onComment, onChange, showAuthor = true }: {
     }
   }
 
-  const goAuthor = () => { if (post.author_href) nav(post.author_href) }
-  const likeColor = post.liked ? '#D6336C' : C.muted
+  const goAuthor = (e: MouseEvent) => {
+    e.stopPropagation()
+    if (post.author_href) nav(post.author_href)
+  }
+  const likeColor = post.liked ? '#D6336C' : C.faint
+  const color = post.official_kind ? accent : personColor(post.author_id)
 
+  // The whole card opens the thread, the way a timeline reads: tap a post to
+  // see its replies. The author and the actions keep their own targets.
   return (
-    <div style={{ padding: '14px 16px', borderBottom: `1px solid ${C.hairline}` }}>
+    <article className="tap" onClick={() => onComment(post)}
+             style={{ padding: '13px 16px 9px', borderBottom: `1px solid ${C.hairline}`, background: '#fff' }}>
       <div style={{ display: 'flex', gap: 11 }}>
         {showAuthor && (
-          <div className="tap" onClick={goAuthor}>
-            <Avatar src={post.author_avatar} name={post.author_name} color={accent} square={!!post.official_kind} />
+          <div onClick={goAuthor} style={{ paddingTop: 1 }}>
+            <Avatar src={post.author_avatar} name={post.author_name} size={42} color={color}
+                    square={!!post.official_kind} />
           </div>
         )}
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5, minWidth: 0 }}>
             {showAuthor && (
-              <span className="tap" onClick={goAuthor} style={{ font: font(700, 13.5, 1.2), color: C.ink }}>
+              <span onClick={goAuthor}
+                    style={{ font: font(700, 14.5, 1.25), color: C.ink, overflow: 'hidden', textOverflow: 'ellipsis',
+                             whiteSpace: 'nowrap', flex: '0 1 auto', minWidth: 0 }}>
                 {post.author_name ?? 'Unknown'}
               </span>
             )}
             {showAuthor && post.official_kind && <Badge kind={post.official_kind} />}
             {showAuthor && post.author_handle && (
-              <span style={{ font: font(400, 12, 1.2), color: C.muted }}>
+              <span style={{ font: font(400, 13, 1.25), color: C.muted, overflow: 'hidden', textOverflow: 'ellipsis',
+                             whiteSpace: 'nowrap', flex: '0 2 auto', minWidth: 0 }}>
                 @{post.author_handle.replace(/^@/, '')}
               </span>
             )}
-            <span style={{ font: font(400, 11.5, 1.2), color: C.faint }}>
+            <span style={{ font: font(400, 13, 1.25), color: C.faint, flex: 'none', whiteSpace: 'nowrap' }}>
               {showAuthor ? '· ' : ''}{timeAgo(post.created_at)}
             </span>
           </div>
-          <div style={{ font: font(400, 14.5, 1.55), color: C.body, marginTop: showAuthor ? 5 : 3, textWrap: 'pretty',
-                        wordBreak: 'break-word' }}>
+          {showAuthor && post.author_pronouns && !post.official_kind && (
+            <div style={{ font: font(500, 11.5, 1.3), color: C.faint, marginTop: 1 }}>{post.author_pronouns}</div>
+          )}
+          <div style={{ font: font(400, 15, 1.5), color: C.ink, marginTop: showAuthor ? 5 : 2, textWrap: 'pretty',
+                        wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>
             {post.body}
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 18, marginTop: 9 }}>
-            <div className="tap" role="button" aria-pressed={post.liked} onClick={() => { void toggleLike() }}
-                 style={{ display: 'inline-flex', alignItems: 'center', gap: 5,
-                          font: font(600, 12, 1.2), color: likeColor }}>
-              <Heart size={16} filled={post.liked} color={likeColor} />
-              {post.like_count > 0 ? post.like_count : 'Like'}
-            </div>
-            <div className="tap" role="button" onClick={() => onComment(post)}
-                 style={{ display: 'inline-flex', alignItems: 'center', gap: 5,
-                          font: font(600, 12, 1.2), color: C.muted }}>
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={C.muted}
-                   strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M21 11.5a8.4 8.4 0 0 1-9 8.4L3 21l1.1-9A8.4 8.4 0 1 1 21 11.5z" />
-              </svg>
-              {post.comment_count > 0 ? `${post.comment_count} ${post.comment_count === 1 ? 'reply' : 'replies'}` : 'Reply'}
-            </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 22, marginTop: 8, marginLeft: -2 }}>
+            <Action label="Reply" color={C.faint} count={post.comment_count} onClick={() => onComment(post)}>
+              <ReplyIcon color={C.faint} />
+            </Action>
+            <Action label={post.liked ? 'Unlike' : 'Like'} pressed={post.liked} color={likeColor}
+                    count={post.like_count} onClick={() => { void toggleLike() }}>
+              <Heart size={17} filled={post.liked} color={likeColor} />
+            </Action>
           </div>
         </div>
       </div>
-    </div>
+    </article>
   )
 }
 
@@ -251,8 +298,8 @@ function CommentRow({ comment, onReply, data }: {
     <div style={{ padding: '10px 0', borderBottom: `1px solid ${C.hairline}` }}>
       <div style={{ display: 'flex', gap: 9 }}>
         <div className="tap" onClick={() => href && nav(href)}>
-          <Avatar src={comment.author_avatar} name={comment.author_name} size={30} color={accent}
-                  square={!!official} />
+          <Avatar src={comment.author_avatar} name={comment.author_name} size={30}
+                  color={official ? accent : personColor(comment.author_id)} square={!!official} />
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 5, flexWrap: 'wrap' }}>
@@ -358,8 +405,8 @@ export function CommentSheet({ post, data, onClose }: { post: Post; data: AppDat
 
         <div style={{ padding: '12px 16px', borderBottom: `1px solid ${C.hairline}` }}>
           <div style={{ display: 'flex', gap: 9 }}>
-            <Avatar src={post.author_avatar} name={post.author_name} size={34} color={accent}
-                    square={!!post.official_kind} />
+            <Avatar src={post.author_avatar} name={post.author_name} size={34}
+                    color={post.official_kind ? accent : personColor(post.author_id)} square={!!post.official_kind} />
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ font: font(700, 13, 1.2), color: C.ink }}>
                 {post.author_name ?? 'Unknown'}

@@ -36,6 +36,11 @@ supabase db push                                  # applies supabase/migrations/
 psql "$DATABASE_URL" -f supabase/seed.sql         # or paste into the SQL editor
 ```
 
+For a populated Feed, `supabase/seed-social.sql` adds a small demo community —
+eight discoverable people with posts, follows, likes and replies. Run it by hand
+after the migrations; it is idempotent, and its header shows the one statement
+that removes it again.
+
 `supabase/seed.sql` is generated — re-run `npm run generate:data` after changing
 anything in `design-reference/`, never hand-edit it.
 
@@ -110,9 +115,17 @@ The journey:
 
 ### The personal profile
 
-`/u/:handle` is a person's public face: picture, background, pronouns,
-identity tags, interests, links, the pages they run, and every post they made
-in their own voice, with likes and replies. `/profile/edit` edits all of it
+`/u/:handle` is a person's public face, laid out like a timeline profile:
+background, picture, name, handle and pronouns, bio, county and website, then
+**Posts** (everything they said in their own voice, with likes and replies)
+and **About** (identity tags, interests, links, the pages they run). Mute,
+block and report sit behind the ··· menu. The social layer stays deliberately
+small: text posts, likes, replies and follows — no reposts, media or DMs.
+
+People are found under **Feed → Discover**, which lists everyone who chose to
+be `discoverable` and `recommendable` and shows their posts alongside every
+page's. A `visible` profile is reachable by link and by the people who follow
+it, never surfaced to strangers. `/profile/edit` edits all of it
 with a live preview.
 
 - **Pictures** upload to the `profile-media` bucket, under a folder named

@@ -9,6 +9,7 @@ import { resolveManaged } from '../lib/pages'
 import type { EntityKind } from '../lib/types'
 import { Avatar, CommentSheet, POST_FIELDS, PostCard, hydratePosts, initials } from '../components/Post'
 import type { Post, RawPost } from '../components/Post'
+import { PeopleRail, useDiscoverablePeople } from '../components/People'
 
 // Feed — route `/feed`.
 //
@@ -178,16 +179,52 @@ function EmptyFeed() {
 
 // ----------------------------------------------------------- Feed screen
 
+type Tab = 'following' | 'discover'
+
+function Tabs({ tab, onChange }: { tab: Tab; onChange: (t: Tab) => void }) {
+  const { accent } = useStore()
+  return (
+    <div role="tablist" style={{ display: 'flex', marginTop: 10, marginBottom: -12 }}>
+      {(['following', 'discover'] as const).map((t) => {
+        const on = tab === t
+        return (
+          <div key={t} role="tab" aria-selected={on} className="tap" onClick={() => onChange(t)}
+               style={{ flex: 1, textAlign: 'center', padding: '11px 0 0', font: font(on ? 700 : 600, 14, 1.2),
+                        color: on ? C.ink : C.muted }}>
+            {t === 'following' ? 'Following' : 'Discover'}
+            <div style={{ height: 3, width: 48, borderRadius: 3, margin: '10px auto 0',
+                          background: on ? accent : 'transparent' }} />
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+/** Newest first, no repeats, capped — the shape both tabs hand to the list. */
+function merge(...lists: Array<RawPost[] | null | undefined>): RawPost[] {
+  const seen = new Set<number>()
+  return lists.flatMap((l) => l ?? [])
+    .filter((p) => (seen.has(p.id) ? false : (seen.add(p.id), true)))
+    .sort((a, b) => b.created_at.localeCompare(a.created_at))
+    .slice(0, 50)
+}
+
 export default function Feed() {
-  const { accent, account, signedIn, follows, saved } = useStore()
+  const { account, signedIn, follows, saved } = useStore()
   const data = useData()
   const nav = useNavigate()
+  const people = useDiscoverablePeople()
+  const followsSomething = follows.length > 0 || Object.keys(saved).length > 0
+  // Someone with nothing followed would open onto an empty page; start them
+  // where there is something to read.
+  const [tab, setTab] = useState<Tab>(followsSomething ? 'following' : 'discover')
   const [posts, setPosts] = useState<Post[]>([])
   const [loading, setLoading] = useState(true)
   const [activePost, setActivePost] = useState<Post | null>(null)
   const [reloadKey, setReloadKey] = useState(0)
 
-  const loadPosts = useCallback(async () => {
+  const loadFollowing = useCallback(async (): Promise<RawPost[]> => {
     // Anonymous readers get the same feed, built from the follows and saves
     // held on this device. Reading is all they can do — the composer, likes
     // and replies stay behind sign-in — so no profileId is required here.
@@ -196,12 +233,7 @@ export default function Feed() {
 
     // Saved resources/businesses/hosts publish as entities, not as users.
     const entityIds = Object.values(saved).map((s) => s.id)
-
-    if (authorIds.length === 0 && entityIds.length === 0) {
-      setPosts([])
-      setLoading(false)
-      return
-    }
+    if (authorIds.length === 0 && entityIds.length === 0) return []
 
     const [byUser, byEntity] = await Promise.all([
       authorIds.length
@@ -215,47 +247,89 @@ export default function Feed() {
             .order('created_at', { ascending: false }).limit(50)
         : Promise.resolve({ data: [] as RawPost[] }),
     ])
+    return merge(byUser.data as RawPost[], byEntity.data as RawPost[])
+  }, [account.profileId, follows, saved])
 
-    const seen = new Set<number>()
-    const raw = [...((byUser.data ?? []) as RawPost[]), ...((byEntity.data ?? []) as RawPost[])]
-      .filter((p) => (seen.has(p.id) ? false : (seen.add(p.id), true)))
-      .sort((a, b) => b.created_at.localeCompare(a.created_at))
-      .slice(0, 50)
+  const loadDiscover = useCallback(async (): Promise<RawPost[]> => {
+    // Everything pages post, and what people who chose to be found say in
+    // their own voice. A `visible` profile's posts reach their followers, not
+    // strangers browsing.
+    const ids = (people ?? []).map((p) => p.id)
+    const [byPeople, byPages] = await Promise.all([
+      ids.length
+        ? supabase.from('posts').select(POST_FIELDS)
+            .in('author_id', ids).is('author_kind', null)
+            .order('created_at', { ascending: false }).limit(50)
+        : Promise.resolve({ data: [] as RawPost[] }),
+      supabase.from('posts').select(POST_FIELDS)
+        .not('author_kind', 'is', null)
+        .order('created_at', { ascending: false }).limit(50),
+    ])
+    return merge(byPeople.data as RawPost[], byPages.data as RawPost[])
+  }, [people])
 
-    setPosts(await hydratePosts(raw, data, account.profileId))
-    setLoading(false)
-  }, [account.profileId, follows, saved, data])
-
-  useEffect(() => { void loadPosts() }, [loadPosts, reloadKey])
+  useEffect(() => {
+    if (tab === 'discover' && people === null) return
+    let alive = true
+    void (async () => {
+      const raw = tab === 'following' ? await loadFollowing() : await loadDiscover()
+      const hydrated = await hydratePosts(raw, data, account.profileId)
+      if (!alive) return
+      setPosts(hydrated)
+      setLoading(false)
+    })()
+    return () => { alive = false }
+  }, [tab, people, loadFollowing, loadDiscover, data, account.profileId, reloadKey])
 
   const reload = () => {
     setLoading(true)
     setReloadKey((k) => k + 1)
   }
 
-  return (
+  const switchTab = (t: Tab) => {
+    if (t === tab) { window.scrollTo({ top: 0, behavior: 'smooth' }); return }
+    setLoading(true)
+    setPosts([])
+    setTab(t)
+  }
+
+  const list = (
     <div>
+      {posts.map((p) => (
+        <PostCard key={p.id} post={p} onComment={setActivePost}
+                  onChange={(next) => setPosts((ps) => ps.map((x) => (x.id === next.id ? next : x)))} />
+      ))}
+      <div style={{ padding: '22px 20px 28px', textAlign: 'center', font: font(400, 12, 1.4), color: C.faint }}>
+        {tab === 'following' ? 'You\u2019re all caught up.' : 'That\u2019s everything for now.'}
+      </div>
+    </div>
+  )
+
+  return (
+    <div style={{ minHeight: '100%', background: '#fff' }}>
       {/* Header */}
       <div style={{ position: 'sticky', top: 0, zIndex: 20, background: 'rgba(255,255,255,.94)',
                     backdropFilter: 'blur(12px)', borderBottom: `1px solid ${C.hairline}`,
-                    padding: '56px 16px 12px', display: 'flex', alignItems: 'center' }}>
-        <div style={{ font: font(800, 20, 1.15), color: C.ink, letterSpacing: '-.01em' }}>Feed</div>
-        <div className="tap" role="button" onClick={reload}
-             style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 5,
-                      font: font(600, 12, 1.2), color: accent }}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={accent}
-               strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M21 12a9 9 0 1 1-2.6-6.4M21 3v6h-6" />
-          </svg>
-          Refresh
+                    padding: '56px 16px 12px' }}>
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <div style={{ font: font(800, 22, 1.15), color: C.ink, letterSpacing: '-.02em' }}>Feed</div>
+          <div className="tap" role="button" onClick={reload} aria-label="Refresh"
+               style={{ marginLeft: 'auto', width: 34, height: 34, borderRadius: 999, background: C.fill,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={C.body}
+                 strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 12a9 9 0 1 1-2.6-6.4M21 3v6h-6" />
+            </svg>
+          </div>
         </div>
+        <Tabs tab={tab} onChange={switchTab} />
       </div>
 
       {signedIn && <Composer onPosted={reload} />}
 
       {/* Reading is the whole of the anonymous experience, so say plainly what
           is being kept and for how long rather than letting follows vanish. */}
-      {!signedIn && posts.length > 0 && (
+      {!signedIn && tab === 'following' && posts.length > 0 && (
         <div style={{ margin: '12px 16px 0', background: C.fill, borderRadius: 12, padding: '10px 13px',
                       font: font(400, 12, 1.45), color: '#6E6A64', textWrap: 'pretty' }}>
           You are reading as a guest. Your follows are stored on this device, lapse after two weeks
@@ -263,48 +337,57 @@ export default function Feed() {
         </div>
       )}
 
-      {/* Feed */}
-      {loading ? (
-        <div style={{ padding: 30, textAlign: 'center', font: font(400, 14, 1.4), color: C.muted }}>
-          Loading…
-        </div>
-      ) : !signedIn && posts.length === 0 ? (
-        <div style={{ padding: '36px 24px', textAlign: 'center' }}>
-          <div style={{ font: font(700, 18, 1.25), color: C.ink, letterSpacing: '-.01em' }}>
-            Follow something to fill your feed
-          </div>
-          <div style={{ font: font(400, 13.5, 1.55), color: C.muted, marginTop: 7, textWrap: 'pretty',
-                        maxWidth: 300, marginLeft: 'auto', marginRight: 'auto' }}>
-            Follow resources, businesses and hosts and their updates land here — no account needed.
-            Your follows stay on this device, and lapse if you are away for a couple of weeks.
-          </div>
-          <div className="tap" role="button" onClick={() => nav('/list/all')}
-               style={{ display: 'inline-block', marginTop: 18, borderRadius: 999, padding: '10px 24px',
-                        background: accent, font: font(700, 14, 1.2), color: '#fff' }}>
-            Browse resources
-          </div>
-          <div className="tap" role="button" onClick={() => nav('/signin')}
-               style={{ display: 'inline-block', marginTop: 10, font: font(600, 13, 1.2), color: C.muted }}>
-            Or sign in to post and keep them
-          </div>
-        </div>
-      ) : posts.length === 0 ? (
-        <EmptyFeed />
+      {tab === 'discover' ? (
+        <>
+          <PeopleRail people={people} />
+          {loading ? <Loading /> : posts.length === 0 ? (
+            <div style={{ padding: '36px 24px', textAlign: 'center', font: font(400, 13.5, 1.55), color: C.muted }}>
+              Nobody has posted yet. Say hello — the first post sets the tone.
+            </div>
+          ) : list}
+        </>
+      ) : loading ? (
+        <Loading />
+      ) : posts.length > 0 ? (
+        list
       ) : (
-        <div>
-          {posts.map((p) => (
-            <PostCard key={p.id} post={p} onComment={setActivePost}
-                      onChange={(next) => setPosts((ps) => ps.map((x) => (x.id === next.id ? next : x)))} />
-          ))}
-          <div style={{ padding: 20, textAlign: 'center', font: font(400, 12, 1.4), color: C.faint }}>
-            You're all caught up.
-          </div>
-        </div>
+        <>
+          <PeopleRail people={people} title="Start with a few people" />
+          {!signedIn ? (
+            <div style={{ padding: '32px 24px', textAlign: 'center' }}>
+              <div style={{ font: font(700, 18, 1.25), color: C.ink, letterSpacing: '-.01em' }}>
+                Follow something to fill your feed
+              </div>
+              <div style={{ font: font(400, 13.5, 1.55), color: C.muted, marginTop: 7, textWrap: 'pretty',
+                            maxWidth: 300, marginLeft: 'auto', marginRight: 'auto' }}>
+                Follow people, resources, businesses and hosts and their updates land here — no account needed.
+                Your follows stay on this device, and lapse if you are away for a couple of weeks.
+              </div>
+              <div className="tap" role="button" onClick={() => switchTab('discover')}
+                   style={{ display: 'inline-block', marginTop: 18, borderRadius: 999, padding: '10px 24px',
+                            background: C.ink, font: font(700, 14, 1.2), color: '#fff' }}>
+                See what people are saying
+              </div>
+              <div className="tap" role="button" onClick={() => nav('/signin')}
+                   style={{ marginTop: 12, font: font(600, 13, 1.2), color: C.muted }}>
+                Or sign in to post and keep them
+              </div>
+            </div>
+          ) : (
+            <EmptyFeed />
+          )}
+        </>
       )}
 
       {activePost && (
         <CommentSheet post={activePost} data={data} onClose={() => { setActivePost(null); reload() }} />
       )}
     </div>
+  )
+}
+
+function Loading() {
+  return (
+    <div style={{ padding: 30, textAlign: 'center', font: font(400, 14, 1.4), color: C.muted }}>Loading…</div>
   )
 }
