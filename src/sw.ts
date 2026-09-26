@@ -1,7 +1,7 @@
 /// <reference lib="webworker" />
 import { precacheAndRoute } from 'workbox-precaching'
 import { registerRoute } from 'workbox-routing'
-import { CacheFirst } from 'workbox-strategies'
+import { CacheFirst, StaleWhileRevalidate } from 'workbox-strategies'
 import { ExpirationPlugin } from 'workbox-expiration'
 import { CacheableResponsePlugin } from 'workbox-cacheable-response'
 
@@ -32,11 +32,23 @@ precacheAndRoute(self.__WB_MANIFEST)
 // Opaque responses (status 0) have to be cacheable here: an <img> for another
 // origin is a no-cors request, and every one of these hosts is another origin.
 
-// Map tiles come through as `destination: 'image'` too, but a panned map can
-// mint hundreds of them. They get their own bucket so a session on Shop Queer
-// can't evict the directory's artwork.
+// The Shop Queer map (OpenFreeMap). Tiles, glyphs and sprites live under
+// versioned paths that never change once published, so a cached copy is
+// always right; a panned map can mint hundreds, so they get their own bucket
+// and can't evict the directory's artwork. The style and the tile index are
+// the only unversioned files — they point at the current tile build — so
+// those revalidate in the background instead.
 registerRoute(
-  ({ url }) => url.hostname.endsWith('.basemaps.cartocdn.com'),
+  ({ url }) => url.hostname === 'tiles.openfreemap.org'
+    && (url.pathname.startsWith('/styles/') || /^\/planet\/?$/.test(url.pathname)),
+  new StaleWhileRevalidate({
+    cacheName: 'map-style',
+    plugins: [new CacheableResponsePlugin({ statuses: [200] })],
+  }),
+)
+
+registerRoute(
+  ({ url }) => url.hostname === 'tiles.openfreemap.org',
   new CacheFirst({
     cacheName: 'map-tiles',
     plugins: [

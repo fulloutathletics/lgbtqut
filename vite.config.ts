@@ -4,6 +4,9 @@ import { VitePWA } from 'vite-plugin-pwa'
 
 // https://vite.dev/config/
 export default defineConfig({
+  // The map's worker imports code it shares with the page, so it is built as a
+  // module worker (MapLibre starts it with `type: 'module'`).
+  worker: { format: 'es' },
   plugins: [
     react(),
     VitePWA({

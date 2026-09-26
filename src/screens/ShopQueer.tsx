@@ -1,7 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import * as L from 'leaflet'
-import 'leaflet/dist/leaflet.css'
+import { LngLatBounds, Map as MapLibre, Popup, setWorkerUrl } from 'maplibre-gl'
+// MapLibre looks for its worker beside its own module, which is not where
+// Vite puts either. Bundle the worker (with the code it shares) and say where.
+import mapWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url'
+import type { GeoJSONSource, MapLayerMouseEvent } from 'maplibre-gl'
+import type { Feature, Point } from 'geojson'
+import 'maplibre-gl/dist/maplibre-gl.css'
+import { MAP_STYLE, applyMapTheme } from '../lib/mapTheme'
 import { C } from '../lib/theme'
 import { useStore } from '../lib/store'
 import { useData } from '../lib/useData'
@@ -15,19 +21,22 @@ export type ShopLayout = 'split' | 'map-first' | 'list-first'
 
 const MAP_HEIGHT: Record<ShopLayout, number> = { split: 244, 'map-first': 400, 'list-first': 104 }
 
-const CARTO = 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png'
-const ATTRIBUTION =
-  '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors ' +
-  '&copy; <a href="https://carto.com/attributions">CARTO</a>'
+/** [latitude, longitude]. MapLibre itself wants [longitude, latitude]; `lngLat` flips it. */
+type LatLng = [number, number]
+const lngLat = ([lat, lng]: LatLng): [number, number] => [lng, lat]
 
 /** Centre of Utah, used until the markers supply real bounds. */
-const UTAH: L.LatLngTuple = [39.32, -111.09]
+const UTAH: LatLng = [39.32, -111.09]
+
+const ME_COLOR = '#2563EB'
+
+setWorkerUrl(mapWorkerUrl)
 
 const matches = (b: Business, q: string) =>
   `${b.name} ${b.county} ${b.tags.join(' ')}`.toLowerCase().includes(q)
 
 /** Great-circle distance in miles. */
-const milesBetween = (a: L.LatLngTuple, b: L.LatLngTuple) => {
+const milesBetween = (a: LatLng, b: LatLng) => {
   const R = 3958.8
   const dLat = ((b[0] - a[0]) * Math.PI) / 180
   const dLon = ((b[1] - a[1]) * Math.PI) / 180
@@ -40,9 +49,9 @@ const milesBetween = (a: L.LatLngTuple, b: L.LatLngTuple) => {
 export function ShopQueer({ layout = 'split' }: { layout?: ShopLayout }) {
   const data = useData()
   const nav = useNavigate()
-  const { accent, canSee, signedIn, age, hideAdult } = useStore()
+  const { accent, tint, canSee, signedIn, age, hideAdult } = useStore()
   const [q, setQ] = useState('')
-  const [userLoc, setUserLoc] = useState<L.LatLngTuple | null>(null)
+  const [userLoc, setUserLoc] = useState<LatLng | null>(null)
   const [locating, setLocating] = useState(false)
   const [locateError, setLocateError] = useState('')
 
@@ -92,61 +101,123 @@ export function ShopQueer({ layout = 'split' }: { layout?: ShopLayout }) {
       : ''
 
   const holder = useRef<HTMLDivElement | null>(null)
-  const mapRef = useRef<L.Map | null>(null)
-  const layerRef = useRef<L.LayerGroup | null>(null)
+  const mapRef = useRef<MapLibre | null>(null)
+  const [ready, setReady] = useState(false)
 
+  // The screen renders a placeholder until the directory loads, so the map's
+  // container only exists once there is data. Keying the setup on that means
+  // a cold open straight to /shop still gets a map.
+  const hasData = !!data
   useEffect(() => {
     const el = holder.current
     if (!el) return
-    const map = L.map(el, { zoomControl: false, scrollWheelZoom: false })
-    L.tileLayer(CARTO, { maxZoom: 19, subdomains: 'abcd', attribution: ATTRIBUTION }).addTo(map)
-    map.attributionControl.setPrefix(false)
-    map.setView(UTAH, 6)
-    layerRef.current = L.layerGroup().addTo(map)
+    const map = new MapLibre({
+      container: el,
+      style: MAP_STYLE,
+      center: lngLat(UTAH),
+      zoom: 5.2,
+      // A flat, north-up map, like the tile map it replaced: page scrolling
+      // passes over it, and two fingers pan and zoom without tilting.
+      scrollZoom: false,
+      dragRotate: false,
+      pitchWithRotate: false,
+      touchPitch: false,
+      // Credit is drawn by the screen as one quiet line (below); MapLibre's
+      // own box re-expands over the pins every time new data arrives.
+      attributionControl: false,
+    })
+    map.touchZoomRotate.disableRotation()
     mapRef.current = map
-    const t = window.setTimeout(() => map.invalidateSize(), 60)
+
+    // 'style.load', not 'load': the style is enough to draw pins and colours,
+    // and 'load' also waits on every first tile — on a patchy connection that
+    // left the map without pins until the last straggler arrived.
+    map.once('style.load', () => {
+      map.addSource('pins', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } })
+      map.addLayer({
+        id: 'pins',
+        type: 'circle',
+        source: 'pins',
+        paint: {
+          'circle-radius': 7,
+          'circle-color': ['get', 'color'],
+          'circle-stroke-color': '#ffffff',
+          'circle-stroke-width': 2,
+        },
+      })
+
+      // A name on hover where there is a pointer; a tap goes straight to the page.
+      const tip = new Popup({ closeButton: false, closeOnClick: false, offset: 10 })
+      map.on('mouseenter', 'pins', (e: MapLayerMouseEvent) => {
+        const f = e.features?.[0]
+        if (!f || f.geometry.type !== 'Point') return
+        map.getCanvas().style.cursor = f.properties.id ? 'pointer' : ''
+        tip.setLngLat(f.geometry.coordinates as [number, number]).setText(String(f.properties.name)).addTo(map)
+      })
+      map.on('mouseleave', 'pins', () => {
+        map.getCanvas().style.cursor = ''
+        tip.remove()
+      })
+      map.on('click', 'pins', (e: MapLayerMouseEvent) => {
+        const id = e.features?.[0]?.properties.id
+        if (id) navRef.current(`/business/${id}`)
+      })
+      setReady(true)
+    })
+
     return () => {
-      window.clearTimeout(t)
       map.remove()
       mapRef.current = null
-      layerRef.current = null
+      setReady(false)
     }
-  }, [])
+  }, [hasData])
 
-  // The map is laid out before its tiles exist, so it needs a nudge whenever the
-  // container height changes.
+  // The click handler is bound once; it reads navigation through a ref.
+  const navRef = useRef(nav)
+  useEffect(() => { navRef.current = nav }, [nav])
+
+  // The theme can change while the map is open.
+  useEffect(() => {
+    if (ready && mapRef.current) applyMapTheme(mapRef.current, accent, tint)
+  }, [ready, accent, tint])
+
+  // The map is laid out before the sheet settles, so it needs a nudge whenever
+  // the container height changes.
   useEffect(() => {
     const map = mapRef.current
     if (!map) return
-    const t = window.setTimeout(() => map.invalidateSize(), 60)
+    const t = window.setTimeout(() => map.resize(), 60)
     return () => window.clearTimeout(t)
-  }, [mapH])
+  }, [mapH, ready])
 
-  // Markers are redrawn — and the view refitted — whenever the visible list or the user's location changes.
+  // Pins are redrawn — and the view refitted — whenever the visible list or the user's location changes.
   useEffect(() => {
     const map = mapRef.current
-    const group = layerRef.current
-    if (!map || !group) return
-    group.clearLayers()
-    const pts: L.LatLngTuple[] = []
+    if (!map || !ready) return
+    const pts: LatLng[] = []
+    const features: Feature<Point>[] = []
     for (const b of items) {
       if (b.latitude === null || b.longitude === null) continue
-      const at: L.LatLngTuple = [b.latitude, b.longitude]
+      const at: LatLng = [b.latitude, b.longitude]
       pts.push(at)
-      L.circleMarker(at, { radius: 7, color: '#fff', weight: 2, fillColor: accent, fillOpacity: 1 })
-        .bindTooltip(b.name, { direction: 'top', offset: [0, -6] })
-        .on('click', () => nav(`/business/${b.id}`))
-        .addTo(group)
+      features.push({ type: 'Feature', geometry: { type: 'Point', coordinates: lngLat(at) },
+                      properties: { id: b.id, name: b.name, color: accent } })
     }
     if (userLoc) {
       pts.push(userLoc)
-      L.circleMarker(userLoc, { radius: 7, color: '#fff', weight: 2, fillColor: '#2563EB', fillOpacity: 1 })
-        .bindTooltip('You are here', { direction: 'top', offset: [0, -6] })
-        .addTo(group)
+      features.push({ type: 'Feature', geometry: { type: 'Point', coordinates: lngLat(userLoc) },
+                      properties: { id: '', name: 'You are here', color: ME_COLOR } })
     }
-    if (pts.length) map.fitBounds(L.latLngBounds(pts), { padding: [26, 26], maxZoom: 9 })
-    else map.setView(UTAH, 6)
-  }, [items, accent, nav, userLoc])
+    ;(map.getSource('pins') as GeoJSONSource | undefined)?.setData({ type: 'FeatureCollection', features })
+
+    if (pts.length) {
+      const bounds = new LngLatBounds(lngLat(pts[0]), lngLat(pts[0]))
+      for (const p of pts) bounds.extend(lngLat(p))
+      map.fitBounds(bounds, { padding: 26, maxZoom: 9, duration: 0 })
+    } else {
+      map.jumpTo({ center: lngLat(UTAH), zoom: 5.2 })
+    }
+  }, [items, accent, userLoc, ready])
 
   if (!data) return <div />
 
@@ -159,6 +230,15 @@ export function ShopQueer({ layout = 'split' }: { layout?: ShopLayout }) {
         <div style={{ position: 'relative', height: mapH, borderRadius: 14, overflow: 'hidden',
                       background: '#E7E9E4', border: '1px solid #E0DDD7' }}>
           <div ref={holder} style={{ position: 'absolute', inset: 0 }} />
+          {/* Required by the OpenStreetMap licence; kept clear of the list sheet's overlap. */}
+          <div style={{ position: 'absolute', left: 8, bottom: 14, zIndex: 5, borderRadius: 6, padding: '2px 6px',
+                        background: 'rgba(255,255,255,.78)', font: font(500, 9.5, 1.3), color: '#6E6A64' }}>
+            <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer noopener"
+               style={{ color: 'inherit', textDecoration: 'none' }}>© OpenStreetMap</a>
+            {' · '}
+            <a href="https://openfreemap.org" target="_blank" rel="noreferrer noopener"
+               style={{ color: 'inherit', textDecoration: 'none' }}>OpenFreeMap</a>
+          </div>
           <Tap onClick={locate} style={{ position: 'absolute', top: 10, right: 10, zIndex: 5, display: 'flex',
                                           alignItems: 'center', gap: 6, background: '#fff', borderRadius: 999,
                                           padding: '7px 12px', boxShadow: '0 2px 8px rgba(0,0,0,.18)' }}>
@@ -197,7 +277,7 @@ export function ShopQueer({ layout = 'split' }: { layout?: ShopLayout }) {
 }
 
 /** Like ResultRow, but with the 56px brand-colored thumbnail this screen calls for. */
-function Row({ b, accent, userLoc, onClick }: { b: Business; accent: string; userLoc: L.LatLngTuple | null; onClick: () => void }) {
+function Row({ b, accent, userLoc, onClick }: { b: Business; accent: string; userLoc: LatLng | null; onClick: () => void }) {
   const distance = userLoc && b.latitude !== null && b.longitude !== null
     ? `${milesBetween(userLoc, [b.latitude, b.longitude]).toFixed(1)} mi`
     : ''
