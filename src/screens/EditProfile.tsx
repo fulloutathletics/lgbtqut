@@ -7,7 +7,8 @@ import { useStore } from '../lib/store'
 import { supabase } from '../lib/supabase'
 import {
   BACKGROUNDS, COUNTY_OPTIONS, IDENTITY_OPTIONS, INTEREST_OPTIONS, PRONOUN_OPTIONS,
-  headerStyle, isAdultLink, isPlausibleLink, linkMeta, normalizeLink, uploadProfileImage,
+  LINK_IN_BIO_MESSAGE, headerStyle, isAdultLink, isLinkInBio, isPlausibleLink, linkHost, linkMeta, linksInText,
+  normalizeLink, previewLink, uploadProfileImage,
 } from '../lib/profile'
 import type { ProfileVisibility } from '../lib/types'
 import { AgePill, Toggle, font } from '../components/ui'
@@ -21,6 +22,9 @@ import { Avatar } from '../components/Post'
 // profile-media; the database refuses any other origin. Links are added one
 // at a time so each can be checked as it goes in: a link to an adult
 // platform tags the whole profile 18+, and the editor says so before Save.
+// Link-in-bio pages are refused. A site the lists do not know is put to the
+// moderate function, which reads the page and asks Jev, so its verdict is
+// known here too (and in the database by the time Save lands).
 
 interface Draft {
   display_name: string
@@ -85,14 +89,15 @@ function Hint({ children }: { children: ReactNode }) {
   return <div style={{ font: font(400, 11.5, 1.5), color: C.faint, marginTop: 6, textWrap: 'pretty' }}>{children}</div>
 }
 
-function Field({ label, value, onChange, placeholder, hint, maxLength }: {
-  label: string; value: string; onChange: (v: string) => void; placeholder?: string; hint?: string; maxLength?: number
+function Field({ label, value, onChange, onBlur, placeholder, hint, maxLength }: {
+  label: string; value: string; onChange: (v: string) => void; onBlur?: () => void
+  placeholder?: string; hint?: string; maxLength?: number
 }) {
   return (
     <div style={{ marginTop: 16 }}>
       <div style={labelStyle}>{label}</div>
       <input value={value} placeholder={placeholder} maxLength={maxLength}
-             onChange={(e) => onChange(e.target.value)} style={fieldStyle} />
+             onChange={(e) => onChange(e.target.value)} onBlur={onBlur} style={fieldStyle} />
       {hint && <Hint>{hint}</Hint>}
     </div>
   )
@@ -178,6 +183,8 @@ export default function EditProfile() {
   const [error, setError] = useState('')
   const [linkText, setLinkText] = useState('')
   const [linkError, setLinkError] = useState('')
+  // Verdicts on sites the built-in lists do not know, keyed by link.
+  const [verdicts, setVerdicts] = useState<Record<string, { adult: boolean; link_in_bio: boolean }>>({})
   const avatarInput = useRef<HTMLInputElement>(null)
   const headerInput = useRef<HTMLInputElement>(null)
 
@@ -216,10 +223,27 @@ export default function EditProfile() {
 
   // What the database will decide on save, worked out here so the person
   // sees it before they commit.
-  const spicyLinks = [...draft.links, draft.website].filter((l) => l && isAdultLink(l))
+  const spicyLinks = [...draft.links, draft.website, ...linksInText(draft.bio)]
+    .filter((l) => l && (isAdultLink(l) || verdicts[normalizeLink(l).toLowerCase()]?.adult))
   const willBeRated = draft.adult_content || spicyLinks.length > 0
   const ratingReason = draft.adult_content ? 'you marked it as adult'
     : spicyLinks.length ? `of ${linkMeta(spicyLinks[0]).label}` : ''
+  const bioLinks = [draft.website, ...linksInText(draft.bio)]
+    .filter((l) => l && (isLinkInBio(l) || verdicts[normalizeLink(l).toLowerCase()]?.link_in_bio))
+
+  // Unknown sites get a server-side look; a link-in-bio page comes back off
+  // the list with the reason.
+  const check = async (link: string) => {
+    const key = normalizeLink(link).toLowerCase()
+    if (!key || isAdultLink(key) || isLinkInBio(key) || verdicts[key]) return
+    const v = await previewLink(key)
+    if (!v) return
+    setVerdicts((all) => ({ ...all, [key]: v }))
+    if (v.link_in_bio) {
+      setDraft((d) => ({ ...d, links: d.links.filter((l) => l.toLowerCase() !== key) }))
+      setLinkError(`${linkHost(key)} looks like a link-in-bio page. ${LINK_IN_BIO_MESSAGE}`)
+    }
+  }
 
   const pick = async (slot: 'avatar' | 'header', file: File) => {
     if (!signedIn || !account.profileId) { setError('Sign in to upload pictures.'); return }
@@ -241,9 +265,11 @@ export default function EditProfile() {
     if (!isPlausibleLink(clean)) { setLinkError('That does not look like a link. Try something like instagram.com/you.'); return }
     if (draft.links.some((l) => l.toLowerCase() === clean.toLowerCase())) { setLinkError('Already on the list.'); return }
     if (draft.links.length >= MAX_LINKS) { setLinkError(`Up to ${MAX_LINKS} links.`); return }
+    if (isLinkInBio(clean)) { setLinkError(LINK_IN_BIO_MESSAGE); return }
     set('links')([...draft.links, clean])
     setLinkText('')
     setLinkError('')
+    void check(clean)
   }
 
   const removeLink = (l: string) => set('links')(draft.links.filter((x) => x !== l))
@@ -257,6 +283,7 @@ export default function EditProfile() {
       return
     }
     if (!signedIn || !account.profileId) { setError('Sign in to save a profile.'); return }
+    if (bioLinks.length) { setError(`${linkHost(bioLinks[0])}: ${LINK_IN_BIO_MESSAGE}`); return }
     setBusy(true)
     setError('')
     try {
@@ -281,8 +308,8 @@ export default function EditProfile() {
         updated_at: new Date().toISOString(),
       })
       if (upsertError) {
-        setError(upsertError.code === '23505'
-          ? 'That handle is taken. Pick another.'
+        setError(upsertError.code === '23505' ? 'That handle is taken. Pick another.'
+          : upsertError.hint === 'link_in_bio' ? LINK_IN_BIO_MESSAGE
           : 'Could not save your profile. Try again.')
         return
       }
@@ -450,8 +477,14 @@ export default function EditProfile() {
         </Section>
 
         {/* -------------------------------------------------- links */}
-        <Section title="Links" sub="Where else to find you. Linking to an adult-only platform tags your whole profile 18+.">
-          <Field label="Website — optional" value={draft.website} onChange={set('website')} placeholder="yoursite.com" />
+        <Section title="Links" sub="Where else to find you, listed one by one — link-in-bio pages like Linktree are not allowed. Linking to an adult-only platform tags your whole profile 18+.">
+          <Field label="Website — optional" value={draft.website} onChange={set('website')} placeholder="yoursite.com"
+                 onBlur={() => { if (isPlausibleLink(normalizeLink(draft.website))) void check(draft.website) }} />
+          {bioLinks.length > 0 && (
+            <div style={{ font: font(500, 12, 1.4), color: C.danger, marginTop: 6 }}>
+              {linkHost(bioLinks[0])}: {LINK_IN_BIO_MESSAGE}
+            </div>
+          )}
           <div style={{ marginTop: 16 }}>
             <div style={labelStyle}>Social links</div>
             <div style={{ display: 'flex', gap: 8, marginTop: 7 }}>
@@ -484,7 +517,7 @@ export default function EditProfile() {
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                         <div style={{ font: font(700, 13, 1.25), color: C.ink, overflow: 'hidden', textOverflow: 'ellipsis',
                                       whiteSpace: 'nowrap' }}>{m.label}</div>
-                        {m.adult && <AgePill label="18+" />}
+                        {(m.adult || verdicts[l.toLowerCase()]?.adult) && <AgePill label="18+" />}
                       </div>
                       <div style={{ font: font(400, 11.5, 1.3), color: C.muted, marginTop: 1, overflow: 'hidden',
                                     textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{l}</div>
