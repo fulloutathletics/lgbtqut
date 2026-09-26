@@ -114,7 +114,7 @@ export function ProfileHeader({ title, tagline }: { title: string; tagline: stri
       <div style={{ display: 'flex', justifyContent: 'center', marginTop: -52, position: 'relative', zIndex: 2 }}>
         <div style={{ width: 104, height: 104, borderRadius: 999, background: '#111', border: '4px solid #fff',
                       boxShadow: '0 6px 20px rgba(0,0,0,.22)', overflow: 'hidden' }}>
-          <Img src="https://storage.googleapis.com/glide-prod.appspot.com/uploads-v2/NSfaaNV0fRhAK9yZqEUi/pub/xJvzSXG0KhRgxQYQKBUO/lgbtqut%20(1).png"
+          <Img src="/images/logo.png"
                priority style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
         </div>
       </div>
