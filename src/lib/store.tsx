@@ -48,12 +48,19 @@ interface Persisted {
   savedGroupOrder: SavedGroupKey[]
   /** Saved groups the reader has folded away. */
   savedGroupsCollapsed: SavedGroupKey[]
+  /**
+   * Set when sign-up met someone under 13: the 1st of the month after their
+   * 13th birthday. Until then this device offers no sign-up and no social
+   * features — only the directory, as a guest. The birthday itself is not
+   * kept, and none of this leaves the device.
+   */
+  under13Until: string | null
 }
 
 const EMPTY: Persisted = {
   theme: DEFAULT_THEME, saved: {}, pauseAll: false,
   blocked: [], muted: [], rsvp: {}, votes: {}, hideAdult: false, follows: [], editMode: false,
-  savedGroupOrder: [...SAVED_GROUP_KEYS], savedGroupsCollapsed: [],
+  savedGroupOrder: [...SAVED_GROUP_KEYS], savedGroupsCollapsed: [], under13Until: null,
 }
 
 /**
@@ -83,8 +90,12 @@ function read(): Persisted {
 
 interface Account {
   tier: AccountTier
-  /** Date of birth from sign-up. Anonymous users have none, so both gates fail. */
-  dob: string | null
+  /**
+   * The age group sign-up worked out, and when it next changes. The birthday
+   * itself is never stored. Anonymous users have none, so both gates fail.
+   */
+  ageGroup: AgeGroup | null
+  nextGroupOn: string | null
   username: string | null
   displayName: string | null
   /** Public handle, when the personal profile has one. Routes to /u/:handle. */
@@ -100,7 +111,7 @@ interface Account {
 }
 
 const ANON_ACCOUNT: Account = {
-  tier: 'anonymous', dob: null, username: null, displayName: null, handle: null,
+  tier: 'anonymous', ageGroup: null, nextGroupOn: null, username: null, displayName: null, handle: null,
   avatarUrl: null, profileId: null, managed: [], requests: [], isAdmin: false,
 }
 
@@ -134,8 +145,15 @@ interface Store extends Persisted {
   isMuted: (name: string) => boolean
   isFollowing: (profileId: string) => boolean
   toggleFollow: (profileId: string) => void
-  /** Age in years from the stored DOB, or null when anonymous. */
+  /**
+   * The lowest age the account's group guarantees today — 0, 18 or 21 — or
+   * null when anonymous. Compare it with a threshold; it is not an age.
+   */
   age: number | null
+  /** This device met an under-13 at sign-up: guest browsing only, no social features. */
+  under13: boolean
+  /** Records the date the device's under-13 restriction lifts. */
+  setUnder13Until: (isoDate: string) => void
   canSee: (ageRating: string | null) => boolean
   signedIn: boolean
   /** Does this account administer the given page? Drives edit, post-as and host controls. */
@@ -148,13 +166,20 @@ interface Store extends Persisted {
 
 const Ctx = createContext<Store | null>(null)
 
-function yearsSince(dob: string): number {
-  const d = new Date(dob)
-  const now = new Date()
-  let age = now.getFullYear() - d.getFullYear()
-  const m = now.getMonth() - d.getMonth()
-  if (m < 0 || (m === 0 && now.getDate() < d.getDate())) age--
-  return age
+type AgeGroup = 'under_18' | '18_20' | '21_plus'
+
+/**
+ * Mirrors public.age_floor: a group advances when its date passes, and the
+ * 21st-birthday month is the 18th-birthday month three years on.
+ */
+function ageFloor(group: AgeGroup | null, nextOn: string | null): number | null {
+  if (!group) return null
+  const today = new Date().toISOString().slice(0, 10)
+  const passed = (d: string | null) => !!d && d <= today
+  const plus3 = (d: string | null) => (d ? `${Number(d.slice(0, 4)) + 3}${d.slice(4)}` : null)
+  if (group === '21_plus') return 21
+  if (group === '18_20') return passed(nextOn) ? 21 : 18
+  return passed(plus3(nextOn)) ? 21 : passed(nextOn) ? 18 : 0
 }
 
 export function StoreProvider({ children }: { children: ReactNode }) {
@@ -182,8 +207,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   // rather than time since the last tap.
   useEffect(() => { markSeen() }, [])
 
-  // Auth uses Supabase's built-in email/password. The profile row holds DOB
-  // for age gates and login_username for display. The social_profiles row
+  // Auth uses Supabase's built-in email/password. The profile row holds the
+  // age group for age gates and login_username for display. The social_profiles row
   // determines whether the user has a public-facing profile.
   useEffect(() => {
     let alive = true
@@ -228,7 +253,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const value = useMemo<Store>(() => {
     const theme = THEMES[state.theme] ?? THEMES[DEFAULT_THEME]
     const signedIn = account.tier !== 'anonymous'
-    const age = account.dob ? yearsSince(account.dob) : null
+    const age = ageFloor(account.ageGroup, account.nextGroupOn)
+    const under13 = !signedIn && !!state.under13Until && state.under13Until > new Date().toISOString().slice(0, 10)
 
     return {
       ...state,
@@ -236,6 +262,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       signedIn,
       isAdmin: account.isAdmin,
       age,
+      under13,
+      // Follows are the one social thing a guest keeps, so they go too.
+      setUnder13Until: (isoDate) => patch((s) => ({ ...s, under13Until: isoDate, follows: [] })),
       administers: (kind, id) => account.managed.some((m) => m.kind === kind && m.id === id),
       refreshAccount,
       accent: theme.accent,
@@ -322,7 +351,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         }),
 
       // Anonymous users fail both thresholds regardless of any setting, because
-      // no date of birth is on file.
+      // no age group is on file.
       canSee: (ageRating) => {
         if (!ageRating) return true
         if (!signedIn || state.hideAdult || age === null) return false
@@ -335,13 +364,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 }
 
 // Everything the app needs to know about who is signed in, in one round
-// trip's worth of parallel reads. The profile row holds DOB for age gates and
+// trip's worth of parallel reads. The profile row holds the age group for gates and
 // login_username for display; social_profiles says whether there is a
 // personal public face; entity_admins lists the pages this person runs; and
 // page_requests holds what they have asked for and are still waiting on.
 async function loadAccount(userId: string): Promise<{ account: Account; follows: string[] } | null> {
   const [profile, social, followRows, adminRows, requestRows] = await Promise.all([
-    supabase.from('profiles').select('id, login_username, dob, is_admin').eq('id', userId).maybeSingle(),
+    supabase.from('profiles').select('id, login_username, age_group, next_group_on, is_admin').eq('id', userId).maybeSingle(),
     supabase.from('social_profiles').select('display_name, public_handle, avatar_url').eq('id', userId).maybeSingle(),
     supabase.from('follows').select('followee_id').eq('follower_id', userId),
     supabase.from('entity_admins').select('entity_kind, entity_id, role').eq('profile_id', userId),
@@ -359,7 +388,8 @@ async function loadAccount(userId: string): Promise<{ account: Account; follows:
   return {
     account: {
       tier: social.data ? 'public' : 'account',
-      dob: profile.data.dob,
+      ageGroup: (profile.data.age_group as AgeGroup | null) ?? null,
+      nextGroupOn: profile.data.next_group_on ?? null,
       username: profile.data.login_username,
       displayName: social.data?.display_name ?? null,
       handle: social.data?.public_handle ?? null,

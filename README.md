@@ -65,6 +65,24 @@ No code change, no flag.
 The trade-off is deliberate: the app can never email anyone unprompted.
 Updates reach people in the feed and by push.
 
+### Ages
+
+The 18+ and 21+ gates need to know which side of a line someone is on, not
+their birthday. Sign-up asks for the date once and stores only
+`profiles.age_group` (`under_18`, `18_20`, `21_plus`) and `next_group_on`, the
+1st of the month after the birthday that moves them up — null for 21+, so for
+most adults nothing about their birthday is kept. Groups advance on read
+(`public.age_floor`, mirrored in `src/lib/store.tsx`); gates open up to a
+month late, never early.
+
+**Under 13 there is no account.** The birthday is asked before anything else,
+so an under-13's email never leaves the device; `auth-signup` refuses them
+too, as a backstop. The device remembers (locally, until the month after
+they turn 13) and offers the directory as a guest: resources, crisis lines,
+events and businesses, with no feed, no profiles and no push — nothing that
+would send an identifier to the server. Have counsel confirm this against
+COPPA before launch.
+
 ### Setting it up
 
 Edge Function secrets (Project Settings → Edge Functions → Secrets):
@@ -109,7 +127,7 @@ existing listing.
 
 The journey:
 
-1. **Sign up** (`/signin`) — login, password, email (checked with a code, never stored), date of birth.
+1. **Sign up** (`/signin`) — date of birth first (read once, never stored), then login, password, and email (checked with a code, never stored).
 2. **Welcome** (`/welcome`, once) — pick what you are here for: a personal
    profile, an organization, a business, an event host. Any mix, all optional.
    Creates the personal profile and files page requests in one pass.

@@ -16,7 +16,7 @@ const TABS = [
 
 export function Shell({ children }: { children: ReactNode }) {
   const { pathname } = useLocation()
-  const { accent } = useStore()
+  const { accent, under13 } = useStore()
   const scrollRef = useRef<HTMLDivElement>(null)
 
   // The content pane scrolls independently of the window, so a route change
@@ -36,7 +36,7 @@ export function Shell({ children }: { children: ReactNode }) {
 
       <nav style={{ display: 'flex', borderTop: `1px solid ${C.border}`, background: 'rgba(255,255,255,.96)',
                     backdropFilter: 'blur(12px)', paddingBottom: 'env(safe-area-inset-bottom)', flexShrink: 0 }}>
-        {TABS.map((t) => {
+        {TABS.filter((t) => !(under13 && t.key === 'feed')).map((t) => {
           const active = t.match(pathname)
           const color = active ? accent : '#9A968F'
           return (

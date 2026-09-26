@@ -1,13 +1,13 @@
 // POST /auth-signup
 //
-//   { stage: 'start', email, login_username }
+//   { stage: 'start', email, login_username, dob }
 //     → { challenge_id }                 a 6-digit code was emailed
-//     → { error: 'username_taken' | 'invalid_email' | 'invalid_username'
-//                | 'too_many' | 'send_failed' | 'email_unavailable' }
+//     → { error: 'under_13' | 'invalid_dob' | 'username_taken' | 'invalid_email'
+//                | 'invalid_username' | 'too_many' | 'send_failed' | 'email_unavailable' }
 //
 //   { stage: 'finish', challenge_id, email, code, login_username, password, dob }
 //     → { session }                      account created and signed in
-//     → { error: 'wrong_code' | 'code_expired' | 'too_many' | 'username_taken'
+//     → { error: 'under_13' | 'wrong_code' | 'code_expired' | 'too_many' | 'username_taken'
 //                | 'weak_password' | 'invalid_dob' | 'failed' | 'email_unavailable' }
 //
 // The code proves the person can read that inbox. Neither stage stores the
@@ -15,12 +15,18 @@
 // expiry, and the account holds only a fingerprint (see _shared/recovery.ts).
 // The client resends the address with the code rather than the server
 // remembering it.
+//
+// The date of birth is read, never kept: it becomes an age group (see
+// _shared/age.ts). Under-13s are turned away before a code is sent — the
+// client checks first, so their address should never leave the device, and
+// this is the backstop.
 
 import { createClient } from 'jsr:@supabase/supabase-js@2'
 import {
   cors, fingerprint, json, looksLikeEmail, mac, mailBody, mailConfig, newAlias,
   normalizeEmail, sameText, sendMail, sixDigitCode,
 } from '../_shared/recovery.ts'
+import { MIN_ACCOUNT_AGE, ageGroup, ageOn, parseBirthday } from '../_shared/age.ts'
 
 const CODE_TTL_MIN = 15
 const MAX_CODES_PER_WINDOW = 3
@@ -45,6 +51,11 @@ Deno.serve(async (req) => {
 
   const email = normalizeEmail(String(body.email ?? ''))
   const username = String(body.login_username ?? '').trim().toLowerCase()
+  // Age first: an under-13's request stops here, before anything is sent.
+  const birthday = parseBirthday(String(body.dob ?? ''))
+  if (!birthday) return json({ error: 'invalid_dob' }, 400)
+  if (ageOn(birthday) < MIN_ACCOUNT_AGE) return json({ error: 'under_13' }, 403)
+
   if (!looksLikeEmail(email)) return json({ error: 'invalid_email' }, 400)
   if (!USERNAME.test(username)) return json({ error: 'invalid_username' }, 400)
 
@@ -95,13 +106,7 @@ Deno.serve(async (req) => {
       const id = String(body.challenge_id ?? '')
       const code = String(body.code ?? '').replace(/\D/g, '')
       const password = String(body.password ?? '')
-      const dob = String(body.dob ?? '')
-
       if (password.length < 8) return json({ error: 'weak_password' }, 400)
-      const born = new Date(`${dob}T00:00:00Z`)
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(dob) || Number.isNaN(born.getTime()) || born > new Date()) {
-        return json({ error: 'invalid_dob' }, 400)
-      }
 
       const { data: challenge } = await admin.from('email_challenges')
         .select('id, email_tag, code_tag, attempts, expires_at').eq('id', id).maybeSingle()
@@ -135,7 +140,7 @@ Deno.serve(async (req) => {
       // without a profile cannot sign in, and one without a fingerprint
       // cannot recover.
       const { error: profileError } = await admin.from('profiles')
-        .insert({ id: userId, login_username: username, username: null, dob })
+        .insert({ id: userId, login_username: username, username: null, ...ageGroup(birthday) })
       const { error: recoveryError } = profileError
         ? { error: profileError }
         : await admin.from('account_recovery')

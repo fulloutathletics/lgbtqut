@@ -348,7 +348,7 @@ function ContributePane() {
 type PushState = 'idle' | 'working' | 'on' | 'denied' | 'unsupported' | 'error'
 
 function AlertsPane({ items }: { items: SavedItem[] }) {
-  const { signedIn, pauseAll, setPauseAll, channels, accent } = useStore()
+  const { signedIn, pauseAll, setPauseAll, channels, accent, under13 } = useStore()
 
   // First-party broadcasts have no store field yet; they belong on the profile
   // row server-side once the notification service lands.
@@ -402,6 +402,9 @@ function AlertsPane({ items }: { items: SavedItem[] }) {
         </Card>
       </div>
 
+      {/* A push subscription is an identifier that would reach our servers, so
+          it is not offered on a device kept for someone under 13. */}
+      {!under13 && (
       <div style={{ marginBottom: 26 }}>
         <Card>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 14 }}>
@@ -421,6 +424,7 @@ function AlertsPane({ items }: { items: SavedItem[] }) {
           </div>
         </Card>
       </div>
+      )}
 
       {items.length > 0 && (
         <div style={{ marginBottom: 26, opacity: pauseAll ? 0.55 : 1 }}>

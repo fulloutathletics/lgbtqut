@@ -16,7 +16,7 @@ import { useTrail } from '../lib/trail'
 // types the address again and the link goes to what they typed. The social
 // profile is a separate system the user can create, hide, or delete.
 
-type Step = 'credentials' | 'dob' | 'review' | 'code' | 'forgot' | 'forgot-sent'
+type Step = 'credentials' | 'review' | 'code' | 'too-young' | 'forgot' | 'forgot-sent'
 type Mode = 'signin' | 'signup'
 
 const labelStyle = {
@@ -35,6 +35,25 @@ interface SessionTokens {
   refresh_token: string
 }
 
+/** Whole years between a `YYYY-MM-DD` birthday and today, or null when the date is not usable. */
+function yearsOld(dob: string): number | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dob)
+  if (!m) return null
+  const now = new Date()
+  let age = now.getFullYear() - Number(m[1])
+  const month = now.getMonth() + 1 - Number(m[2])
+  if (month < 0 || (month === 0 && now.getDate() < Number(m[3]))) age--
+  return age >= 0 && age < 125 ? age : null
+}
+
+/** The 1st of the month after someone's 13th birthday — when this device lets them sign up. */
+function monthAfter13(dob: string): string {
+  const [y, m] = dob.split('-').map(Number)
+  return new Date(Date.UTC(y + 13, m, 1)).toISOString().slice(0, 10)
+}
+
+const AGE_LABEL = (age: number) => (age >= 21 ? '21+' : age >= 18 ? '18–20' : 'Under 18')
+
 const SIGNUP_ERRORS: Record<string, string> = {
   username_taken: 'That login username is taken. Pick another.',
   invalid_username: 'Usernames are 3–32 characters: letters, numbers, dots, dashes and underscores.',
@@ -45,6 +64,7 @@ const SIGNUP_ERRORS: Record<string, string> = {
   code_expired: 'That code has expired. Ask for a new one.',
   weak_password: 'Choose a stronger password — at least 8 characters.',
   invalid_dob: 'Enter a real date of birth.',
+  under_13: 'You need to be 13 or older to create an account.',
   email_unavailable: 'Creating accounts is paused while email is being set up. Try again soon.',
 }
 
@@ -58,10 +78,36 @@ async function fnError(data: { error?: string } | null, error: unknown): Promise
   return error ? 'failed' : null
 }
 
+function TooYoung() {
+  const nav = useNavigate()
+  const { accent, tint } = useStore()
+  return (
+    <div style={{ marginTop: 22, borderRadius: 14, background: tint, padding: '20px 18px' }}>
+      <div style={{ font: font(800, 18, 1.3), color: C.ink, letterSpacing: '-.01em' }}>
+        Accounts are for people 13 and older
+      </div>
+      <div style={{ font: font(400, 13.5, 1.6), color: C.body, marginTop: 8, textWrap: 'pretty' }}>
+        You can still use LGBTQ.UT without one. Resources, crisis lines, events and businesses are all
+        open to you, and anything you save stays on this device. We did not keep your birthday or send
+        it anywhere.
+      </div>
+      <div className="tap" role="button" onClick={() => nav('/')}
+           style={{ marginTop: 16, borderRadius: 12, padding: 13, textAlign: 'center', background: accent,
+                    font: font(700, 14, 1.2), color: '#fff' }}>
+        Browse resources
+      </div>
+      <div className="tap" role="button" onClick={() => nav('/crisis')}
+           style={{ marginTop: 10, textAlign: 'center', font: font(600, 13, 1.3), color: accent }}>
+        Need someone to talk to now?
+      </div>
+    </div>
+  )
+}
+
 export default function SignIn() {
   const nav = useNavigate()
   const { back } = useTrail()
-  const { accent, tint } = useStore()
+  const { accent, tint, under13, setUnder13Until } = useStore()
 
   const [mode, setMode] = useState<Mode>('signin')
   const [step, setStep] = useState<Step>('credentials')
@@ -70,6 +116,8 @@ export default function SignIn() {
   const [password, setPassword] = useState('')
   const [email, setEmail] = useState('')
   const [dob, setDob] = useState('')
+  /** The birthday has been checked for this sign-up: the rest of the form can show. */
+  const [ageOk, setAgeOk] = useState(false)
   const [code, setCode] = useState('')
   const [challengeId, setChallengeId] = useState<string | null>(null)
 
@@ -114,6 +162,26 @@ export default function SignIn() {
       return
     }
 
+    // Sign-up asks for the birthday before anything else, so an under-13's
+    // email address never leaves the device. The date is checked here and
+    // sent once, at the end; the server keeps only the age group.
+    if (mode === 'signup' && step === 'credentials' && !ageOk) {
+      const age = yearsOld(dob)
+      if (age === null || new Date(dob) > new Date()) {
+        setError('Enter your date of birth.')
+        return
+      }
+      setError('')
+      if (age < 13) {
+        setUnder13Until(monthAfter13(dob))
+        setDob('')
+        setStep('too-young')
+        return
+      }
+      setAgeOk(true)
+      return
+    }
+
     const validationError = validate()
     if (validationError) {
       setError(validationError)
@@ -121,15 +189,6 @@ export default function SignIn() {
     }
 
     if (mode === 'signup' && step === 'credentials') {
-      setError('')
-      setStep('dob')
-      return
-    }
-    if (mode === 'signup' && step === 'dob') {
-      if (!dob) {
-        setError('A date of birth is required. It is what the 18+ and 21+ checks read.')
-        return
-      }
       setError('')
       setStep('review')
       return
@@ -188,8 +247,13 @@ export default function SignIn() {
   /** Emails a 6-digit code to the address. Nothing is stored but a keyed tag of it. */
   const sendCode = async () => {
     const { data, error: invokeError } = await supabase.functions.invoke<{ challenge_id?: string; error?: string }>(
-      'auth-signup', { body: { stage: 'start', email: email.trim(), login_username: loginUsername.trim() } })
+      'auth-signup', { body: { stage: 'start', email: email.trim(), login_username: loginUsername.trim(), dob } })
     const problem = await fnError(data, invokeError)
+    if (problem === 'under_13') {
+      setUnder13Until(monthAfter13(dob))
+      setStep('too-young')
+      return
+    }
     if (problem || !data?.challenge_id) {
       setError(SIGNUP_ERRORS[problem ?? ''] ?? 'Something went wrong. Try again.')
       if (problem === 'username_taken' || problem === 'invalid_username' || problem === 'invalid_email') {
@@ -234,7 +298,6 @@ export default function SignIn() {
     : step === 'forgot-sent' ? 'Back to sign in'
     : mode === 'signin' ? 'Sign in'
     : step === 'credentials' ? 'Continue'
-    : step === 'dob' ? 'Continue'
     : step === 'review' ? 'Email me a code'
     : 'Create my account'
 
@@ -244,6 +307,8 @@ export default function SignIn() {
                  onBack={() => {
                    if (step === 'forgot' || step === 'forgot-sent') { setStep('credentials'); setError(''); setInfo('') }
                    else if (step === 'code') { setStep('review'); setError('') }
+                   else if (step === 'too-young') back()
+                   else if (step === 'credentials' && mode === 'signup' && ageOk) { setAgeOk(false); setError('') }
                    else if (step !== 'credentials') { setStep('credentials'); setError('') }
                    else back()
                  }} />
@@ -274,7 +339,34 @@ export default function SignIn() {
               })}
             </div>
 
-            <div style={{ marginTop: 22 }}>
+            {mode === 'signup' && under13 ? (
+              <TooYoung />
+            ) : mode === 'signup' && !ageOk ? (
+              <>
+                <div style={{ font: font(400, 13, 1.55), color: C.body, marginTop: 22, textWrap: 'pretty' }}>
+                  First, your date of birth. We use your birthday once to work out your age group — it
+                  decides whether 18+ and 21+ listings show. We don't keep it.
+                </div>
+                <div style={{ marginTop: 16 }}>
+                  <div style={labelStyle}>Date of birth</div>
+                  <input
+                    value={dob}
+                    type="date"
+                    onChange={(e) => setDob(e.target.value)}
+                    style={inputStyle} />
+                </div>
+              </>
+            ) : (
+            <>
+            {mode === 'signup' && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 20,
+                            font: font(500, 12.5, 1.3), color: C.muted }}>
+                Age group: <b style={{ font: font(700, 12.5, 1.3), color: C.ink }}>{AGE_LABEL(yearsOld(dob) ?? 0)}</b>
+                <span className="tap" role="button" onClick={() => setAgeOk(false)}
+                      style={{ color: accent, font: font(600, 12.5, 1.3) }}>Change</span>
+              </div>
+            )}
+            <div style={{ marginTop: mode === 'signup' ? 16 : 22 }}>
               <div style={labelStyle}>Login username</div>
               <input
                 value={loginUsername}
@@ -323,6 +415,8 @@ export default function SignIn() {
                 Forgot your password?
               </div>
             )}
+            </>
+            )}
           </>
         )}
 
@@ -370,22 +464,7 @@ export default function SignIn() {
           </div>
         )}
 
-        {step === 'dob' && (
-          <>
-            <div style={{ font: font(400, 13, 1.55), color: C.body, marginTop: 20, textWrap: 'pretty' }}>
-              Your date of birth stays private. It is stored as a date, never as an age, and used
-              only to decide what the app can show you.
-            </div>
-            <div style={{ marginTop: 18 }}>
-              <div style={labelStyle}>Date of birth</div>
-              <input
-                value={dob}
-                type="date"
-                onChange={(e) => setDob(e.target.value)}
-                style={inputStyle} />
-            </div>
-          </>
-        )}
+        {step === 'too-young' && <TooYoung />}
 
         {step === 'review' && (
           <>
@@ -395,7 +474,9 @@ export default function SignIn() {
             <div style={{ marginTop: 16, borderRadius: 12, border: `1px solid ${C.border}`, padding: 14 }}>
               <div style={{ font: font(600, 13, 1.4), color: C.ink }}>{loginUsername}</div>
               <div style={{ font: font(400, 12, 1.4), color: C.muted, marginTop: 4 }}>{email}</div>
-              <div style={{ font: font(400, 12, 1.4), color: C.muted, marginTop: 2 }}>DOB: {dob}</div>
+              <div style={{ font: font(400, 12, 1.4), color: C.muted, marginTop: 2 }}>
+                Age group: {AGE_LABEL(yearsOld(dob) ?? 0)} — your birthday itself is not stored
+              </div>
             </div>
           </>
         )}
@@ -441,7 +522,7 @@ export default function SignIn() {
           </div>
         )}
 
-        {step !== 'forgot-sent' && (
+        {step !== 'forgot-sent' && step !== 'too-young' && !(step === 'credentials' && mode === 'signup' && under13) && (
           <div className="tap" role="button"
                onClick={() => { if (!busy) void submit() }}
                aria-disabled={busy}

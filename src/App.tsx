@@ -9,6 +9,7 @@ import { Shell } from './components/Shell'
 // lazy chunk fetch.
 import Home from './screens/Home'
 import Crisis from './screens/Crisis'
+import { SocialOnly } from './components/SocialOnly'
 
 // Everything else is split. Shop Queer alone pulls in Leaflet, which has no
 // business loading before someone opens the map.
@@ -46,7 +47,7 @@ export default function App() {
               <Routes>
                 <Route path="/" element={<Home />} />
                 <Route path="/crisis" element={<Crisis />} />
-                <Route path="/feed" element={<Feed />} />
+                <Route path="/feed" element={<SocialOnly><Feed /></SocialOnly>} />
                 <Route path="/list/:mode" element={<ResourceList />} />
                 <Route path="/list/:mode/:selection" element={<ResourceList />} />
                 <Route path="/resource/:id" element={<ResourceDetail />} />
@@ -66,7 +67,7 @@ export default function App() {
                 <Route path="/welcome" element={<Welcome />} />
                 <Route path="/apply" element={<BecomeHost />} />
                 <Route path="/manage/:kind/:id" element={<ManagePage />} />
-                <Route path="/u/:name" element={<UserProfile />} />
+                <Route path="/u/:name" element={<SocialOnly><UserProfile /></SocialOnly>} />
                 <Route path="/upload" element={<Upload />} />
               <Route path="/admin" element={<Admin />} />
               <Route path="/admin/:kind" element={<AdminList />} />
