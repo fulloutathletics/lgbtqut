@@ -230,6 +230,18 @@ export function ShopQueer({ layout = 'split' }: { layout?: ShopLayout }) {
         <div style={{ position: 'relative', height: mapH, borderRadius: 14, overflow: 'hidden',
                       background: '#E7E9E4', border: '1px solid #E0DDD7' }}>
           <div ref={holder} style={{ position: 'absolute', inset: 0 }} />
+          {/* On the map, under the button that caused it: below the map, the list
+              sheet's overlap would cover it. */}
+          {locateError && (
+            <div role="alert"
+                 style={{ position: 'absolute', top: 50, left: 10, right: 10, zIndex: 6, display: 'flex',
+                          alignItems: 'flex-start', gap: 8, borderRadius: 10, background: '#fff',
+                          boxShadow: '0 2px 10px rgba(0,0,0,.16)', padding: '9px 10px 9px 12px' }}>
+              <div style={{ flex: 1, font: font(500, 12, 1.4), color: '#B4453A', textWrap: 'pretty' }}>{locateError}</div>
+              <Tap onClick={() => setLocateError('')} label="Dismiss"
+                   style={{ flex: 'none', font: font(700, 14, 1), color: '#8A8680', padding: '0 2px' }}>×</Tap>
+            </div>
+          )}
           {/* Required by the OpenStreetMap licence; kept clear of the list sheet's overlap. */}
           <div style={{ position: 'absolute', left: 8, bottom: 14, zIndex: 5, borderRadius: 6, padding: '2px 6px',
                         background: 'rgba(255,255,255,.78)', font: font(500, 9.5, 1.3), color: '#6E6A64' }}>
@@ -248,9 +260,6 @@ export function ShopQueer({ layout = 'split' }: { layout?: ShopLayout }) {
             </span>
           </Tap>
         </div>
-        {locateError && (
-          <div style={{ marginTop: 8, font: font(400, 11.5, 1.4), color: '#B4453A' }}>{locateError}</div>
-        )}
       </div>
 
       <div style={{ marginTop: -10, position: 'relative', zIndex: 4, background: '#fff',
