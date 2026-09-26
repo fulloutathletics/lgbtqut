@@ -5,6 +5,7 @@ import { useStore } from '../lib/store'
 import { supabase } from '../lib/supabase'
 import { StickyBar, font } from '../components/ui'
 import { useTrail } from '../lib/trail'
+import { clearResetKey, resetDeviceKey } from '../lib/resetKey'
 
 // SignIn — route `/signin`.
 //
@@ -16,7 +17,7 @@ import { useTrail } from '../lib/trail'
 // types the address again and the link goes to what they typed. The social
 // profile is a separate system the user can create, hide, or delete.
 
-type Step = 'credentials' | 'review' | 'code' | 'too-young' | 'forgot' | 'forgot-sent'
+type Step = 'credentials' | 'review' | 'code' | 'too-young' | 'forgot' | 'forgot-code'
 type Mode = 'signin' | 'signup'
 
 const labelStyle = {
@@ -116,6 +117,9 @@ export default function SignIn() {
   const [password, setPassword] = useState('')
   const [email, setEmail] = useState('')
   const [dob, setDob] = useState('')
+  const [confirm, setConfirm] = useState('')
+  /** This screen's half of a password reset; the email carries the other. */
+  const [resetSecret, setResetSecret] = useState<string | null>(null)
   /** The birthday has been checked for this sign-up: the rest of the form can show. */
   const [ageOk, setAgeOk] = useState(false)
   const [code, setCode] = useState('')
@@ -146,14 +150,62 @@ export default function SignIn() {
       setBusy(true)
       setError('')
       try {
+        const key = await resetDeviceKey()
         const { data, error: invokeError } = await supabase.functions.invoke<{ ok?: boolean; error?: string }>('auth-reset', {
-          body: { login_username: username, email: email.trim(), redirect_to: `${window.location.origin}/reset` },
+          body: { stage: 'request', login_username: username, email: email.trim(), device_hash: key.hash },
         })
         if ((await fnError(data, invokeError)) === 'email_unavailable') {
           setError(SIGNUP_ERRORS.email_unavailable.replace('Creating accounts', 'Password reset'))
           return
         }
-        setStep('forgot-sent')
+        setResetSecret(key.secret)
+        setCode('')
+        setPassword('')
+        setConfirm('')
+        setStep('forgot-code')
+      } catch {
+        setError('Something went wrong. Try again.')
+      } finally {
+        setBusy(false)
+      }
+      return
+    }
+
+    if (step === 'forgot-code') {
+      if (!/^\d{6}$/.test(code.trim())) {
+        setError('Enter the 6-digit code from the email.')
+        return
+      }
+      if (password.length < 8) {
+        setError('Choose a new password of at least 8 characters.')
+        return
+      }
+      if (password !== confirm) {
+        setError('The two passwords do not match.')
+        return
+      }
+      setBusy(true)
+      setError('')
+      try {
+        const { data, error: invokeError } = await supabase.functions.invoke<{ session?: SessionTokens | null; error?: string }>(
+          'auth-reset', { body: { stage: 'complete', device_secret: resetSecret, code: code.trim(), password } })
+        const problem = await fnError(data, invokeError)
+        if (problem) {
+          setError(problem === 'invalid_code'
+            ? 'That code is not right, has expired, or was sent to a different device. Check it, or ask for a new one.'
+            : problem === 'weak_password' ? 'Choose a stronger password — at least 8 characters.'
+            : 'Something went wrong. Try again.')
+          return
+        }
+        clearResetKey()
+        if (data?.session) {
+          await supabase.auth.setSession(data.session)
+          nav('/profile')
+        } else {
+          setInfo('Password changed. Sign in with your new password.')
+          setMode('signin')
+          setStep('credentials')
+        }
       } catch {
         setError('Something went wrong. Try again.')
       } finally {
@@ -294,8 +346,8 @@ export default function SignIn() {
   }
 
   const cta = busy ? 'Working…'
-    : step === 'forgot' ? 'Send reset link'
-    : step === 'forgot-sent' ? 'Back to sign in'
+    : step === 'forgot' ? 'Email me a code'
+    : step === 'forgot-code' ? 'Set new password'
     : mode === 'signin' ? 'Sign in'
     : step === 'credentials' ? 'Continue'
     : step === 'review' ? 'Email me a code'
@@ -303,9 +355,9 @@ export default function SignIn() {
 
   return (
     <div style={{ minHeight: '100%', background: '#fff' }}>
-      <StickyBar title={step === 'forgot' || step === 'forgot-sent' ? 'Reset password' : mode === 'signup' ? 'Create an account' : 'Sign in'}
+      <StickyBar title={step === 'forgot' || step === 'forgot-code' ? 'Reset password' : mode === 'signup' ? 'Create an account' : 'Sign in'}
                  onBack={() => {
-                   if (step === 'forgot' || step === 'forgot-sent') { setStep('credentials'); setError(''); setInfo('') }
+                   if (step === 'forgot' || step === 'forgot-code') { setStep('credentials'); setError(''); setInfo('') }
                    else if (step === 'code') { setStep('review'); setError('') }
                    else if (step === 'too-young') back()
                    else if (step === 'credentials' && mode === 'signup' && ageOk) { setAgeOk(false); setError('') }
@@ -424,8 +476,8 @@ export default function SignIn() {
           <>
             <div style={{ font: font(400, 13, 1.55), color: C.body, marginTop: 20, textWrap: 'pretty' }}>
               We do not keep your email address, so we cannot look it up. Enter your login username
-              and the address you signed up with; if they match, we send a reset link there. It
-              expires in one hour.
+              and the address you signed up with; if they match, we email a 6-digit code there. You
+              type it in here, on this screen.
             </div>
             <div style={{ marginTop: 18 }}>
               <div style={labelStyle}>Login username</div>
@@ -450,18 +502,50 @@ export default function SignIn() {
           </>
         )}
 
-        {step === 'forgot-sent' && (
-          <div style={{ marginTop: 24, textAlign: 'center' }}>
-            <div style={{ font: font(700, 18, 1.3), color: C.ink, letterSpacing: '-.01em' }}>
-              Check your email
+        {step === 'forgot-code' && (
+          <>
+            <div style={{ font: font(400, 13, 1.55), color: C.body, marginTop: 20, textWrap: 'pretty' }}>
+              If that username and email belong together, a 6-digit code is on its way. Enter it here
+              with your new password — it expires in 15 minutes and only works on this screen, so keep
+              this app or tab open (or come back to it) rather than switching devices.
             </div>
-            <div style={{ font: font(400, 14, 1.55), color: C.muted, marginTop: 10, textWrap: 'pretty',
-                          maxWidth: 280, marginLeft: 'auto', marginRight: 'auto' }}>
-              If that username and email address belong together, a reset link is on its way. Open it
-              on this device to set a new password. Nothing arriving? Check the address you typed
-              is the one you signed up with.
+            <div style={{ marginTop: 18 }}>
+              <div style={labelStyle}>Code</div>
+              <input
+                value={code}
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                maxLength={6}
+                placeholder="123456"
+                onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                style={{ ...inputStyle, font: font(700, 22, 1.2), letterSpacing: '.3em', textAlign: 'center' }} />
             </div>
-          </div>
+            <div style={{ marginTop: 16 }}>
+              <div style={labelStyle}>New password</div>
+              <input
+                value={password}
+                type="password"
+                autoComplete="new-password"
+                placeholder="At least 8 characters"
+                onChange={(e) => setPassword(e.target.value)}
+                style={inputStyle} />
+            </div>
+            <div style={{ marginTop: 16 }}>
+              <div style={labelStyle}>Confirm new password</div>
+              <input
+                value={confirm}
+                type="password"
+                autoComplete="new-password"
+                placeholder="Type it again"
+                onChange={(e) => setConfirm(e.target.value)}
+                style={inputStyle} />
+            </div>
+            <div className="tap" role="button"
+                 onClick={() => { setStep('forgot'); setError(''); setInfo('') }}
+                 style={{ font: font(600, 12.5, 1.3), color: accent, marginTop: 14, display: 'inline-block' }}>
+              No code? Send a new one
+            </div>
+          </>
         )}
 
         {step === 'too-young' && <TooYoung />}
@@ -522,7 +606,7 @@ export default function SignIn() {
           </div>
         )}
 
-        {step !== 'forgot-sent' && step !== 'too-young' && !(step === 'credentials' && mode === 'signup' && under13) && (
+        {step !== 'too-young' && !(step === 'credentials' && mode === 'signup' && under13) && (
           <div className="tap" role="button"
                onClick={() => { if (!busy) void submit() }}
                aria-disabled={busy}
@@ -530,16 +614,6 @@ export default function SignIn() {
                         background: busy ? C.border : accent,
                         font: font(700, 14.5, 1.2), color: busy ? C.faint : '#fff',
                         cursor: busy ? 'not-allowed' : 'pointer' }}>
-            {cta}
-          </div>
-        )}
-
-        {step === 'forgot-sent' && (
-          <div className="tap" role="button"
-               onClick={() => { setStep('credentials'); setInfo('') }}
-               style={{ marginTop: 22, borderRadius: 12, padding: 14, textAlign: 'center',
-                        background: accent,
-                        font: font(700, 14.5, 1.2), color: '#fff' }}>
             {cta}
           </div>
         )}

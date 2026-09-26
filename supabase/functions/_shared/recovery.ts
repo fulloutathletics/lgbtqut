@@ -135,6 +135,11 @@ export async function decoy(pepper: string, email: string): Promise<void> {
   await derive(pepper, email, new Uint8Array(16), ITERATIONS)
 }
 
+/** SHA-256 as hex — for high-entropy secrets (tokens, device keys), where a plain hash is enough. */
+export async function sha256Hex(value: string): Promise<string> {
+  return hex(new Uint8Array(await crypto.subtle.digest('SHA-256', enc.encode(value))))
+}
+
 /** Six digits, uniformly — rejection sampling, not a biased modulo. */
 export function sixDigitCode(): string {
   const buf = new Uint32Array(1)

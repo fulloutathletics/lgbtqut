@@ -57,10 +57,15 @@ No code change, no flag.
   salt. It can confirm an address someone types; it cannot be read back.
 - **Sign-in** (`auth-signin`): username → alias → password, server-side.
 - **Reset** (`auth-reset`): the person types their username *and* the address
-  they signed up with. On a match, a recovery link is minted for the alias
-  (`generateLink`) and sent to the address they just typed. The reply is the
-  same whether or not anything matched, and attempts are capped per account,
-  so the endpoint cannot be used to ask whether someone has an account.
+  they signed up with. On a match, a 6-digit code goes to the address they just
+  typed; they enter it, with a new password, on the same screen. The code only
+  works together with a random secret that screen kept (only its hash reached
+  the server, `reset_tickets`), within 15 minutes and five tries — so the copy
+  of the email a sending service keeps in its logs cannot reset anything, and
+  there is no link to phish. It works in the home-screen app as well as any
+  browser. On success every other session is signed out. The request's reply
+  is the same whether or not anything matched, and requests are capped per
+  account, so the endpoint cannot be used to ask whether someone has an account.
 
 The trade-off is deliberate: the app can never email anyone unprompted.
 Updates reach people in the feed and by push.
