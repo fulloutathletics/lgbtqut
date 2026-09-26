@@ -9,12 +9,14 @@ import { useTrail } from '../lib/trail'
 // SignIn — route `/signin`.
 //
 // Auth answers "who owns this account?" — not "what do people see?"
-// The login username is a private credential. The email is used by Supabase
-// Auth for password recovery but is never shown socially. The social profile
-// (display name, handle, pronouns, etc.) is a separate system the user can
-// create, hide, or delete independently.
+// The login username is a private credential. The email address is never
+// stored anywhere: sign-up proves the person can read that inbox with a
+// 6-digit code, and the account keeps only a one-way fingerprint of it (see
+// supabase/functions/_shared/recovery.ts). To reset a password, the person
+// types the address again and the link goes to what they typed. The social
+// profile is a separate system the user can create, hide, or delete.
 
-type Step = 'credentials' | 'dob' | 'review' | 'forgot' | 'forgot-sent'
+type Step = 'credentials' | 'dob' | 'review' | 'code' | 'forgot' | 'forgot-sent'
 type Mode = 'signin' | 'signup'
 
 const labelStyle = {
@@ -33,6 +35,29 @@ interface SessionTokens {
   refresh_token: string
 }
 
+const SIGNUP_ERRORS: Record<string, string> = {
+  username_taken: 'That login username is taken. Pick another.',
+  invalid_username: 'Usernames are 3–32 characters: letters, numbers, dots, dashes and underscores.',
+  invalid_email: 'That email address does not look right. Check it and try again.',
+  too_many: 'Too many tries. Wait a few minutes, then ask for a new code.',
+  send_failed: 'We could not send the code. Check the address and try again.',
+  wrong_code: 'That code is not right. Check the email and try again.',
+  code_expired: 'That code has expired. Ask for a new one.',
+  weak_password: 'Choose a stronger password — at least 8 characters.',
+  invalid_dob: 'Enter a real date of birth.',
+  email_unavailable: 'Creating accounts is paused while email is being set up. Try again soon.',
+}
+
+/** The error code a function returned, whether it came back as data or as an HTTP error. */
+async function fnError(data: { error?: string } | null, error: unknown): Promise<string | null> {
+  if (data?.error) return data.error
+  const ctx = (error as { context?: Response } | null)?.context
+  if (ctx && typeof ctx.json === 'function') {
+    try { return ((await ctx.json()) as { error?: string }).error ?? 'failed' } catch { return 'failed' }
+  }
+  return error ? 'failed' : null
+}
+
 export default function SignIn() {
   const nav = useNavigate()
   const { back } = useTrail()
@@ -45,6 +70,8 @@ export default function SignIn() {
   const [password, setPassword] = useState('')
   const [email, setEmail] = useState('')
   const [dob, setDob] = useState('')
+  const [code, setCode] = useState('')
+  const [challengeId, setChallengeId] = useState<string | null>(null)
 
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -55,8 +82,8 @@ export default function SignIn() {
     if (!username) return 'Pick a login username. You use it to sign in — nobody else sees it.'
     if (username.length < 3) return 'Username must be at least 3 characters.'
     if (password.length < 8) return 'Password must be at least 8 characters.'
-    if (mode === 'signup' && !email.includes('@')) {
-      return 'Enter an email address — it is used for password recovery only.'
+    if (mode === 'signup' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      return 'Enter an email address. It is only for resetting your password, and it is not stored.'
     }
     return null
   }
@@ -64,16 +91,20 @@ export default function SignIn() {
   const submit = async () => {
     if (step === 'forgot') {
       const username = loginUsername.trim()
-      if (!username) {
-        setError('Enter your login username and we will send a reset link to your recovery email.')
+      if (!username || !email.includes('@')) {
+        setError('Enter your login username and the email address you signed up with.')
         return
       }
       setBusy(true)
       setError('')
       try {
-        await supabase.functions.invoke('auth-reset', {
-          body: { login_username: username, redirect_to: `${window.location.origin}/reset` },
+        const { data, error: invokeError } = await supabase.functions.invoke<{ ok?: boolean; error?: string }>('auth-reset', {
+          body: { login_username: username, email: email.trim(), redirect_to: `${window.location.origin}/reset` },
         })
+        if ((await fnError(data, invokeError)) === 'email_unavailable') {
+          setError(SIGNUP_ERRORS.email_unavailable.replace('Creating accounts', 'Password reset'))
+          return
+        }
         setStep('forgot-sent')
       } catch {
         setError('Something went wrong. Try again.')
@@ -104,6 +135,24 @@ export default function SignIn() {
       return
     }
 
+    if (mode === 'signup' && (step === 'review' || step === 'code')) {
+      if (step === 'code' && !/^\d{6}$/.test(code.trim())) {
+        setError('Enter the 6-digit code from the email.')
+        return
+      }
+      setBusy(true)
+      setError('')
+      try {
+        if (step === 'review') await sendCode()
+        else await finishSignUp()
+      } catch {
+        setError('Something went wrong. Try again.')
+      } finally {
+        setBusy(false)
+      }
+      return
+    }
+
     setBusy(true)
     setError('')
 
@@ -128,43 +177,6 @@ export default function SignIn() {
           return
         }
         nav('/profile')
-      } else {
-        // Sign up: create the auth account, then insert the profile row
-        const { data: authData, error: signUpError } = await supabase.auth.signUp({
-          email: email.trim(),
-          password,
-        })
-
-        if (signUpError) {
-          setError(signUpError.message)
-          return
-        }
-        if (!authData.user) {
-          setError('Could not create your account. Try again.')
-          return
-        }
-
-        const { error: profileError } = await supabase.from('profiles').insert({
-          id: authData.user.id,
-          login_username: loginUsername.trim().toLowerCase(),
-          username: null,
-          dob,
-          recovery_email: email.trim(),
-        })
-
-        if (profileError) {
-          // The auth user exists but has no profile, so the account is stuck:
-          // username sign-in resolves through profiles. Surface the real
-          // reason to the console — the friendly text alone made a schema
-          // fault look like a transient glitch.
-          console.error('Profile insert failed after sign-up:', profileError)
-          setError('Account created, but we could not save your profile. Try signing in.')
-          return
-        }
-
-        // A new account goes through the welcome flow once: personal profile,
-        // and any pages the person wants to run. Returning sign-ins skip it.
-        nav('/welcome', { replace: true })
       }
     } catch {
       setError('Something went wrong. Try again.')
@@ -173,12 +185,57 @@ export default function SignIn() {
     }
   }
 
+  /** Emails a 6-digit code to the address. Nothing is stored but a keyed tag of it. */
+  const sendCode = async () => {
+    const { data, error: invokeError } = await supabase.functions.invoke<{ challenge_id?: string; error?: string }>(
+      'auth-signup', { body: { stage: 'start', email: email.trim(), login_username: loginUsername.trim() } })
+    const problem = await fnError(data, invokeError)
+    if (problem || !data?.challenge_id) {
+      setError(SIGNUP_ERRORS[problem ?? ''] ?? 'Something went wrong. Try again.')
+      if (problem === 'username_taken' || problem === 'invalid_username' || problem === 'invalid_email') {
+        setStep('credentials')
+      }
+      return
+    }
+    setChallengeId(data.challenge_id)
+    setCode('')
+    setStep('code')
+  }
+
+  /** Creates the account. The server re-checks the code against the address sent with it. */
+  const finishSignUp = async () => {
+    const { data, error: invokeError } = await supabase.functions.invoke<{ session?: SessionTokens; error?: string }>(
+      'auth-signup', {
+        body: {
+          stage: 'finish', challenge_id: challengeId, email: email.trim(), code: code.trim(),
+          login_username: loginUsername.trim(), password, dob,
+        },
+      })
+    const problem = await fnError(data, invokeError)
+    if (problem || !data?.session) {
+      setError(SIGNUP_ERRORS[problem ?? ''] ?? 'Something went wrong. Try again.')
+      if (problem === 'username_taken' || problem === 'weak_password') setStep('credentials')
+      return
+    }
+    const { error: sessionError } = await supabase.auth.setSession(data.session)
+    if (sessionError) {
+      setError('Your account was created. Sign in with your username and password.')
+      setMode('signin')
+      setStep('credentials')
+      return
+    }
+    // A new account goes through the welcome flow once: personal profile,
+    // and any pages the person wants to run. Returning sign-ins skip it.
+    nav('/welcome', { replace: true })
+  }
+
   const cta = busy ? 'Working…'
     : step === 'forgot' ? 'Send reset link'
     : step === 'forgot-sent' ? 'Back to sign in'
     : mode === 'signin' ? 'Sign in'
     : step === 'credentials' ? 'Continue'
     : step === 'dob' ? 'Continue'
+    : step === 'review' ? 'Email me a code'
     : 'Create my account'
 
   return (
@@ -186,6 +243,7 @@ export default function SignIn() {
       <StickyBar title={step === 'forgot' || step === 'forgot-sent' ? 'Reset password' : mode === 'signup' ? 'Create an account' : 'Sign in'}
                  onBack={() => {
                    if (step === 'forgot' || step === 'forgot-sent') { setStep('credentials'); setError(''); setInfo('') }
+                   else if (step === 'code') { setStep('review'); setError('') }
                    else if (step !== 'credentials') { setStep('credentials'); setError('') }
                    else back()
                  }} />
@@ -193,8 +251,8 @@ export default function SignIn() {
       <div style={{ padding: '20px 18px 32px' }}>
         <div style={{ background: tint, borderRadius: 12, padding: '14px 15px' }}>
           <div style={{ font: font(400, 13, 1.6), color: C.body, textWrap: 'pretty' }}>
-            Your login username and email stay private. They are for account access only —
-            nothing here shows up on a public profile unless you create one.
+            Your login username stays private, and your email address is never stored — not even
+            where we could read it. Nothing here shows up on a public profile unless you create one.
           </div>
         </div>
 
@@ -242,7 +300,7 @@ export default function SignIn() {
 
             {mode === 'signup' && (
               <div style={{ marginTop: 16 }}>
-                <div style={labelStyle}>Email — for recovery only</div>
+                <div style={labelStyle}>Email — for password resets only</div>
                 <input
                   value={email}
                   type="email"
@@ -252,7 +310,8 @@ export default function SignIn() {
                   onChange={(e) => setEmail(e.target.value)}
                   style={inputStyle} />
                 <div style={{ font: font(400, 11.5, 1.5), color: C.faint, marginTop: 6, textWrap: 'pretty' }}>
-                  Used only to recover your account if you forget your password. Never shown publicly.
+                  We check it with a code, then keep only a one-way fingerprint. To reset your password
+                  you type it again, and the link goes there. We never email you anything else.
                 </div>
               </div>
             )}
@@ -270,8 +329,9 @@ export default function SignIn() {
         {step === 'forgot' && (
           <>
             <div style={{ font: font(400, 13, 1.55), color: C.body, marginTop: 20, textWrap: 'pretty' }}>
-              Enter your login username and we will send a password reset link to the recovery email
-              on file. The link expires in one hour.
+              We do not keep your email address, so we cannot look it up. Enter your login username
+              and the address you signed up with; if they match, we send a reset link there. It
+              expires in one hour.
             </div>
             <div style={{ marginTop: 18 }}>
               <div style={labelStyle}>Login username</div>
@@ -280,6 +340,17 @@ export default function SignIn() {
                 autoComplete="username"
                 placeholder="winterfox482"
                 onChange={(e) => setLoginUsername(e.target.value)}
+                style={inputStyle} />
+            </div>
+            <div style={{ marginTop: 16 }}>
+              <div style={labelStyle}>Email you signed up with</div>
+              <input
+                value={email}
+                type="email"
+                inputMode="email"
+                autoComplete="email"
+                placeholder="you@example.com"
+                onChange={(e) => setEmail(e.target.value)}
                 style={inputStyle} />
             </div>
           </>
@@ -292,8 +363,9 @@ export default function SignIn() {
             </div>
             <div style={{ font: font(400, 14, 1.55), color: C.muted, marginTop: 10, textWrap: 'pretty',
                           maxWidth: 280, marginLeft: 'auto', marginRight: 'auto' }}>
-              If an account exists for that username, we sent a password reset link to the recovery
-              email on file. Open the link on this device to set a new password.
+              If that username and email address belong together, a reset link is on its way. Open it
+              on this device to set a new password. Nothing arriving? Check the address you typed
+              is the one you signed up with.
             </div>
           </div>
         )}
@@ -318,12 +390,37 @@ export default function SignIn() {
         {step === 'review' && (
           <>
             <div style={{ font: font(400, 13, 1.55), color: C.body, marginTop: 20, textWrap: 'pretty' }}>
-              Review your details. You can change your password and email later.
+              Check your details. Next we email a 6-digit code to that address to make sure it is yours.
             </div>
             <div style={{ marginTop: 16, borderRadius: 12, border: `1px solid ${C.border}`, padding: 14 }}>
               <div style={{ font: font(600, 13, 1.4), color: C.ink }}>{loginUsername}</div>
               <div style={{ font: font(400, 12, 1.4), color: C.muted, marginTop: 4 }}>{email}</div>
               <div style={{ font: font(400, 12, 1.4), color: C.muted, marginTop: 2 }}>DOB: {dob}</div>
+            </div>
+          </>
+        )}
+
+        {step === 'code' && (
+          <>
+            <div style={{ font: font(400, 13, 1.55), color: C.body, marginTop: 20, textWrap: 'pretty' }}>
+              We sent a 6-digit code to <b style={{ fontWeight: 700 }}>{email.trim()}</b>. It expires in
+              15 minutes.
+            </div>
+            <div style={{ marginTop: 18 }}>
+              <div style={labelStyle}>Code</div>
+              <input
+                value={code}
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                maxLength={6}
+                placeholder="123456"
+                onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                style={{ ...inputStyle, font: font(700, 22, 1.2), letterSpacing: '.3em', textAlign: 'center' }} />
+            </div>
+            <div className="tap" role="button"
+                 onClick={() => { if (!busy) { setError(''); setBusy(true); void sendCode().finally(() => setBusy(false)) } }}
+                 style={{ font: font(600, 12.5, 1.3), color: accent, marginTop: 14, display: 'inline-block' }}>
+              Send a new code
             </div>
           </>
         )}

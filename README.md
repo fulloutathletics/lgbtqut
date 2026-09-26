@@ -5,7 +5,7 @@ Utah queer resource directory — resources, events, and affirming businesses. A
 Two things the Glide version could not do, and which shape everything here:
 
 - **Page layouts are backend-configured.** A business listing's presentation is data (`businesses.sections`), not code. One renderer produces a different page per listing.
-- **The database never stores a user's email address.** Sign-in uses a proxy alias plus a peppered blind index. See [Authentication](#authentication).
+- **The database never stores a user's email address.** Accounts carry a random alias and a one-way fingerprint that can only confirm an address the person types. See [Authentication](#authentication).
 
 ## Setup
 
@@ -44,35 +44,45 @@ No code change, no flag.
 
 ## Authentication
 
-Read `design-reference/Auth Handoff Spec.html` before touching sign-in. The short
-version:
+**The email address is never stored** — not in `auth.users`, not in
+`profiles`, not in a log, and not anywhere the project owner can read it.
 
-`auth.users.email` holds an alias (`chosen-twist-631@anonymous.appuser.io`), not
-the user's address. `profiles.email_hash` is an HMAC of the normalized address
-under a pepper in Supabase Vault, which is what makes an account findable at
-login. The real address exists in exactly one system — an SES + Lambda forwarder
-in a **separate AWS account** — and never in this project.
+- **Sign-up** (`auth-signup`): the person picks a login username and password
+  and gives an email address. A 6-digit code goes to that address to prove
+  they can read it (`email_challenges` holds only keyed tags of the address
+  and code, deleted on use). The account is then created with a random alias,
+  `…@accounts.lgbtqut.invalid`, as its Supabase Auth email, and
+  `account_recovery` stores one fingerprint of the real address:
+  PBKDF2-SHA256 over an HMAC of it under `EMAIL_PEPPER`, with a per-account
+  salt. It can confirm an address someone types; it cannot be read back.
+- **Sign-in** (`auth-signin`): username → alias → password, server-side.
+- **Reset** (`auth-reset`): the person types their username *and* the address
+  they signed up with. On a match, a recovery link is minted for the alias
+  (`generateLink`) and sent to the address they just typed. The reply is the
+  same whether or not anything matched, and attempts are capped per account,
+  so the endpoint cannot be used to ask whether someone has an account.
 
-Deploying it takes four things beyond `supabase functions deploy`:
+The trade-off is deliberate: the app can never email anyone unprompted.
+Updates reach people in the feed and by push.
 
-1. **Store the pepper in Vault** as `EMAIL_PEPPER`. Not an env var — a pepper
-   sitting beside the hashes it protects is no pepper at all.
-2. **Stand up the forwarder** and set `FORWARDER_URL`, `FORWARDER_TOKEN` and
-   `ALIAS_DOMAIN` as function secrets. Set its log retention to zero; SES writes
-   recipients to CloudWatch by default, which quietly creates a second copy of
-   the mapping the forwarder is supposed to solely hold.
-3. **Disable Edge Function request logging.** The address arrives in the request
-   body, so logging writes to disk exactly what the schema refuses to store.
-4. **Point custom SMTP at the forwarder.** Supabase's built-in mailer echoes the
-   recipient into logs and headers you do not control.
+### Setting it up
 
-`supabase/functions/_shared/identity.ts` marks the one call that hands the
-address to another system. Nothing in these functions logs a request body — that
-is the single most common way this design leaks.
+Edge Function secrets (Project Settings → Edge Functions → Secrets):
 
-**`auth-start` returns `{status:"code_sent"}` whether or not the account exists.**
-That is deliberate and load-bearing: a distinguishable response makes the endpoint
-an oracle for whether a given person has an account in a queer directory.
+| Secret | What |
+|---|---|
+| `EMAIL_PEPPER` | 32+ random characters, e.g. `openssl rand -base64 48`. **Never change or lose it** — every fingerprint depends on it, and without it nobody can reset a password. Keep a copy in a password manager, not in this repo. |
+| `RESEND_JORJACK_KEY` (or `RESEND_API_KEY`) | Resend API key. |
+| `MAIL_FROM` | e.g. `LGBTQ.UT <no-reply@your-domain>` on a domain verified in Resend. Until it is set, mail goes from Resend's test sender, which only delivers to the Resend account owner. |
+
+Also, in Authentication → Sign In / Providers, turn **off** "Allow new users
+to sign up". Accounts are created by `auth-signup` with the service role; with
+public sign-up on, anyone could call Auth directly and put a real address in
+`auth.users`. (Profiles can no longer be inserted from the client either, so
+such an account could never sign in, but it should not exist at all.)
+
+Nothing in these functions may log a request body or put an address in an
+error message — that is the most common way a design like this leaks.
 
 ## Accounts, profiles and pages
 
@@ -99,7 +109,7 @@ existing listing.
 
 The journey:
 
-1. **Sign up** (`/signin`) — login, password, recovery email, date of birth.
+1. **Sign up** (`/signin`) — login, password, email (checked with a code, never stored), date of birth.
 2. **Welcome** (`/welcome`, once) — pick what you are here for: a personal
    profile, an organization, a business, an event host. Any mix, all optional.
    Creates the personal profile and files page requests in one pass.
@@ -153,7 +163,7 @@ src/
   sw.ts       service worker: push + notificationclick
 supabase/
   migrations/ schema, RLS policies, column grants
-  functions/  auth-start, auth-verify
+  functions/  auth-signup, auth-signin, auth-reset (+ _shared/recovery.ts)
   seed.sql    generated content rows
 design-reference/  the original handoff bundle — the source of truth for specs
 scripts/generate-data.mjs   design-reference → seed.json + seed.sql
