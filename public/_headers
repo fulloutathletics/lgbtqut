@@ -1,0 +1,5 @@
+# Netlify response headers. The atproto handle file must read as plain text
+# to any resolver, from any origin; without a rule it is served as a download.
+/.well-known/atproto-did
+  Content-Type: text/plain; charset=utf-8
+  Access-Control-Allow-Origin: *
