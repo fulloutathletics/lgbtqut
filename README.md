@@ -243,15 +243,15 @@ Edge Function secrets:
 |---|---|
 | `JEV_API` | TypeSafe (Jev) API key. |
 | `OPENAI_API_KEY` | OpenAI API key. The moderation endpoint is free, but still needs a key. |
-| `MODERATION_HOOK_SECRET` | Random, e.g. `openssl rand -hex 32`. The database proves itself to the function with it. |
 
 Either provider can be left out; the other runs alone with stricter
-thresholds. Then give the database the same hook secret and the project URL,
-in the SQL editor:
+thresholds. Then, in the SQL editor, give the database the project URL and a
+hook secret generated in place (the function reads it back from Vault, so it
+is never copied anywhere):
 
 ```sql
 select vault.create_secret('https://<project-ref>.supabase.co', 'project_url');
-select vault.create_secret('<same value as MODERATION_HOOK_SECRET>', 'moderation_hook_secret');
+select vault.create_secret(encode(extensions.gen_random_bytes(32), 'hex'), 'moderation_hook_secret');
 ```
 
 Until both exist the hooks do nothing, and only the database rules apply.

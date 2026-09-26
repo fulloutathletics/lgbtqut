@@ -183,9 +183,10 @@ revoke all on function public.queue_link_checks(text[]) from public;
 
 -- ------------------------------------------------------ calling the hook
 
--- Posts a job to the `moderate` Edge Function. Needs two Vault secrets
--- (see README → Moderation); without them it does nothing, so a fresh
--- database or a local one works without the function deployed.
+-- Posts a job to the `moderate` Edge Function. Needs two Vault secrets,
+-- project_url and moderation_hook_secret (see README → Moderation); without
+-- them it does nothing, so a fresh or local database works without the
+-- function deployed.
 create or replace function public.moderation_hook(payload jsonb)
 returns void
 language plpgsql
@@ -209,6 +210,21 @@ end;
 $$;
 
 revoke all on function public.moderation_hook(jsonb) from public;
+
+-- The function checks calls against the same Vault secret, so the value is
+-- kept in one place and never has to be copied into Function secrets.
+create or replace function public.moderation_hook_secret()
+returns text
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select decrypted_secret from vault.decrypted_secrets where name = 'moderation_hook_secret'
+$$;
+
+revoke all on function public.moderation_hook_secret() from public, anon, authenticated;
+grant execute on function public.moderation_hook_secret() to service_role;
 
 create or replace function public.link_checks_enqueue()
 returns trigger

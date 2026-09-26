@@ -2,7 +2,8 @@
 //
 // Called two ways:
 //
-//   by the database (pg_net, header x-moderation-secret)
+//   by the database (pg_net, header x-moderation-secret — the Vault secret
+//   moderation_hook_secret, which this function reads back to compare)
 //     { kind: 'link', link }             rule on a link nobody has ruled on
 //     { kind: 'post' | 'comment', id }   moderate a post or reply
 //     { kind: 'profile', id }            moderate a bio and display name
@@ -40,7 +41,17 @@ const admin = createClient(
   { auth: { autoRefreshToken: false, persistSession: false } },
 )
 
-const HOOK_SECRET = Deno.env.get('MODERATION_HOOK_SECRET') ?? ''
+// The database signs its calls with the moderation_hook_secret held in Vault;
+// read once per instance through a service-role-only RPC.
+let hookSecret = ''
+async function getHookSecret(): Promise<string> {
+  if (!hookSecret) {
+    const { data, error } = await admin.rpc('moderation_hook_secret')
+    if (!error && typeof data === 'string') hookSecret = data
+  }
+  return hookSecret
+}
+
 const OPENAI_KEY = Deno.env.get('OPENAI_API_KEY') ?? ''
 const JEV_KEY = Deno.env.get('JEV_API') ?? ''
 
@@ -67,7 +78,8 @@ Deno.serve(async (req) => {
     }
 
     const given = req.headers.get('x-moderation-secret') ?? ''
-    if (!HOOK_SECRET || !sameText(given, HOOK_SECRET)) return json({ error: 'unauthorized' }, 401)
+    const expected = await getHookSecret()
+    if (!expected || !sameText(given, expected)) return json({ error: 'unauthorized' }, 401)
 
     switch (body.kind) {
       case 'link': {
