@@ -72,16 +72,77 @@ export function headerStyle(headerUrl: string | null | undefined, fallback: stri
 
 // ---------------------------------------------------------------- links
 
-/**
- * Platforms whose whole purpose is adult content or adult-only meetups. A
- * link to one of these tags the profile 18+ on save; the same list runs in
- * the database (public.is_adult_link) so the client can only under-report,
- * never override. Keep the two in step.
- */
-export const ADULT_LINK_PATTERN =
-  /(^|[/.@\s])(onlyfans|fansly|justfor\.?fans|loyalfans|manyvids|fancentro|fanvue|admireme|unlockt|4my\.?fans|clips4sale|iwantclips|sextpanther|pornhub|xvideos|xhamster|redtube|youporn|brazzers|chaturbate|myfreecams|stripchat|cam4|livejasmin|bongacams|adultfriendfinder|sniffies|grindr|scruff|recon|feeld|rentmen|tryst)\.(com|net|co|xxx|tv|app|io|me|to)(\/|$|\s)/i
+/** The host of a stored or pasted link: no scheme, www., path, port or user@. */
+export function linkHost(url: string): string {
+  return url.trim().toLowerCase()
+    .replace(/^[a-z][a-z0-9+.-]*:\/\//, '')
+    .replace(/^www\./, '')
+    .split(/[/?#]/)[0].split(':')[0].replace(/^.*@/, '')
+}
 
-export const isAdultLink = (url: string) => ADULT_LINK_PATTERN.test(url.toLowerCase())
+/**
+ * Platforms whose whole purpose is adult content or adult-only meetups,
+ * matched on the host. A link to one of these tags the profile 18+ on save.
+ * The same list runs in the database (public.is_adult_link) and in the
+ * moderate function (_shared/links.ts), so the client can only
+ * under-report, never override. Keep the three in step.
+ */
+export const ADULT_HOST_PATTERN = new RegExp(
+  '(^|\\.)(' +
+  'onlyfans|fansly|justforfans|loyalfans|manyvids|fancentro|fanvue|fanhouse|admireme|unlockt|4myfans|' +
+  'clips4sale|iwantclips|sextpanther|pornhub|xvideos|xhamster|redtube|youporn|brazzers|' +
+  'chaturbate|myfreecams|stripchat|cam4|livejasmin|bongacams|adultfriendfinder|' +
+  'sniffies|grindr|scruff|recon|feeld|rentmen|tryst' +
+  ')\\.(com|net|co|xxx|tv|app|io|me|to|vip|fans|gg|club)$' +
+  '|(^|\\.)justfor\\.fans$' +
+  '|\\.(xxx|porn|adult|sex)$',
+)
+
+/**
+ * Link-in-bio pages (Linktree, Beacons, bio.link, …) are not allowed
+ * anywhere: they are where the other links go to hide, so the adult rule
+ * could not see them. The database refuses them (public.is_link_in_bio);
+ * this is the editor's copy, so it can say so before Save.
+ */
+export const LINK_IN_BIO_HOST_PATTERN = new RegExp(
+  '(^|\\.)(' +
+  'linktr\\.ee|linktree\\.com|beacons\\.ai|beacons\\.page|bio\\.link|linkin\\.bio|lnk\\.bio|linkbio\\.co|' +
+  'allmylinks\\.com|campsite\\.bio|solo\\.to|taplink\\.cc|taplink\\.at|tap\\.bio|bio\\.site|hoo\\.be|' +
+  'milkshake\\.app|msha\\.ke|komi\\.io|snipfeed\\.co|linkpop\\.com|many\\.link|bento\\.me|linkr\\.bio|' +
+  'hopp\\.bio|link\\.me|heylink\\.me|contactin\\.bio|direct\\.me|flow\\.page|linkfly\\.to|linkme\\.bio|' +
+  'carrd\\.co|withkoji\\.com|koji\\.to|stan\\.store|linkbun\\.ch|biolinky\\.co|shor\\.by|' +
+  'getallmylinks\\.com|linkinprofile\\.com|linkinbio\\.com|url\\.bio|joy\\.link' +
+  ')$',
+)
+
+export const isAdultLink = (url: string) => ADULT_HOST_PATTERN.test(linkHost(url))
+export const isLinkInBio = (url: string) => LINK_IN_BIO_HOST_PATTERN.test(linkHost(url))
+
+/** Link-looking tokens in free text. Mirrors public.links_in_text. */
+const LINK_IN_TEXT = /((https?:\/\/)?([a-z0-9-]+\.)+(com|net|org|io|co|me|ee|bio|link|page|site|app|ai|fans|xxx|porn|to|cc|gg|vip|store|tv|at|ch|be|by|us|club|lgbt)(\/[^\s)>"']*[^\s)>"'.,!?;:])?)(?![a-z0-9-])/gi
+
+export const linksInText = (body: string) => [...(body ?? '').matchAll(LINK_IN_TEXT)].map((m) => m[1])
+
+export const LINK_IN_BIO_MESSAGE =
+  'Link-in-bio pages (like Linktree or Beacons) are not allowed. Add the links themselves instead.'
+
+/**
+ * Asks the moderate function about a site the lists do not know: it opens
+ * the page and has Jev judge it. Answers are cached server-side per link.
+ * Null when the check could not run — the save still goes through, and the
+ * same check runs after it.
+ */
+export async function previewLink(link: string): Promise<{ adult: boolean; link_in_bio: boolean } | null> {
+  try {
+    const { data, error } = await supabase.functions.invoke<{ adult?: boolean; link_in_bio?: boolean }>('moderate', {
+      body: { kind: 'preview_link', link },
+    })
+    if (error || !data) return null
+    return { adult: !!data.adult, link_in_bio: !!data.link_in_bio }
+  } catch {
+    return null
+  }
+}
 
 /** Trims a pasted link down to `host/path` — no scheme, no trailing slash. */
 export function normalizeLink(raw: string): string {
@@ -110,7 +171,6 @@ const BRANDS: Array<{ match: RegExp; label: string; color: string }> = [
   { match: /(^|\.)discord\.(gg|com)/i, label: 'Discord', color: '#5865F2' },
   { match: /(^|\.)linkedin\.com/i, label: 'LinkedIn', color: '#0A66C2' },
   { match: /(^|\.)github\.com/i, label: 'GitHub', color: '#161615' },
-  { match: /(^|\.)linktr\.ee/i, label: 'Linktree', color: '#39E09B' },
   { match: /(^|\.)etsy\.com/i, label: 'Etsy', color: '#F1641E' },
   { match: /(^|\.)spotify\.com/i, label: 'Spotify', color: '#1DB954' },
   { match: /(^|\.)bandcamp\.com/i, label: 'Bandcamp', color: '#629AA9' },

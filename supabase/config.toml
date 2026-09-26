@@ -6,3 +6,6 @@ verify_jwt = false
 
 [functions.auth-signup]
 verify_jwt = false
+
+[functions.moderate]
+verify_jwt = false

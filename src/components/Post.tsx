@@ -5,6 +5,7 @@ import { C } from '../lib/theme'
 import { useStore } from '../lib/store'
 import { supabase } from '../lib/supabase'
 import { entityHref, entityRef } from '../lib/data'
+import { LINK_IN_BIO_MESSAGE } from '../lib/profile'
 import type { AppData, EntityKind } from '../lib/types'
 import { Img, font } from './ui'
 import { Back, Heart } from './icons'
@@ -332,6 +333,7 @@ export function CommentSheet({ post, data, onClose }: { post: Post; data: AppDat
   const [replyTo, setReplyTo] = useState<Comment | null>(null)
   const [busy, setBusy] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
 
   const loadComments = useCallback(async () => {
     const { data: rows } = await supabase
@@ -365,6 +367,7 @@ export function CommentSheet({ post, data, onClose }: { post: Post; data: AppDat
     const text = body.trim()
     if (!text || !account.profileId) return
     setBusy(true)
+    setError('')
     try {
       const { error } = await supabase.from('comments').insert({
         post_id: post.id,
@@ -372,7 +375,10 @@ export function CommentSheet({ post, data, onClose }: { post: Post; data: AppDat
         parent_id: replyTo?.id ?? null,
         body: text,
       })
-      if (error) return
+      if (error) {
+        setError(error.hint === 'link_in_bio' ? LINK_IN_BIO_MESSAGE : 'Could not reply. Try again.')
+        return
+      }
       setBody('')
       setReplyTo(null)
       await loadComments()
@@ -455,7 +461,7 @@ export function CommentSheet({ post, data, onClose }: { post: Post; data: AppDat
             <div style={{ display: 'flex', gap: 9 }}>
               <input
                 value={body}
-                onChange={(e) => setBody(e.target.value)}
+                onChange={(e) => { setBody(e.target.value); setError('') }}
                 placeholder="Add a reply…"
                 style={{ flex: 1, minWidth: 0, border: `1px solid ${C.border}`, borderRadius: 999,
                          padding: '9px 14px', outline: 'none', font: font(400, 14, 1.3), color: C.ink,
@@ -469,6 +475,7 @@ export function CommentSheet({ post, data, onClose }: { post: Post; data: AppDat
                 {busy ? '…' : 'Reply'}
               </div>
             </div>
+            {error && <div style={{ font: font(500, 12, 1.4), color: C.danger, marginTop: 6 }}>{error}</div>}
           </div>
         ) : (
           <div style={{ padding: '14px', borderTop: `1px solid ${C.hairline}` }}>

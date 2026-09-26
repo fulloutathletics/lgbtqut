@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { C } from '../lib/theme'
 import { useStore } from '../lib/store'
 import { supabase } from '../lib/supabase'
+import { LINK_IN_BIO_MESSAGE } from '../lib/profile'
 import { Img, font } from '../components/ui'
 import { useData } from '../lib/useData'
 import { resolveManaged } from '../lib/pages'
@@ -56,7 +57,7 @@ function Composer({ onPosted }: { onPosted: () => void }) {
         body: text,
       })
       if (insertError) {
-        setError('Could not post. Try again.')
+        setError(insertError.hint === 'link_in_bio' ? LINK_IN_BIO_MESSAGE : 'Could not post. Try again.')
         return
       }
       setBody('')

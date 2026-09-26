@@ -176,6 +176,88 @@ new listing's id as a second argument for a new resource or business page). The
 `verified` badge is likewise reviewer-only; a trigger refuses to let a page
 change it on itself.
 
+## Moderation
+
+Two layers, so the certain answers never wait on a model.
+
+**Known domains, in the database.** Checked on every write, and cannot be
+skipped by a client:
+
+- A link to an adult-only platform (OnlyFans, Fansly, JustFor.Fans, …) in a
+  profile's links, website *or bio* rates the profile 18+. In a post or reply
+  it makes that post 18+.
+- **Link-in-bio pages are refused** — Linktree, Beacons, bio.link, linkin.bio,
+  Carrd and the rest — on a profile, in a bio, in a post or a reply. A
+  link-in-bio page is where the other links go to hide; if it were allowed,
+  the 18+ rule could not see what is behind it.
+
+The lists are `public.is_adult_link` / `public.is_link_in_bio`, mirrored in
+`src/lib/profile.ts` and `supabase/functions/_shared/links.ts`. Keep the three
+in step.
+
+**Everything else, in the `moderate` Edge Function**, called by `pg_net` after
+the write lands:
+
+- **Unfamiliar sites** — including domains that only *hint* (`fans`, `jff`,
+  `link`, `bio`, a `.fans` or `.bio` address) — are opened (redirects followed,
+  so a short link or custom domain cannot hide the destination; adult sites'
+  own RTA label is honoured) and put to **Jev** with the page's title and
+  description: *is this an adult-only platform? is this a link-in-bio page?*
+  Name hints alone are never a verdict — `fansided.com` is a sports site and
+  `linkedin.com` is not a link-in-bio page. Verdicts are cached per link in
+  `link_checks` for 30 days. The profile editor asks the same question as a
+  link is added, so the answer is on screen before Save.
+- **Text** — posts, replies, bios and display names — goes to **OpenAI's
+  moderation endpoint** (free) and **Jev** at once. OpenAI scores the standard
+  harms; Jev answers this app's own questions with the context that this is a
+  queer community: is a slur aimed or reclaimed, is this solicitation, is
+  someone being outed or doxxed, does a bio point to adult content.
+
+What happens:
+
+| Finding | Action |
+|---|---|
+| Sexual content involving minors (either provider) | hidden |
+| Hate or harassment | hidden only when **both** agree; one alone → review queue. OpenAI alone never hides anything: it scores queer people describing themselves as hate often enough to matter. |
+| Sexually explicit | allowed, rated 18+ (post, reply, or profile via its bio) |
+| Solicitation, adult pointers in a bio | rated 18+ and queued for review |
+| Spam / scam, outing / doxxing | hidden when Jev is confident, else queued |
+| Self-harm | **never hidden** — queued as `support`, so someone can reach out |
+
+A hidden post stays visible to its author and to super-admins. Findings are
+in `moderation_flags` (scores only, never the text); the person affected can
+read the ones that changed something of theirs. A reviewer resolves a flag
+with `update moderation_flags set resolved_at = now(), resolved_by = auth.uid()`,
+and can overrule the machine by setting `hidden_reason` to `reviewer:…` —
+automated passes leave those rows alone.
+
+Everything fails open: if a provider or the function is down, content stays
+up and the known-domain rules still hold. Only the text goes to OpenAI and
+TypeSafe — no account id, handle or name alongside it.
+
+### Setting it up
+
+Edge Function secrets:
+
+| Secret | What |
+|---|---|
+| `JEV_API` | TypeSafe (Jev) API key. |
+| `OPENAI_API_KEY` | OpenAI API key. The moderation endpoint is free, but still needs a key. |
+| `MODERATION_HOOK_SECRET` | Random, e.g. `openssl rand -hex 32`. The database proves itself to the function with it. |
+
+Either provider can be left out; the other runs alone with stricter
+thresholds. Then give the database the same hook secret and the project URL,
+in the SQL editor:
+
+```sql
+select vault.create_secret('https://<project-ref>.supabase.co', 'project_url');
+select vault.create_secret('<same value as MODERATION_HOOK_SECRET>', 'moderation_hook_secret');
+```
+
+Until both exist the hooks do nothing, and only the database rules apply.
+Deploy with `supabase functions deploy moderate`. Links whose check failed can
+be retried with a `{ "kind": "sweep" }` call (worth a `pg_cron` job).
+
 ## Structure
 
 ```
@@ -186,7 +268,7 @@ src/
   sw.ts       service worker: push + notificationclick
 supabase/
   migrations/ schema, RLS policies, column grants
-  functions/  auth-signup, auth-signin, auth-reset (+ _shared/recovery.ts)
+  functions/  auth-signup, auth-signin, auth-reset, moderate (+ _shared/)
   seed.sql    generated content rows
 design-reference/  the original handoff bundle — the source of truth for specs
 scripts/generate-data.mjs   design-reference → seed.json + seed.sql
@@ -262,7 +344,9 @@ represents.
 - **Section config** exists for five worked examples; the other 31 businesses
   render with no sections until an admin configures them.
 - **PWA icons** are a generated pride-flag placeholder. Swap in the real logo.
-- **Moderation queue.** Per the handoff, the social layer should not launch
-  without one, and it does not exist yet.
+- **Moderation queue UI.** Automated checks fill `moderation_flags`
+  ([Moderation](#moderation)); reviewers work it from the SQL editor until an
+  in-app queue exists. Authors are not yet shown in-app that a post of theirs
+  was hidden.
 - **Reviewer tooling.** Page requests are approved with a SQL call. An in-app
   queue for reviewers would replace that; the data model does not change.
