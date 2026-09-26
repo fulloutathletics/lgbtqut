@@ -91,7 +91,7 @@ Edge Function secrets (Project Settings → Edge Functions → Secrets):
 |---|---|
 | `EMAIL_PEPPER` | 32+ random characters, e.g. `openssl rand -base64 48`. **Never change or lose it** — every fingerprint depends on it, and without it nobody can reset a password. Keep a copy in a password manager, not in this repo. |
 | `RESEND_JORJACK_KEY` (or `RESEND_API_KEY`) | Resend API key. |
-| `MAIL_FROM` | e.g. `LGBTQ.UT <no-reply@your-domain>` on a domain verified in Resend. Until it is set, mail goes from Resend's test sender, which only delivers to the Resend account owner. |
+| `MAIL_FROM` | `LGBTQ.UT <no-reply@reset.lgbtqut.app>` — `reset.lgbtqut.app` is the subdomain verified in Resend (its records live under `reset.` in Squarespace DNS, clear of Faivelo's on the root). Until it is set, mail goes from Resend's test sender, which only delivers to the Resend account owner. |
 
 Also, in Authentication → Sign In / Providers, turn **off** "Allow new users
 to sign up". Accounts are created by `auth-signup` with the service role; with
