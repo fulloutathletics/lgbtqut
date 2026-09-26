@@ -36,11 +36,6 @@ supabase db push                                  # applies supabase/migrations/
 psql "$DATABASE_URL" -f supabase/seed.sql         # or paste into the SQL editor
 ```
 
-For a populated Feed, `supabase/seed-social.sql` adds a small demo community —
-eight discoverable people with posts, follows, likes and replies. Run it by hand
-after the migrations; it is idempotent, and its header shows the one statement
-that removes it again.
-
 `supabase/seed.sql` is generated — re-run `npm run generate:data` after changing
 anything in `design-reference/`, never hand-edit it.
 

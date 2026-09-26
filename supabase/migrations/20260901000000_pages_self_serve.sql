@@ -89,13 +89,15 @@ create policy "page admins run their events"
   with check (entity_kind is not null and public.administers(entity_kind, entity_id));
 
 -- Verification is granted by a reviewer, never by the page itself. Client
--- sessions carry auth.uid(); the SQL editor and service role do not.
+-- sessions carry auth.uid(); the SQL editor and service role do not. A
+-- super-admin is a reviewer too, and flips it from the in-app console.
 create or replace function public.keep_verified_reviewer_only()
 returns trigger
 language plpgsql
 as $$
 begin
-  if new.verified is distinct from old.verified and auth.uid() is not null then
+  if new.verified is distinct from old.verified
+     and auth.uid() is not null and not public.is_admin() then
     raise exception 'verified is set by a reviewer, not by the page';
   end if;
   return new;
